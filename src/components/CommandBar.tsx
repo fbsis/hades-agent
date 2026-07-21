@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { AudioLines, ChevronRight, Camera, X, Paperclip, Plus, ChevronDown, Check, MessageSquare, Minimize2, Pin, Settings as SettingsIcon } from 'lucide-react';
+import { AudioLines, ChevronRight, Camera, X, Paperclip, Plus, ChevronDown, Check, MessageSquare, Mic, Minimize2, Pin, Settings as SettingsIcon } from 'lucide-react';
 import { CommandPanel, useCommandBar } from '../hooks/useCommandBar';
 import { electronService } from '../services/electron';
 import { MODELS } from '../constants/models';
 import MiniChat from './MiniChat';
 import Settings from './Settings';
 import Susurro from './Susurro';
+import VoiceRecorder from './VoiceRecorder';
 
 /**
  * CommandBar component - A sleek, minimal input bar for AI commands.
@@ -115,6 +116,10 @@ const CommandBar: React.FC = () => {
     setActivePanel(activePanel === 'transcription' ? 'command' : 'transcription');
   };
 
+  const handleOpenVoice = () => {
+    setActivePanel(activePanel === 'voice' ? 'command' : 'voice');
+  };
+
   const handleMinimizeToHead = () => {
     electronService.minimizeToHead();
   };
@@ -218,6 +223,17 @@ const CommandBar: React.FC = () => {
           title="Abrir transcrição (Alt+B)"
         >
           <AudioLines size={14} color="#dc2626" />
+        </button>
+
+        {/* Voice Recorder Button */}
+        <button
+          type="button"
+          className={`footer-btn ${activePanel === 'voice' ? 'active' : ''}`}
+          onClick={handleOpenVoice}
+          style={{ padding: '6px 10px' }}
+          title="Escutar (Alt+V)"
+        >
+          <Mic size={14} color="#dc2626" />
         </button>
 
         {/* Active Model Selector Pill */}
@@ -391,6 +407,14 @@ const CommandBar: React.FC = () => {
 
         {activePanel === 'transcription' && (
           <Susurro
+            embedded
+            autoStart
+            onClosePanel={() => setActivePanel('command')}
+          />
+        )}
+
+        {activePanel === 'voice' && (
+          <VoiceRecorder
             embedded
             autoStart
             onClosePanel={() => setActivePanel('command')}

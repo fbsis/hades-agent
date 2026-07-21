@@ -36,7 +36,7 @@ function toggleCommandWindow() {
   
   if (win.isVisible()) {
     console.log('[SHORTCUTS] === ACTION: MINIMIZE TO FLOATING HEAD ===');
-    windowManager.minimizeToFloatingHead();
+    windowManager.minimizeToFloatingHead(win);
   } else {
     console.log('[SHORTCUTS] === ACTION: SHOW UNIFIED COMMAND ===');
     windowManager.showCommandPanel(appState.chatHasMessages ? 'chat' : 'command');
@@ -113,16 +113,12 @@ function registerGlobalShortcuts(retryCount = 0) {
 
   // Trigger Voice Command
   if (!registerShortcut('Voice', shortcuts.toggleVoice || 'Alt+V', () => {
-    const win = windowManager.get('voice') || windowManager.createVoiceWindow();
-    if (win.isVisible()) {
-      win.hide();
-    } else {
-      windowManager.hideAllExcept(['voice']);
-      win.show();
-      win.focus();
-      // Envia o evento para começar a gravar imediatamente após abrir
-      win.webContents.send('start-voice');
-    }
+    const win = windowManager.showCommandPanel('voice');
+    setTimeout(() => {
+      if (win && !win.isDestroyed()) {
+        win.webContents.send('start-voice');
+      }
+    }, 120);
   })) allRegistered = false;
 
   // Retry if any shortcut failed (zombie process may still be releasing)

@@ -3,7 +3,7 @@ import { stitchImages } from '../utils/image';
 import { electronService } from '../services/electron';
 
 const MAX_CHARS = 4000;
-export type CommandPanel = 'command' | 'chat' | 'settings' | 'transcription';
+export type CommandPanel = 'command' | 'chat' | 'settings' | 'transcription' | 'voice';
 
 /**
  * Orchestrator hook for the CommandBar component.

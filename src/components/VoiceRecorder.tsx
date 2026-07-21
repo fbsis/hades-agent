@@ -7,7 +7,13 @@ import { electronService } from '../services/electron';
  * VoiceRecorder: One-shot voice command recorder with Gemini transcription.
  * Optimized with useVoiceRecorder hook and shared audio utilities.
  */
-const VoiceRecorder: React.FC = () => {
+interface VoiceRecorderProps {
+  embedded?: boolean;
+  autoStart?: boolean;
+  onClosePanel?: () => void;
+}
+
+const VoiceRecorder: React.FC<VoiceRecorderProps> = ({ embedded = false, autoStart = false, onClosePanel }) => {
   const {
     step,
     isTranscribing,
@@ -19,7 +25,17 @@ const VoiceRecorder: React.FC = () => {
     finalize,
     resetState,
     stopRecording
-  } = useVoiceRecorder();
+  } = useVoiceRecorder(embedded ? onClosePanel : undefined);
+
+  const closeVoice = useCallback(() => {
+    stopRecording();
+    resetState();
+    if (embedded && onClosePanel) {
+      onClosePanel();
+    } else {
+      electronService.closeWindow();
+    }
+  }, [embedded, onClosePanel, resetState, stopRecording]);
 
   const handleAction = useCallback(() => {
     if (step === 1) start();
@@ -43,9 +59,7 @@ const VoiceRecorder: React.FC = () => {
     
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        stopRecording();
-        resetState();
-        electronService.closeWindow();
+        closeVoice();
       }
       if (e.key === 'Enter' || e.key === ' ') {
         e.preventDefault();
@@ -60,10 +74,16 @@ const VoiceRecorder: React.FC = () => {
       stopRecording();
       globalThis.removeEventListener('keydown', handleKeyDown);
     };
-  }, [handleAction, stopRecording, resetState]);
+  }, [handleAction, stopRecording, resetState, start, closeVoice]);
+
+  useEffect(() => {
+    if (!autoStart) return;
+    resetState();
+    start();
+  }, [autoStart, resetState, start]);
 
   return (
-    <div className="app-container voice-mode">
+    <div className={`app-container voice-mode ${embedded ? 'embedded-voice' : ''}`}>
       <div className="voice-recorder-section">
         <div className="waveform-container">
           {step === 2 ? (
@@ -104,7 +124,7 @@ const VoiceRecorder: React.FC = () => {
           <span className="keycap-box">{step === 1 ? 'ALT+V' : 'ESPAÇO'}</span>
           <span className="keycap-text">{buttonText}</span>
         </button>
-        <button className="footer-btn" onClick={() => { stopRecording(); resetState(); electronService.closeWindow(); }}>
+        <button className="footer-btn" onClick={closeVoice}>
           <span className="keycap-box">ESC</span>
           <span className="keycap-text">Cancelar</span>
         </button>

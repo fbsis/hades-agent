@@ -7,7 +7,7 @@ import { electronService } from '../services/electron';
  * Specialized hook for the VoiceRecorder component.
  * Handles one-shot recording, review, and transcription.
  */
-export const useVoiceRecorder = () => {
+export const useVoiceRecorder = (onDone?: () => void) => {
   const [step, setStep] = useState(1); // 1: Idle, 2: Recording, 3: Reviewing
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [transcription, setTranscription] = useState('');
@@ -68,11 +68,11 @@ export const useVoiceRecorder = () => {
 
       // Send to Electron backend for transcription
       const result = await electronService.transcribeAudio(base64);
-      if (result.success) {
-        setTranscription(result.data || '');
+      if (result?.trim()) {
+        setTranscription(result);
         setStatus('Transcrição concluída!');
       } else {
-        setTranscription(`Erro: ${result.error}`);
+        setTranscription('Erro: transcrição vazia');
         setStatus('Erro na transcrição');
       }
       setIsTranscribing(false);
@@ -90,13 +90,21 @@ export const useVoiceRecorder = () => {
       setStatus('Enviado!');
       setTimeout(() => {
         resetState();
-        electronService.closeWindow();
+        if (onDone) {
+          onDone();
+        } else {
+          electronService.closeWindow();
+        }
       }, 500);
     } else {
       resetState();
-      electronService.closeWindow();
+      if (onDone) {
+        onDone();
+      } else {
+        electronService.closeWindow();
+      }
     }
-  }, [transcription, resetState]);
+  }, [transcription, resetState, onDone]);
 
   return {
     step,
