@@ -47,13 +47,17 @@ function registerChatHandlers() {
 
       // Run AI session generation asynchronously without blocking the UI
       let firstMessageContent = 'Nova Sessão';
-      const firstUserMessage = history.find(msg => msg.role === 'user' || msg.sender === 'user');
+      const firstUserMessage = isSusurro
+        ? history.find(msg => msg.text || msg.pendingText || msg.content)
+        : history.find(msg => msg.role === 'user' || msg.sender === 'user');
       if (firstUserMessage) {
         if (firstUserMessage.parts) {
           const textPart = firstUserMessage.parts.find(p => p.text);
           if (textPart) firstMessageContent = textPart.text;
         } else if (firstUserMessage.text) {
           firstMessageContent = firstUserMessage.text;
+        } else if (firstUserMessage.pendingText) {
+          firstMessageContent = firstUserMessage.pendingText;
         } else if (firstUserMessage.content) {
           firstMessageContent = firstUserMessage.content;
         }
@@ -73,6 +77,13 @@ function registerChatHandlers() {
       const sessions = store.getSessions();
       sessions.push(session);
       store.saveSessions(sessions);
+
+      if (isSusurro) {
+        const hermesService = require('../services/hermesService');
+        hermesService.summarizeMeeting(session).catch(error => {
+          logger.error('HERMES', 'meeting summary error', error);
+        });
+      }
 
       return { success: true, data: session };
     } catch (error) {

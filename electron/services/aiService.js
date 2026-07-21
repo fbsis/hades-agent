@@ -1,6 +1,7 @@
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 const logger = require('./logger');
 const jsonStore = require('../store/jsonStore');
+const hermesService = require('./hermesService');
 
 /**
  * AIService provides an interface for interacting with Google's Gemini models.
@@ -15,6 +16,23 @@ class AIService {
    * @returns {Promise<string|null>}
    */
   async generateSuggestion({ transcription, personaPrompt }) {
+    const settings = jsonStore.getSettings();
+    if (settings?.hermes?.enabled && settings?.hermes?.useAsPrimaryAgent !== false) {
+      const hermesResult = await hermesService.ask({
+        prompt: `Persona: ${personaPrompt}\n\nTrecho da transcricao: ${transcription}`,
+        instruction: 'Gere uma sugestao curta e util para a pessoa acompanhando esta reuniao/transcricao. Retorne apenas a sugestao.',
+        includeLocalContext: true,
+        maxOutputTokens: 220,
+        timeoutMs: 10000,
+        logType: 'suggestion',
+        primaryAgent: true
+      });
+
+      if (hermesResult.success && hermesResult.text) {
+        return hermesResult.text;
+      }
+    }
+
     const apiKey = jsonStore.getSettings().general.apiKey || process.env.VITE_GEMINI_API_KEY;
     if (!apiKey) {
       logger.warn('AI', 'VITE_GEMINI_API_KEY is not defined.');
@@ -36,12 +54,79 @@ class AIService {
   }
 
   /**
+   * Answers a user question using the current live transcription as context.
+   * Hermes is preferred because it is the agent layer; Gemini is the local fallback.
+   * @param {Object} params
+   * @param {string} params.question
+   * @param {string} params.transcript
+   * @param {string} [params.personaPrompt]
+   * @returns {Promise<{ text: string, provider: string }>}
+   */
+  async answerTranscriptQuestion({ question, transcript, personaPrompt }) {
+    const cleanQuestion = String(question || '').trim();
+    const cleanTranscript = String(transcript || '').trim();
+    if (!cleanQuestion) {
+      throw new Error('Pergunta vazia.');
+    }
+    if (!cleanTranscript) {
+      throw new Error('Ainda nao existe transcricao para consultar.');
+    }
+
+    const settings = jsonStore.getSettings();
+    const context = [
+      personaPrompt ? `Persona ativa:\n${personaPrompt}` : '',
+      `Transcricao atual:\n${cleanTranscript}`
+    ].filter(Boolean).join('\n\n');
+
+    if (settings?.hermes?.enabled) {
+      const hermesResult = await hermesService.ask({
+        prompt: cleanQuestion,
+        context,
+        instruction: [
+          'Responda em pt-BR usando a transcricao como fonte principal.',
+          'Se a resposta nao estiver na transcricao, diga isso objetivamente e, quando util, explique o que faltou.',
+          'Se houver tarefas, decisoes ou pontos importantes, destaque de forma curta.',
+          'Nao invente informacoes fora da transcricao.'
+        ].join(' '),
+        includeLocalContext: true,
+        maxOutputTokens: 900,
+        timeoutMs: settings?.hermes?.timeoutMs || 30000,
+        logType: 'transcript_question',
+        primaryAgent: true
+      });
+
+      if (hermesResult.success && hermesResult.text) {
+        return { text: hermesResult.text, provider: 'hermes' };
+      }
+    }
+
+    const apiKey = settings.general.apiKey || process.env.VITE_GEMINI_API_KEY;
+    if (!apiKey) {
+      throw new Error('Hermes indisponivel e Gemini API key nao configurada.');
+    }
+
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({ model: settings.general.minichatModel || 'gemini-2.5-flash' });
+    const prompt = [
+      'Responda em pt-BR usando somente a transcricao abaixo como fonte principal.',
+      'Se a resposta nao estiver na transcricao, diga isso objetivamente.',
+      personaPrompt ? `Persona ativa:\n${personaPrompt}` : '',
+      `Transcricao atual:\n${cleanTranscript}`,
+      `Pergunta:\n${cleanQuestion}`
+    ].filter(Boolean).join('\n\n');
+
+    const result = await model.generateContent(prompt);
+    return { text: result.response.text(), provider: 'gemini' };
+  }
+
+  /**
    * Generates a short, descriptive session title from the first user message.
    * @param {string} firstMessage - The first user message in the session.
    * @returns {Promise<string>}
    */
   async generateSessionTitle(firstMessage) {
-    const apiKey = jsonStore.getSettings().general.apiKey || process.env.VITE_GEMINI_API_KEY;
+    const settings = jsonStore.getSettings();
+    const apiKey = settings.general.apiKey || process.env.VITE_GEMINI_API_KEY;
     if (!apiKey) return this._fallbackTitle(firstMessage);
 
     try {
