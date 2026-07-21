@@ -11,12 +11,17 @@ export interface ElectronAPI {
   // Window Control
   closeWindow: () => Promise<IPCResponse<void>>;
   minimizeWindow: () => Promise<IPCResponse<void>>;
+  minimizeToHead: () => Promise<IPCResponse<void>>;
   resizeWindow: (width: number, height: number) => Promise<IPCResponse<void>>;
   togglePin: () => void;
   isPinned: () => Promise<boolean>;
   isMinimized: () => Promise<boolean>;
   isMaximized: () => Promise<boolean>;
   startResizing: () => void;
+  showSettings: () => void;
+  showSusurro: () => void;
+  floatingHeadClick: () => void;
+  moveFloatingHead: (delta: { x: number; y: number }) => void;
   toggleMic: (enabled: boolean) => void;
   toggleAudio: (enabled: boolean) => void;
   
@@ -25,6 +30,7 @@ export interface ElectronAPI {
   showNotification: (text: string) => void;
   onNewChatMessage: (callback: (msg: string, img?: string) => void) => () => void;
   onFocusInput: (callback: () => void) => () => void;
+  onOpenCommandPanel: (callback: (panel: 'command' | 'chat' | 'settings' | 'transcription') => void) => () => void;
   onNotify: (callback: (message: string) => void) => () => void;
   notifHidden: () => void;
   
@@ -41,6 +47,7 @@ export interface ElectronAPI {
   endSession: (type?: string) => Promise<IPCResponse<any>>;
   getTotalTokens: () => Promise<IPCResponse<number>>;
   updateTokens: (count: number) => Promise<IPCResponse<number>>;
+  commandWindowReady: () => void;
   chatWindowReady: () => void;
   
   // Susurro (Live Transcription)

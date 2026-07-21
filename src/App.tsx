@@ -6,6 +6,7 @@ import Susurro from './components/Susurro'
 import SuggestionsPopup from './components/SuggestionsPopup'
 import Splash from './components/Splash'
 import Settings from './components/Settings'
+import FloatingHead from './components/FloatingHead'
 
 const App: React.FC = () => {
   const urlParams = new URLSearchParams(globalThis.location.search)
@@ -42,6 +43,10 @@ const App: React.FC = () => {
 
   if (windowType === 'settings') {
     return <Settings />
+  }
+
+  if (windowType === 'floating-head') {
+    return <FloatingHead />
   }
 
   return <CommandBar />

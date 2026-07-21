@@ -18,6 +18,11 @@ contextBridge.exposeInMainWorld('electron', {
     ipcRenderer.on('focus-input', sub);
     return () => ipcRenderer.removeListener('focus-input', sub);
   },
+  onOpenCommandPanel: (callback) => {
+    const sub = (_event, panel) => callback(panel);
+    ipcRenderer.on('open-command-panel', sub);
+    return () => ipcRenderer.removeListener('open-command-panel', sub);
+  },
   onNotify: (callback) => {
     const sub = (_event, message) => callback(message);
     ipcRenderer.on('notify', sub);
@@ -29,14 +34,19 @@ contextBridge.exposeInMainWorld('electron', {
   // --- Window Management ---
   closeWindow: () => ipcRenderer.invoke('close-window'),
   minimizeWindow: () => ipcRenderer.invoke('minimize-window'),
+  minimizeToHead: () => ipcRenderer.invoke('minimize-to-head'),
   resizeWindow: (w, h) => ipcRenderer.invoke('resize-window', { width: w, height: h }),
   showChat: () => ipcRenderer.send('show-chat'),
+  showSettings: () => ipcRenderer.send('show-settings'),
+  showSusurro: () => ipcRenderer.send('show-susurro'),
   togglePin: () => ipcRenderer.send('toggle-pin'),
   isPinned: () => ipcRenderer.invoke('is-pinned'),
   isMinimized: () => ipcRenderer.invoke('is-minimized'),
   isMaximized: () => ipcRenderer.invoke('is-maximized'),
   startResizing: () => ipcRenderer.send('start-resizing'),
   updateChatPin: (pinned) => ipcRenderer.send('update-chat-pin', pinned),
+  floatingHeadClick: () => ipcRenderer.send('floating-head-click'),
+  moveFloatingHead: (delta) => ipcRenderer.send('move-floating-head', delta),
   toggleMic: (enabled) => ipcRenderer.send('toggle-mic', enabled),
   toggleAudio: (enabled) => ipcRenderer.send('toggle-audio', enabled),
 
@@ -47,6 +57,7 @@ contextBridge.exposeInMainWorld('electron', {
   updateTokens: (count) => ipcRenderer.invoke('update-tokens', count),
   getTotalTokens: () => ipcRenderer.invoke('get-total-tokens'),
   endSession: (type) => ipcRenderer.invoke('end-session', type),
+  commandWindowReady: () => ipcRenderer.send('command-window-ready'),
   chatWindowReady: () => ipcRenderer.send('chat-window-ready'),
 
   // --- Tasks ---

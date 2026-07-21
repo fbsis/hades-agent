@@ -39,6 +39,8 @@ interface SusurroHeaderProps {
   decreaseFontSize: () => void;
   fontSize: number;
   onCloseSession: () => void;
+  embedded?: boolean;
+  onClosePanel?: () => void;
 }
 
 /**
@@ -132,9 +134,11 @@ export const SusurroHeader: React.FC<SusurroHeaderProps> = (props) => {
           )}
         </div>
 
-        <button className="action-btn" onClick={props.togglePin}>
-          {props.isPinned ? <PinOff size={18} color="var(--accent-light)" /> : <Pin size={18} />}
-        </button>
+        {!props.embedded && (
+          <button className="action-btn" onClick={props.togglePin}>
+            {props.isPinned ? <PinOff size={18} color="var(--accent-light)" /> : <Pin size={18} />}
+          </button>
+        )}
 
         <div className="font-controls">
           <button className="action-btn" onClick={props.decreaseFontSize} title="Diminuir fonte">
@@ -149,7 +153,13 @@ export const SusurroHeader: React.FC<SusurroHeaderProps> = (props) => {
           </button>
         </div>
 
-        <button className="action-btn" onClick={props.handleMinimize}><Minus size={18} /></button>
+        <button
+          className="action-btn"
+          onClick={props.embedded && props.onClosePanel ? props.onClosePanel : props.handleMinimize}
+          title={props.embedded ? 'Voltar' : 'Minimizar'}
+        >
+          <Minus size={18} />
+        </button>
       </div>
     </div>
   );

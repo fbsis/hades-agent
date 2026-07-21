@@ -11,29 +11,33 @@ let trayInstance = null;
  * @returns {Tray}
  */
 function createTray() {
-  const iconPath = path.join(__dirname, '../public/icon/hades-tray-icon.ico');
+  const iconPath = process.platform === 'darwin'
+    ? path.join(__dirname, '../public/icon/hades-tray-icon-128.png')
+    : path.join(__dirname, '../public/icon/hades-tray-icon.ico');
   trayInstance = new Tray(iconPath);
+
+  if (process.platform === 'darwin') {
+    app.dock.hide();
+  }
 
   const contextMenu = Menu.buildFromTemplate([
     {
       label: 'Abrir Hades (Alt+D)',
       click: () => {
-        const win = windowManager.get('command') || windowManager.createCommandWindow();
-        win.show();
-        win.focus();
+        windowManager.showCommandPanel('command');
       }
     },
     {
       label: 'Abrir Chat',
-      click: () => windowManager.createChatWindow()
+      click: () => windowManager.showCommandPanel('chat')
+    },
+    {
+      label: 'Abrir Transcrição (Alt+B)',
+      click: () => windowManager.showCommandPanel('transcription')
     },
     {
       label: 'Configurações',
-      click: () => {
-        const win = windowManager.get('settings') || windowManager.createSettingsWindow();
-        win.show();
-        win.focus();
-      }
+      click: () => windowManager.showCommandPanel('settings')
     },
     { type: 'separator' },
     {

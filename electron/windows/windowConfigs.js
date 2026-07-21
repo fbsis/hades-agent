@@ -176,6 +176,36 @@ const windowConfigs = {
       win.setPosition(Math.floor(screenWidth / 2 - 200), 50);
     }
   },
+  floatingHead: {
+    width: 64,
+    height: 64,
+    frame: false,
+    transparent: true,
+    hasShadow: false,
+    alwaysOnTop: true,
+    resizable: false,
+    movable: true,
+    skipTaskbar: true,
+    show: false,
+    backgroundColor: '#00000000',
+    url: `${baseUrl}?window=floating-head`,
+    webPreferences: {
+      preload: preloadPath,
+      nodeIntegration: false,
+      contextIsolation: true,
+      sandbox: true,
+      backgroundThrottling: false,
+    },
+    onInit: (win) => {
+      const area = screen.getPrimaryDisplay().workArea;
+      win.setPosition(
+        Math.max(area.x + 12, area.x + area.width - 88),
+        Math.max(area.y + 12, area.y + area.height - 96)
+      );
+      win.setAlwaysOnTop(true, 'screen-saver');
+      win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+    }
+  },
   splash: {
     width: 900,
     height: 180,

@@ -35,31 +35,11 @@ function toggleCommandWindow() {
   }
   
   if (win.isVisible()) {
-    console.log('[SHORTCUTS] === ACTION: HIDE ALL ===');
-    windowManager.hideAllWindows();
+    console.log('[SHORTCUTS] === ACTION: MINIMIZE TO FLOATING HEAD ===');
+    windowManager.minimizeToFloatingHead();
   } else {
-    console.log('[SHORTCUTS] === ACTION: SHOW WINDOWS ===');
-    windowManager.hideAllExcept(['command', 'chat']);
-
-    // Step 1: show chat FIRST (below command bar) if active session exists
-    if (chatWin && !chatWin.isDestroyed() && appState.chatHasMessages) {
-      console.log('[SHORTCUTS] --- STEP 1: SHOW CHAT ---');
-      console.log('[SHORTCUTS] calling chatWin.show()');
-      chatWin.show();
-      logWinState('CHAT after show()', chatWin);
-    } else {
-      console.log(`[SHORTCUTS] --- STEP 1: SKIP CHAT (exists=${!!chatWin} destroyed=${chatWin?.isDestroyed?.()} hasMessages=${appState.chatHasMessages}) ---`);
-    }
-
-    // Step 2: show command window ON TOP of chat and focus it
-    console.log('[SHORTCUTS] --- STEP 2: SHOW COMMAND ---');
-    console.log('[SHORTCUTS] calling win.show()');
-    win.show();
-    logWinState('COMMAND after show()', win);
-    console.log('[SHORTCUTS] calling win.focus()');
-    win.focus();
-    logWinState('COMMAND after focus()', win);
-    win.webContents.send('focus-input');
+    console.log('[SHORTCUTS] === ACTION: SHOW UNIFIED COMMAND ===');
+    windowManager.showCommandPanel(appState.chatHasMessages ? 'chat' : 'command');
 
     // Deferred state check — see what happened after OS compositor settles
     setTimeout(() => {
@@ -88,21 +68,7 @@ function toggleCommandWindow() {
  */
 function toggleSettingsWindow() {
   console.log('[SHORTCUTS] Toggle Settings pressed!');
-  const win = windowManager.get('settings') || windowManager.createSettingsWindow();
-  if (!win) {
-    console.error('[SHORTCUTS] Settings window is null or undefined.');
-    return;
-  }
-  
-  if (win.isVisible()) {
-    console.log('[SHORTCUTS] Settings window is visible. Hiding...');
-    win.hide();
-  } else {
-    console.log('[SHORTCUTS] Settings window is hidden. Showing...');
-    windowManager.hideAllExcept(['settings']);
-    win.show();
-    win.focus();
-  }
+  windowManager.showCommandPanel('settings');
 }
 
 function registerShortcut(name, key, handler) {
@@ -142,16 +108,7 @@ function registerGlobalShortcuts(retryCount = 0) {
 
   // Toggle Susurro (Live Transcription)
   if (!registerShortcut('Susurro', shortcuts.toggleSusurro || 'Alt+B', () => {
-    const win = windowManager.get('susurro') || windowManager.createSusurroWindow();
-    if (win.isVisible()) {
-      win.hide();
-    } else {
-      windowManager.hideAllExcept(['susurro', 'suggestions']);
-      win.show();
-      win.focus();
-      // Sinaliza o frontend para iniciar a conexão imediatamente
-      win.webContents.send('start-susurro');
-    }
+    windowManager.showCommandPanel('transcription');
   })) allRegistered = false;
 
   // Trigger Voice Command

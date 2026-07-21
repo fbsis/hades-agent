@@ -237,6 +237,14 @@ export const useTranscription = (
     };
   }, [processDeltas, handleStatusUpdate, toggleTranscription]);
 
+  useEffect(() => {
+    return () => {
+      electronService.stopSusurroLive();
+      stopRecording();
+      if (deltaTimeoutRef.current) clearTimeout(deltaTimeoutRef.current);
+    };
+  }, [stopRecording]);
+
   return {
     isTranscribing,
     isConnecting,

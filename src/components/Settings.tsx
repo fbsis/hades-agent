@@ -10,7 +10,12 @@ import AudioTab from './settings/AudioTab';
 import GeneralTab from './settings/GeneralTab';
 import ShortcutsTab from './settings/ShortcutsTab';
 
-const Settings: React.FC = () => {
+interface SettingsProps {
+  embedded?: boolean;
+  onClosePanel?: () => void;
+}
+
+const Settings: React.FC<SettingsProps> = ({ embedded = false, onClosePanel }) => {
   const {
     activeTab,
     setActiveTab,
@@ -24,19 +29,23 @@ const Settings: React.FC = () => {
   } = useSettings();
 
   const handleClose = () => {
+    if (embedded && onClosePanel) {
+      onClosePanel();
+      return;
+    }
     electronService.closeWindow();
   };
 
   if (isLoading || !settings) {
     return (
-      <div className="settings-window" style={{ justifyContent: 'center', alignItems: 'center' }}>
+      <div className={`settings-window ${embedded ? 'embedded-settings' : ''}`} style={{ justifyContent: 'center', alignItems: 'center' }}>
         <Loader className="animate-spin" size={32} color="#dc2626" />
       </div>
     );
   }
 
   return (
-    <div className="settings-window">
+    <div className={`settings-window ${embedded ? 'embedded-settings' : ''}`}>
       <div className="settings-drag-area">
         <div style={{ fontSize: '12px', fontWeight: 600, color: 'rgba(255,255,255,0.5)' }}>
           HADES AGENT

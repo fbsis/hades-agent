@@ -11,7 +11,7 @@ import { electronService } from '../services/electron';
  * Orchestrator hook for Susurro logic.
  * Manages state for messages, personas, translation, and UI controls.
  */
-export const useSusurro = () => {
+export const useSusurro = (options: { embedded?: boolean; autoStart?: boolean; onClosePanel?: () => void } = {}) => {
   // --- Core State ---
   const [messages, setMessages] = useState<SusurroMessage[]>([]);
   const [timer, setTimer] = useState(0);
@@ -71,6 +71,10 @@ export const useSusurro = () => {
     const timerInterval = setInterval(() => setTimer(prev => prev + 1), 1000);
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
+        if (options.embedded && options.onClosePanel) {
+          options.onClosePanel();
+          return;
+        }
         electronService.closeWindow();
       }
       if (e.key === ' ') {
@@ -86,7 +90,20 @@ export const useSusurro = () => {
       globalThis.removeEventListener('keydown', handleKeyDown);
       clearInterval(timerInterval);
     };
-  }, []);
+  }, [options.embedded, options.onClosePanel, startTranscriptionHades]);
+
+  useEffect(() => {
+    if (!options.autoStart) return;
+    startTranscriptionHades();
+  }, [options.autoStart, startTranscriptionHades]);
+
+  useEffect(() => {
+    return () => {
+      if (options.embedded) {
+        electronService.stopSusurroLive();
+      }
+    };
+  }, [options.embedded]);
 
   // Listen for live settings updates from the main process
   useEffect(() => {

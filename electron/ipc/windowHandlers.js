@@ -1,4 +1,4 @@
-const { ipcMain, BrowserWindow } = require('electron');
+const { ipcMain, BrowserWindow, screen } = require('electron');
 const windowManager = require('../windows/windowManager');
 const appState = require('../appState');
 
@@ -13,10 +13,13 @@ function registerWindowHandlers() {
     const win = BrowserWindow.fromWebContents(event.sender);
     if (win) {
       const settingsWin = windowManager.get('settings');
-      if (win === settingsWin) {
+      const floatingHeadWin = windowManager.get('floatingHead');
+      if (win === floatingHeadWin) {
+        windowManager.showCommandPanel('command');
+      } else if (win === settingsWin) {
         win.hide();
       } else {
-        windowManager.hideAllWindows();
+        windowManager.minimizeToFloatingHead();
       }
       return { success: true };
     }
@@ -29,10 +32,15 @@ function registerWindowHandlers() {
   ipcMain.handle('minimize-window', (event) => {
     const win = BrowserWindow.fromWebContents(event.sender);
     if (win) {
-      win.minimize();
+      windowManager.minimizeToFloatingHead();
       return { success: true };
     }
     return { success: false, error: "Window not found" };
+  });
+
+  ipcMain.handle('minimize-to-head', () => {
+    windowManager.minimizeToFloatingHead();
+    return { success: true };
   });
 
   /**
@@ -42,6 +50,9 @@ function registerWindowHandlers() {
     const win = BrowserWindow.fromWebContents(event.sender);
     if (win) {
       win.setSize(width, height);
+      if (win === windowManager.get('command') && appState.isCommandPinned) {
+        windowManager.enforceCommandAlwaysOnTop('resize-window');
+      }
       return { success: true };
     }
     return { success: false, error: "Window not found" };
@@ -64,7 +75,16 @@ function registerWindowHandlers() {
     
     const restoreAlwaysOnTop = () => {
       wasAlwaysOnTop.forEach(({ win, flag }) => {
-        if (flag && !win.isDestroyed()) win.setAlwaysOnTop(true, 'pop-up-menu');
+        if (!flag || win.isDestroyed()) return;
+        const commandWin = windowManager.get('command');
+        const floatingHeadWin = windowManager.get('floatingHead');
+        if (win === commandWin && appState.isCommandPinned) {
+          windowManager.enforceCommandAlwaysOnTop('file-dialog-restore');
+        } else if (win === floatingHeadWin) {
+          windowManager.applyAlwaysOnTop(win, true, 'screen-saver');
+        } else {
+          win.setAlwaysOnTop(true, 'pop-up-menu');
+        }
       });
     };
 
@@ -108,15 +128,26 @@ function registerWindowHandlers() {
   ipcMain.on('toggle-pin', (event) => {
     const win = BrowserWindow.fromWebContents(event.sender);
     if (win) {
-      const isPinned = win.isAlwaysOnTop();
-      win.setAlwaysOnTop(!isPinned);
-      
+      const commandWin = windowManager.get('command');
       const chatWin = windowManager.get('chat');
       const susurroWin = windowManager.get('susurro');
-      if (win === chatWin) {
+      if (win === commandWin) {
+        appState.isCommandPinned = !appState.isCommandPinned;
+        if (appState.isCommandPinned) {
+          windowManager.enforceCommandAlwaysOnTop('toggle-pin');
+        } else {
+          windowManager.applyAlwaysOnTop(win, false);
+        }
+      } else if (win === chatWin) {
+        const isPinned = appState.isChatPinned;
         appState.isChatPinned = !isPinned;
+        windowManager.applyAlwaysOnTop(win, appState.isChatPinned, 'screen-saver');
       } else if (win === susurroWin) {
+        const isPinned = appState.isSusurroPinned;
         appState.isSusurroPinned = !isPinned;
+        windowManager.applyAlwaysOnTop(win, appState.isSusurroPinned, 'screen-saver');
+      } else {
+        windowManager.applyAlwaysOnTop(win, !win.isAlwaysOnTop(), 'screen-saver');
       }
     }
   });
@@ -129,8 +160,10 @@ function registerWindowHandlers() {
     if (!win) return false;
     
     // Return the user-facing pin state, not the internal alwaysOnTop (used for z-order)
+    const commandWin = windowManager.get('command');
     const chatWin = windowManager.get('chat');
     const susurroWin = windowManager.get('susurro');
+    if (win === commandWin) return appState.isCommandPinned;
     if (win === chatWin) return appState.isChatPinned;
     if (win === susurroWin) return appState.isSusurroPinned;
     return win.isAlwaysOnTop();
@@ -153,14 +186,24 @@ function registerWindowHandlers() {
   ipcMain.on('update-chat-pin', (event, pinned) => {
     const win = BrowserWindow.fromWebContents(event.sender);
     if (win) {
-      win.setAlwaysOnTop(pinned);
-      
+      const commandWin = windowManager.get('command');
       const chatWin = windowManager.get('chat');
       const susurroWin = windowManager.get('susurro');
-      if (win === chatWin) {
+      if (win === commandWin) {
+        appState.isCommandPinned = pinned;
+        if (pinned) {
+          windowManager.enforceCommandAlwaysOnTop('update-chat-pin');
+        } else {
+          windowManager.applyAlwaysOnTop(win, false);
+        }
+      } else if (win === chatWin) {
         appState.isChatPinned = pinned;
+        windowManager.applyAlwaysOnTop(win, pinned, 'screen-saver');
       } else if (win === susurroWin) {
         appState.isSusurroPinned = pinned;
+        windowManager.applyAlwaysOnTop(win, pinned, 'screen-saver');
+      } else {
+        windowManager.applyAlwaysOnTop(win, pinned, 'screen-saver');
       }
     }
   });
@@ -169,11 +212,45 @@ function registerWindowHandlers() {
    * Shows the chat window.
    */
   ipcMain.on('show-chat', () => {
-    const chatWin = windowManager.get('chat') || windowManager.createChatWindow();
-    chatWin.setAlwaysOnTop(true, 'pop-up-menu');
-    chatWin.moveTop();
-    chatWin.show();
-    chatWin.focus();
+    windowManager.showCommandPanel('chat');
+  });
+
+  /**
+   * Shows the settings window.
+   */
+  ipcMain.on('show-settings', () => {
+    windowManager.showCommandPanel('settings');
+  });
+
+  /**
+   * Shows the live transcription window and starts Susurro.
+   */
+  ipcMain.on('show-susurro', () => {
+    windowManager.showCommandPanel('transcription');
+  });
+
+  ipcMain.on('command-window-ready', (event) => {
+    const panel = appState.pendingCommandPanel;
+    if (panel) {
+      event.sender.send('open-command-panel', panel);
+      appState.pendingCommandPanel = null;
+    }
+  });
+
+  ipcMain.on('floating-head-click', () => {
+    windowManager.showCommandPanel('command');
+  });
+
+  ipcMain.on('move-floating-head', (event, delta) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    if (!win || win.isDestroyed()) return;
+
+    const bounds = win.getBounds();
+    const display = screen.getDisplayMatching(bounds);
+    const area = display.workArea;
+    const nextX = Math.min(Math.max(area.x, bounds.x + Math.round(delta?.x || 0)), area.x + area.width - bounds.width);
+    const nextY = Math.min(Math.max(area.y, bounds.y + Math.round(delta?.y || 0)), area.y + area.height - bounds.height);
+    win.setPosition(nextX, nextY);
   });
 
   /**

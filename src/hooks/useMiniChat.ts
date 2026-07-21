@@ -10,7 +10,7 @@ import { electronService } from '../services/electron';
  * Hook to manage the state and logic for the MiniChat component.
  * Orchestrates chat messages, AI responses, window controls, and IPC events.
  */
-export const useMiniChat = () => {
+export const useMiniChat = (options: { embedded?: boolean; isActive?: boolean; onClosePanel?: () => void } = {}) => {
   const {
     messages,
     pendingMessages,
@@ -159,7 +159,14 @@ export const useMiniChat = () => {
 
     // Keyboard shortcut to close/minimize
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') handleMinimize();
+      if (e.key !== 'Escape') return;
+      if (options.embedded) {
+        if (options.isActive && options.onClosePanel) {
+          options.onClosePanel();
+        }
+        return;
+      }
+      handleMinimize();
     };
     globalThis.addEventListener('keydown', handleKeyDown);
 
@@ -168,7 +175,7 @@ export const useMiniChat = () => {
       if (unsubscribeTask) unsubscribeTask();
       globalThis.removeEventListener('keydown', handleKeyDown);
     };
-  }, [addMessage, handleAIResponse, handleMinimize]); // Removed isBusy, currentModel, messages from dependencies
+  }, [addMessage, handleAIResponse, handleMinimize, options.embedded, options.isActive, options.onClosePanel]); // Removed isBusy, currentModel, messages from dependencies
 
   const handleSelectModel = async (modelId: string) => {
     setCurrentModel(modelId);

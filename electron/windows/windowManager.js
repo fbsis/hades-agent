@@ -34,6 +34,18 @@ class WindowManager {
   }
 
   /**
+   * Hides application surfaces but leaves the floating head alone.
+   */
+  hideAppWindows() {
+    log.info('[WINDOW_MANAGER] Hiding app windows');
+    Object.entries(this.windows).forEach(([name, win]) => {
+      if (name !== 'floatingHead' && win && !win.isDestroyed() && win.isVisible()) {
+        win.hide();
+      }
+    });
+  }
+
+  /**
    * Hides all modes/windows except the specified one(s).
    * @param {string[]} excludeNames - Windows that should remain untouched.
    */
@@ -161,6 +173,13 @@ class WindowManager {
     win.on('restore', () => enforceStealth('restore'));
     win.on('focus', () => enforceStealth('focus'));
 
+    if (name === 'command') {
+      win.once('ready-to-show', () => this.enforceCommandAlwaysOnTop('ready-to-show'));
+      win.on('show', () => this.enforceCommandAlwaysOnTop('show'));
+      win.on('restore', () => this.enforceCommandAlwaysOnTop('restore'));
+      win.on('focus', () => this.enforceCommandAlwaysOnTop('focus'));
+    }
+
     return win;
   }
 
@@ -192,6 +211,12 @@ class WindowManager {
           return;
         }
         
+        if (appState.isCommandPinned) {
+          log.info('[WINDOW_MANAGER] >>> Command BLUR -> pinned, keeping visible');
+          this.enforceCommandAlwaysOnTop('blur-pinned');
+          return;
+        }
+
         const focusedWin = BrowserWindow.getFocusedWindow();
         const chatWin = this.get('chat');
         const isChatFocused = focusedWin && focusedWin === chatWin;
@@ -350,6 +375,89 @@ class WindowManager {
     return this.createWindow('notification');
   }
 
+  applyAlwaysOnTop(win, enabled, level = 'screen-saver') {
+    if (!win || win.isDestroyed()) return;
+    if (enabled) {
+      win.setAlwaysOnTop(false);
+      win.setAlwaysOnTop(true, level, 1);
+    } else {
+      win.setAlwaysOnTop(false);
+    }
+    try {
+      win.setVisibleOnAllWorkspaces(!!enabled, {
+        visibleOnFullScreen: true,
+        skipTransformProcessType: true
+      });
+    } catch (e) {
+      log.warn('[WINDOW_MANAGER] Failed to update workspace visibility:', e.message);
+    }
+    if (enabled && win.isVisible()) {
+      win.moveTop();
+    }
+  }
+
+  enforceCommandAlwaysOnTop(eventSource = 'manual') {
+    const win = this.get('command');
+    if (!win || win.isDestroyed()) return;
+
+    const appState = require('../appState');
+    if (!appState.isCommandPinned) {
+      this.applyAlwaysOnTop(win, false);
+      return;
+    }
+
+    [0, 50, 200, 500, 1200].forEach(delay => {
+      setTimeout(() => {
+        if (win.isDestroyed() || !win.isVisible()) return;
+        this.applyAlwaysOnTop(win, true, 'screen-saver');
+        log.info(`[WINDOW_MANAGER] Enforced command alwaysOnTop from ${eventSource} after ${delay}ms`);
+      }, delay);
+    });
+  }
+
+  createFloatingHeadWindow() {
+    const win = this.createWindow('floatingHead');
+    win.on('close', (event) => {
+      if (!app.isQuitting) {
+        event.preventDefault();
+        win.hide();
+      }
+    });
+    return win;
+  }
+
+  showFloatingHead() {
+    const win = this.get('floatingHead') || this.createFloatingHeadWindow();
+    if (win.isDestroyed()) return null;
+
+    const showHead = () => {
+      if (win.isDestroyed()) return;
+      this.applyAlwaysOnTop(win, true, 'screen-saver');
+      win.show();
+      win.moveTop();
+    };
+
+    if (win.webContents.isLoading()) {
+      win.webContents.once('did-finish-load', () => setTimeout(showHead, 50));
+    } else {
+      showHead();
+    }
+
+    return win;
+  }
+
+  hideFloatingHead() {
+    const win = this.get('floatingHead');
+    if (win && !win.isDestroyed()) {
+      win.hide();
+    }
+  }
+
+  minimizeToFloatingHead() {
+    this.hideAppWindows();
+    this.showFloatingHead();
+  }
+
   createSettingsWindow() {
     const win = this.createWindow('settings');
     win.once('ready-to-show', () => win.show());
@@ -360,6 +468,40 @@ class WindowManager {
         win.hide();
       }
     });
+    return win;
+  }
+
+  /**
+   * Shows the unified command window and opens a specific internal panel.
+   * @param {'command'|'chat'|'settings'|'transcription'} panel
+   * @returns {BrowserWindow}
+   */
+  showCommandPanel(panel = 'command') {
+    const win = this.get('command') || this.createCommandWindow();
+    const appState = require('../appState');
+    appState.pendingCommandPanel = panel;
+    this.hideFloatingHead();
+
+    const openPanel = () => {
+      if (win.isDestroyed()) return;
+      win.webContents.send('open-command-panel', panel);
+      if (panel === 'command') {
+        win.webContents.send('focus-input');
+      }
+      appState.pendingCommandPanel = null;
+    };
+
+    this.hideAllExcept(['command', 'suggestions']);
+    win.show();
+    win.focus();
+    this.enforceCommandAlwaysOnTop('showCommandPanel');
+
+    if (win.webContents.isLoading()) {
+      win.webContents.once('did-finish-load', () => setTimeout(openPanel, 50));
+    } else {
+      setTimeout(openPanel, 0);
+    }
+
     return win;
   }
 

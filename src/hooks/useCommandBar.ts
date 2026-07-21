@@ -3,12 +3,13 @@ import { stitchImages } from '../utils/image';
 import { electronService } from '../services/electron';
 
 const MAX_CHARS = 4000;
+export type CommandPanel = 'command' | 'chat' | 'settings' | 'transcription';
 
 /**
  * Orchestrator hook for the CommandBar component.
  * Manages input state, screen capture, and Electron IPC interactions.
  */
-export const useCommandBar = () => {
+export const useCommandBar = (activePanel: CommandPanel = 'command') => {
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [query, setQuery] = useState('');
@@ -46,6 +47,11 @@ export const useCommandBar = () => {
   // Handle window resizing and textarea auto-height
   useLayoutEffect(() => {
     if (inputRef.current && containerRef.current) {
+      if (activePanel !== 'command') {
+        electronService.resizeWindow(820, 720);
+        return;
+      }
+
       inputRef.current.style.height = '24px';
       const scHeight = inputRef.current.scrollHeight;
       
@@ -63,7 +69,7 @@ export const useCommandBar = () => {
       
       electronService.resizeWindow(730, limitedWindowHeight);
     }
-  }, [query, attachedImage, isModelDropdownOpen]);
+  }, [query, attachedImage, isModelDropdownOpen, activePanel]);
 
   const handleCapture = async () => {
     try {

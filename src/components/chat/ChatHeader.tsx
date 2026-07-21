@@ -1,5 +1,5 @@
 import React from 'react';
-import { Power, Minus } from 'lucide-react';
+import { AudioLines, Power, Minus } from 'lucide-react';
 import { formatTime } from '../../utils/formatters';
 
 interface ChatHeaderProps {
@@ -10,8 +10,11 @@ interface ChatHeaderProps {
   isSettingsOpen: boolean;
   togglePin: () => void;
   setIsSettingsOpen: (open: boolean) => void;
+  onOpenSettings?: () => void;
+  onOpenTranscription: () => void;
   onCloseSession: () => void;
   onMinimize: () => void;
+  embedded?: boolean;
 }
 
 /**
@@ -25,8 +28,11 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
   isSettingsOpen,
   togglePin,
   setIsSettingsOpen,
+  onOpenSettings,
+  onOpenTranscription,
   onCloseSession,
-  onMinimize
+  onMinimize,
+  embedded = false
 }) => {
   return (
     <div className="chat-header">
@@ -64,20 +70,36 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
           </div>
         </div>
 
+        {!embedded && (
+          <button
+            className={`action-btn pin-btn ${isPinned ? 'active' : ''}`}
+            onClick={togglePin}
+            title={isPinned ? "Desafixar" : "Fixar no topo"}
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="12" y1="17" x2="12" y2="22"></line>
+              <path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.68V6a3 3 0 0 0-3-3 3 3 0 0 0-3 3v4.68a2 2 0 0 1-1.11 1.87l-1.78.89A2 2 0 0 0 5 15.24Z"></path>
+            </svg>
+          </button>
+        )}
+
         <button 
-          className={`action-btn pin-btn ${isPinned ? 'active' : ''}`}
-          onClick={togglePin}
-          title={isPinned ? "Desafixar" : "Fixar no topo"}
+          className="action-btn transcription-btn"
+          onClick={onOpenTranscription}
+          title="Abrir transcrição"
         >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <line x1="12" y1="17" x2="12" y2="22"></line>
-            <path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.68V6a3 3 0 0 0-3-3 3 3 0 0 0-3 3v4.68a2 2 0 0 1-1.11 1.87l-1.78.89A2 2 0 0 0 5 15.24Z"></path>
-          </svg>
+          <AudioLines size={18} />
         </button>
 
         <button 
           className={`action-btn settings-btn ${isSettingsOpen ? 'active' : ''}`}
-          onClick={() => setIsSettingsOpen(!isSettingsOpen)}
+          onClick={() => {
+            if (onOpenSettings) {
+              onOpenSettings();
+              return;
+            }
+            setIsSettingsOpen(!isSettingsOpen);
+          }}
           title="Configurações"
         >
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

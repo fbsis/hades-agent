@@ -1,14 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronRight, Camera, X, Paperclip, Plus, ChevronDown, Check } from 'lucide-react';
-import { useCommandBar } from '../hooks/useCommandBar';
+import { AudioLines, ChevronRight, Camera, X, Paperclip, Plus, ChevronDown, Check, MessageSquare, Minimize2, Pin, Settings as SettingsIcon } from 'lucide-react';
+import { CommandPanel, useCommandBar } from '../hooks/useCommandBar';
 import { electronService } from '../services/electron';
 import { MODELS } from '../constants/models';
+import MiniChat from './MiniChat';
+import Settings from './Settings';
+import Susurro from './Susurro';
 
 /**
  * CommandBar component - A sleek, minimal input bar for AI commands.
  * Supports text input, local image uploads via (+), screen captures, and live model selection.
  */
 const CommandBar: React.FC = () => {
+  const [activePanel, setActivePanel] = useState<CommandPanel>('command');
   const {
     query,
     setQuery,
@@ -23,9 +27,10 @@ const CommandBar: React.FC = () => {
     removeAttachment,
     isModelDropdownOpen,
     setIsModelDropdownOpen
-  } = useCommandBar();
+  } = useCommandBar(activePanel);
 
   const [activeModel, setActiveModel] = useState<string>('gemini-2.5-flash');
+  const [isOnTop, setIsOnTop] = useState(true);
 
   // Sync settings and setup listeners on mount
   useEffect(() => {
@@ -34,6 +39,8 @@ const CommandBar: React.FC = () => {
         setActiveModel(settings.general.minichatModel);
       }
     });
+
+    electronService.isPinned().then(setIsOnTop);
 
     const unsubscribe = electronService.onSettingsUpdated((settings) => {
       if (settings?.general?.minichatModel) {
@@ -45,6 +52,21 @@ const CommandBar: React.FC = () => {
       if (unsubscribe) unsubscribe();
     };
   }, []);
+
+  useEffect(() => {
+    const unsubscribe = electronService.onOpenCommandPanel((panel) => {
+      setActivePanel(panel);
+      if (panel === 'command') {
+        setTimeout(() => inputRef.current?.focus(), 50);
+      }
+    });
+
+    electronService.commandWindowReady();
+
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
+  }, [inputRef]);
 
   // Close dropdown on clicking outside
   useEffect(() => {
@@ -81,10 +103,32 @@ const CommandBar: React.FC = () => {
     }
   };
 
+  const handleOpenChat = () => {
+    setActivePanel(activePanel === 'chat' ? 'command' : 'chat');
+  };
+
+  const handleOpenSettings = () => {
+    setActivePanel(activePanel === 'settings' ? 'command' : 'settings');
+  };
+
+  const handleOpenTranscription = () => {
+    setActivePanel(activePanel === 'transcription' ? 'command' : 'transcription');
+  };
+
+  const handleMinimizeToHead = () => {
+    electronService.minimizeToHead();
+  };
+
+  const handleToggleOnTop = () => {
+    const next = !isOnTop;
+    setIsOnTop(next);
+    electronService.togglePin();
+  };
+
   const activeModelData = MODELS.find(m => m.id === activeModel);
 
   return (
-    <div className="app-container command-mode" ref={containerRef}>
+    <div className={`app-container command-mode ${activePanel !== 'command' ? 'unified-expanded' : ''}`} ref={containerRef}>
       <div className="command-main">
         <div className="command-icon">
           <ChevronRight size={20} color="#dc2626" />
@@ -122,8 +166,8 @@ const CommandBar: React.FC = () => {
       
       <div className="command-footer">
         {/* + File Picker Button (Far Left) */}
-        <button 
-          type="button" 
+        <button
+          type="button"
           className="footer-btn" 
           onClick={handleFileOpen}
           style={{ padding: '6px 10px' }}
@@ -133,14 +177,47 @@ const CommandBar: React.FC = () => {
         </button>
 
         {/* Screenshot / Capture Screen Button */}
-        <button 
-          type="button" 
+        <button
+          type="button"
           className="footer-btn" 
           onClick={handleCapture}
           style={{ padding: '6px 10px' }}
           title="Capturar Tela (Ctrl+E)"
         >
           <Camera size={14} color="#dc2626" />
+        </button>
+
+        {/* Chat Panel Button */}
+        <button
+          type="button"
+          className={`footer-btn ${activePanel === 'chat' ? 'active' : ''}`}
+          onClick={handleOpenChat}
+          style={{ padding: '6px 10px' }}
+          title="Abrir chat"
+        >
+          <MessageSquare size={14} color="#dc2626" />
+        </button>
+
+        {/* Settings Button */}
+        <button
+          type="button"
+          className={`footer-btn ${activePanel === 'settings' ? 'active' : ''}`}
+          onClick={handleOpenSettings}
+          style={{ padding: '6px 10px' }}
+          title="Configurações (Alt+S)"
+        >
+          <SettingsIcon size={14} color="#dc2626" />
+        </button>
+
+        {/* Live Transcription Button */}
+        <button
+          type="button"
+          className={`footer-btn ${activePanel === 'transcription' ? 'active' : ''}`}
+          onClick={handleOpenTranscription}
+          style={{ padding: '6px 10px' }}
+          title="Abrir transcrição (Alt+B)"
+        >
+          <AudioLines size={14} color="#dc2626" />
         </button>
 
         {/* Active Model Selector Pill */}
@@ -261,6 +338,26 @@ const CommandBar: React.FC = () => {
           </div>
         )}
 
+        <button
+          type="button"
+          className={`footer-btn ${isOnTop ? 'active' : ''}`}
+          onClick={handleToggleOnTop}
+          style={{ padding: '6px 10px' }}
+          title={isOnTop ? 'Sempre no topo ativado' : 'Sempre no topo desativado'}
+        >
+          <Pin size={14} color="#dc2626" />
+        </button>
+
+        <button
+          type="button"
+          className="footer-btn"
+          onClick={handleMinimizeToHead}
+          style={{ padding: '6px 10px' }}
+          title="Minimizar para bolha"
+        >
+          <Minimize2 size={14} color="#dc2626" />
+        </button>
+
         {/* Character Counter */}
         <div className="char-counter" style={{ 
           position: 'absolute',
@@ -272,6 +369,33 @@ const CommandBar: React.FC = () => {
         }}>
           {query.length} / {MAX_CHARS}
         </div>
+      </div>
+
+      <div className={`unified-panel ${activePanel === 'command' ? 'hidden' : ''}`}>
+        <div className={`unified-panel-view ${activePanel === 'chat' ? '' : 'hidden'}`}>
+          <MiniChat
+            embedded
+            isActive={activePanel === 'chat'}
+            onClosePanel={() => setActivePanel('command')}
+            onOpenSettings={() => setActivePanel('settings')}
+            onOpenTranscription={() => setActivePanel('transcription')}
+          />
+        </div>
+
+        {activePanel === 'settings' && (
+          <Settings
+            embedded
+            onClosePanel={() => setActivePanel('command')}
+          />
+        )}
+
+        {activePanel === 'transcription' && (
+          <Susurro
+            embedded
+            autoStart
+            onClosePanel={() => setActivePanel('command')}
+          />
+        )}
       </div>
     </div>
   );

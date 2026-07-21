@@ -3,12 +3,27 @@ import { ChatHeader } from './chat/ChatHeader';
 import { SettingsMenu } from './chat/SettingsMenu';
 import { ChatList } from './chat/ChatList';
 import { useMiniChat } from '../hooks/useMiniChat';
+import { electronService } from '../services/electron';
+
+interface MiniChatProps {
+  embedded?: boolean;
+  isActive?: boolean;
+  onClosePanel?: () => void;
+  onOpenSettings?: () => void;
+  onOpenTranscription?: () => void;
+}
 
 /**
  * MiniChat component - Main entry point for the AI chat interface.
  * Orchestrates messages, AI inference, and window controls via useMiniChat hook.
  */
-const MiniChat: React.FC = () => {
+const MiniChat: React.FC<MiniChatProps> = ({
+  embedded = false,
+  isActive = true,
+  onClosePanel,
+  onOpenSettings,
+  onOpenTranscription
+}) => {
   const {
     messages,
     pendingMessages,
@@ -31,10 +46,10 @@ const MiniChat: React.FC = () => {
     startResizing,
     clearHistory,
     copyToClipboard
-  } = useMiniChat();
+  } = useMiniChat({ embedded, isActive, onClosePanel });
 
   return (
-    <div className={`app-container chat-mode ${isResizing ? 'resizing' : ''}`}>
+    <div className={`app-container chat-mode ${embedded ? 'embedded-chat' : ''} ${isResizing ? 'resizing' : ''}`}>
       <ChatHeader
         timer={timer}
         tokens={tokens}
@@ -43,8 +58,11 @@ const MiniChat: React.FC = () => {
         isSettingsOpen={isSettingsOpen}
         togglePin={togglePin}
         setIsSettingsOpen={setIsSettingsOpen}
+        onOpenSettings={onOpenSettings}
+        onOpenTranscription={onOpenTranscription || (() => electronService.showSusurro())}
         onCloseSession={clearHistory}
-        onMinimize={handleMinimize}
+        onMinimize={embedded && onClosePanel ? onClosePanel : handleMinimize}
+        embedded={embedded}
       />
 
       {isSettingsOpen && (
@@ -67,14 +85,16 @@ const MiniChat: React.FC = () => {
         chatEndRef={chatEndRef}
       />
 
-      <button
-        type="button"
-        className="resize-handle"
-        onMouseDown={startResizing}
-        aria-label="Resize chat window"
-      >
-        <div className="resize-square" />
-      </button>
+      {!embedded && (
+        <button
+          type="button"
+          className="resize-handle"
+          onMouseDown={startResizing}
+          aria-label="Resize chat window"
+        >
+          <div className="resize-square" />
+        </button>
+      )}
     </div>
   );
 };

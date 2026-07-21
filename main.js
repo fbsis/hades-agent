@@ -6,7 +6,6 @@ const fs = require('node:fs');
 const windowManager = require('./electron/windows/windowManager');
 const { initIPC } = require('./electron/ipc');
 const registerGlobalShortcuts = require('./electron/shortcuts');
-const createTray = require('./electron/tray');
 const appState = require('./electron/appState');
 const taskService = require('./electron/services/taskService');
 const dreamService = require('./electron/services/dreamService');
@@ -14,6 +13,7 @@ const log = require('electron-log');
 
 log.transports.file.level = 'info';
 log.transports.console.level = false; // Disable console logging in production
+app.isQuitting = false;
 
 /**
  * Hades Application Orchestrator
@@ -68,7 +68,6 @@ app.whenReady().then(() => {
   // Initialize Core Modules
   initIPC();
   registerGlobalShortcuts();
-  createTray();
   taskService.start();
 
   // Phase 5 - Dreaming: Process backlogs and schedule cycle
@@ -86,60 +85,74 @@ app.whenReady().then(() => {
       if (splashWin && !splashWin.isDestroyed()) {
         splashWin.destroy();
       }
+      const hasVisibleAppWindow = ['command', 'chat', 'settings', 'susurro', 'voice']
+        .some(name => {
+          const win = windowManager.get(name);
+          return win && !win.isDestroyed() && win.isVisible();
+        });
+      if (!hasVisibleAppWindow) {
+        windowManager.showCommandPanel('command');
+      }
     }, 3000);
   });
 
   log.info('[MAIN] Hades Agent initialized successfully.');
 });
 
+const markAppAsQuitting = () => {
+  appState.isQuitting = true;
+  app.isQuitting = true;
+  taskService.stop();
+};
+
+const quitFromSignal = (signal) => {
+  log.info(`[MAIN] Received ${signal}, quitting gracefully.`);
+  markAppAsQuitting();
+  app.quit();
+  setTimeout(() => app.exit(0), 1500).unref();
+};
+
 // 4. Global Event Handlers
 app.on('before-quit', () => {
-  appState.isQuitting = true;
-  taskService.stop();
+  markAppAsQuitting();
 });
 
 app.on('window-all-closed', () => {
-  // Prevent quitting when all windows are closed, as Hades runs in the background system tray.
-  // The app only quits when 'Sair' is selected in the tray menu.
+  // Keep the process alive while the floating head is used as the restore affordance.
 });
 
 app.on('will-quit', () => {
   globalShortcut.unregisterAll();
 });
 
+process.once('SIGINT', () => quitFromSignal('SIGINT'));
+process.once('SIGTERM', () => quitFromSignal('SIGTERM'));
+
 // 5. Cross-Window Communication (Orchestration)
 ipcMain.on('send-message', (event, message, image) => {
   log.info('');
   log.info('=== [MAIN] ============ SEND-MESSAGE START ============');
   appState.chatHasMessages = true;
-  let chatWin = windowManager.get('chat');
-  const cmdWin = windowManager.get('command');
+  const cmdWin = windowManager.showCommandPanel('chat');
 
-  log.info(`[MAIN] chatWin exists=${!!chatWin} destroyed=${chatWin?.isDestroyed?.()}`);
-  log.info(`[MAIN] cmdWin exists=${!!cmdWin} visible=${cmdWin?.isVisible?.()}`);
+  const sendToUnifiedChat = (fromPending = false) => {
+    if (fromPending && !appState.pendingMessage) return;
 
-  if (chatWin && !chatWin.isDestroyed()) {
-    if (chatWin.isMinimized()) chatWin.restore();
-    log.info('[MAIN] Setting chat alwaysOnTop + show + moveTop');
-    chatWin.setAlwaysOnTop(true, 'pop-up-menu');
-    chatWin.show();
-    chatWin.moveTop();
-    log.info(`[MAIN] Chat after show: visible=${chatWin.isVisible()} alwaysOnTop=${chatWin.isAlwaysOnTop()}`);
-    chatWin.webContents.send('new-message', message, image);
-
-    // Re-raise command bar on top
-    if (cmdWin?.isVisible()) {
-      log.info('[MAIN] Re-raising command bar on top of chat');
-      cmdWin.setAlwaysOnTop(true, 'pop-up-menu');
-      cmdWin.moveTop();
-      cmdWin.focus();
-      cmdWin.webContents.send('focus-input');
+    if (cmdWin && !cmdWin.isDestroyed()) {
+      cmdWin.webContents.send('open-command-panel', 'chat');
+      cmdWin.webContents.send('new-message', message, image);
+      appState.pendingMessage = null;
     }
-  } else {
-    log.info('[MAIN] Chat window not ready, storing pending message');
+  };
+
+  if (cmdWin.webContents.isLoading()) {
+    log.info('[MAIN] Command window loading, storing pending message');
     appState.pendingMessage = { message, image };
-    windowManager.createChatWindow(false);
+    cmdWin.webContents.once('did-finish-load', () => setTimeout(() => sendToUnifiedChat(true), 75));
+  } else {
+    setTimeout(() => sendToUnifiedChat(false), 25);
   }
+
   log.info('=== [MAIN] ============ SEND-MESSAGE END ==============');
   log.info('');
 });
@@ -174,4 +187,13 @@ ipcMain.on('chat-window-ready', () => {
   }
   console.log('=== [MAIN] ============ CHAT-WINDOW-READY END ==============');
   console.log('');
+});
+
+ipcMain.on('command-window-ready', (event) => {
+  log.info('[MAIN] Command window ready.');
+  if (appState.pendingMessage) {
+    event.sender.send('open-command-panel', 'chat');
+    event.sender.send('new-message', appState.pendingMessage.message, appState.pendingMessage.image);
+    appState.pendingMessage = null;
+  }
 });

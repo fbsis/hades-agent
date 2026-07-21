@@ -14,6 +14,12 @@
   overflow: visible !important;
 }
 
+.command-mode.unified-expanded {
+  width: 820px;
+  height: 100vh;
+  overflow: hidden !important;
+}
+
 .command-main {
   display: flex;
   align-items: center;
@@ -92,6 +98,12 @@
   transform: translateY(-0.5px);
 }
 
+.footer-btn.active {
+  background: rgba(220, 38, 38, 0.16);
+  border-color: rgba(220, 38, 38, 0.35);
+  box-shadow: 0 0 12px rgba(220, 38, 38, 0.12);
+}
+
 .footer-btn:active {
   transform: translateY(0);
 }
@@ -128,6 +140,37 @@
 .dropdown-item:hover {
   background: rgba(220, 38, 38, 0.1) !important;
   color: #fff !important;
+}
+
+.unified-panel {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  border-top: 1px solid rgba(220, 38, 38, 0.12);
+  background: rgba(8, 4, 4, 0.55);
+}
+
+.unified-panel-view {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+
+.embedded-chat,
+.embedded-susurro {
+  width: 100%;
+  height: 100%;
+  border: 0 !important;
+  border-radius: 0 0 11px 11px !important;
+  box-shadow: none !important;
+}
+
+.embedded-settings {
+  width: 100% !important;
+  height: 100% !important;
+  border: 0 !important;
+  border-radius: 0 0 11px 11px !important;
+  box-shadow: none !important;
 }
 
 @keyframes appear {

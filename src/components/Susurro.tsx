@@ -9,11 +9,17 @@ import { useSusurro } from '../hooks/useSusurro';
  * Orchestrates audio capture, AI-driven transcription deltas, and multi-language translation.
  * Refactored for modularity and maintainability.
  */
-const Susurro: React.FC = () => {
-  const s = useSusurro();
+interface SusurroProps {
+  embedded?: boolean;
+  autoStart?: boolean;
+  onClosePanel?: () => void;
+}
+
+const Susurro: React.FC<SusurroProps> = ({ embedded = false, autoStart = false, onClosePanel }) => {
+  const s = useSusurro({ embedded, autoStart, onClosePanel });
 
   return (
-    <div className={`app-container susurro-mode ${s.isResizing ? 'resizing' : ''}`}>
+    <div className={`app-container susurro-mode ${embedded ? 'embedded-susurro' : ''} ${s.isResizing ? 'resizing' : ''}`}>
       {/* Status Bar / Header */}
       <SusurroHeader
         timer={s.timer}
@@ -50,6 +56,8 @@ const Susurro: React.FC = () => {
         increaseFontSize={s.increaseFontSize}
         decreaseFontSize={s.decreaseFontSize}
         onCloseSession={s.onCloseSession}
+        embedded={embedded}
+        onClosePanel={onClosePanel}
       />
 
       {/* Main Chat Area */}
@@ -79,7 +87,9 @@ const Susurro: React.FC = () => {
         </button>
       </div>
 
-      <button className="resize-handle" onMouseDown={s.startResizing} />
+      {!embedded && (
+        <button className="resize-handle" onMouseDown={s.startResizing} />
+      )}
     </div>
   );
 };

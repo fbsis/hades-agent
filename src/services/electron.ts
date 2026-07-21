@@ -37,12 +37,17 @@ class ElectronService {
   // --- Window Control ---
   async closeWindow() { await this.handleResponse(this.electron?.closeWindow(), undefined, 'closeWindow'); }
   async minimizeWindow() { await this.handleResponse(this.electron?.minimizeWindow(), undefined, 'minimizeWindow'); }
+  async minimizeToHead() { await this.handleResponse(this.electron?.minimizeToHead(), undefined, 'minimizeToHead'); }
   async resizeWindow(width: number, height: number) { await this.handleResponse(this.electron?.resizeWindow(width, height), undefined, 'resizeWindow'); }
   togglePin() { this.electron?.togglePin(); }
   async isPinned() { return await this.electron?.isPinned() ?? false; }
   async isMinimized() { return await this.electron?.isMinimized() ?? false; }
   async isMaximized() { return await this.electron?.isMaximized() ?? false; }
   startResizing() { this.electron?.startResizing(); }
+  showSettings() { this.electron?.showSettings(); }
+  showSusurro() { this.electron?.showSusurro(); }
+  floatingHeadClick() { this.electron?.floatingHeadClick(); }
+  moveFloatingHead(delta: { x: number; y: number }) { this.electron?.moveFloatingHead(delta); }
   toggleMic(enabled: boolean) { this.electron?.toggleMic(enabled); }
   toggleAudio(enabled: boolean) { this.electron?.toggleAudio(enabled); }
 
@@ -54,6 +59,9 @@ class ElectronService {
   }
   onFocusInput(callback: () => void) {
     return this.electron?.onFocusInput(callback) || (() => {});
+  }
+  onOpenCommandPanel(callback: (panel: 'command' | 'chat' | 'settings' | 'transcription') => void) {
+    return this.electron?.onOpenCommandPanel(callback) || (() => {});
   }
   onNotify(callback: (message: string) => void) {
     return this.electron?.onNotify(callback) || (() => {});
@@ -83,6 +91,7 @@ class ElectronService {
   async updateTokens(count: number) { 
     return await this.handleResponse(this.electron?.updateTokens(count), 0, 'updateTokens'); 
   }
+  commandWindowReady() { this.electron?.commandWindowReady(); }
   chatWindowReady() { this.electron?.chatWindowReady(); }
 
   // --- Susurro ---
