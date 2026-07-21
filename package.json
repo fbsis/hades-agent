@@ -6,7 +6,8 @@
   "scripts": {
     "dev:react": "vite",
     "dev:electron": "wait-on http://localhost:3000 && electron .",
-    "dev": "npx kill-port 3000 && concurrently \"npm run dev:react\" \"npm run dev:electron\"",
+    "dev:clean": "node scripts/kill-stale-electron.js",
+    "dev": "npm run dev:clean && npx kill-port 3000 && concurrently \"npm run dev:react\" \"npm run dev:electron\"",
     "build": "vite build",
     "preview": "vite preview",
     "test": "vitest",
