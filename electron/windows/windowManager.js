@@ -1,6 +1,8 @@
-const { BrowserWindow, shell, app, Menu } = require('electron');
+const { BrowserWindow, shell, app, Menu, screen } = require('electron');
 const configs = require('./windowConfigs');
 const log = require('electron-log');
+
+const FLOATING_HEAD_SIZE = 36;
 
 /**
  * WindowManager handles the lifecycle and management of all application windows.
@@ -10,6 +12,7 @@ class WindowManager {
   constructor() {
     /** @type {Object<string, BrowserWindow>} */
     this.windows = {};
+    this.layoutSaveTimers = {};
   }
 
   /**
@@ -85,6 +88,20 @@ class WindowManager {
     if (config.onInit) {
       log.info(`[WINDOW_MANAGER] Running onInit for: ${name}`);
       config.onInit(win);
+    }
+
+    if (name === 'command') {
+      this.applySavedLayoutBounds(win, 'commandBounds');
+      this.trackLayoutBounds(win, 'commandBounds');
+    } else if (name === 'floatingHead') {
+      this.applySavedLayoutBounds(win, 'floatingHeadBounds', {
+        width: FLOATING_HEAD_SIZE,
+        height: FLOATING_HEAD_SIZE
+      });
+      this.trackLayoutBounds(win, 'floatingHeadBounds', {
+        width: FLOATING_HEAD_SIZE,
+        height: FLOATING_HEAD_SIZE
+      });
     }
 
     // Setup default handlers
@@ -375,7 +392,147 @@ class WindowManager {
     return this.createWindow('notification');
   }
 
-  applyAlwaysOnTop(win, enabled, level = 'screen-saver') {
+  getWindowName(targetWindow) {
+    return Object.entries(this.windows).find(([, win]) => win === targetWindow)?.[0] || null;
+  }
+
+  isFiniteCoordinate(value) {
+    return Number.isFinite(Number(value));
+  }
+
+  normalizeLayoutBounds(bounds, fixedSize = {}) {
+    if (
+      !bounds ||
+      !this.isFiniteCoordinate(bounds.x) ||
+      !this.isFiniteCoordinate(bounds.y)
+    ) {
+      return null;
+    }
+
+    const width = fixedSize.width ?? bounds.width;
+    const height = fixedSize.height ?? bounds.height;
+    if (!this.isFiniteCoordinate(width) || !this.isFiniteCoordinate(height)) {
+      return null;
+    }
+
+    return {
+      x: Math.round(Number(bounds.x)),
+      y: Math.round(Number(bounds.y)),
+      width: Math.round(Number(width)),
+      height: Math.round(Number(height))
+    };
+  }
+
+  constrainBoundsToVisibleArea(bounds, fixedSize = {}) {
+    const normalized = this.normalizeLayoutBounds(bounds, fixedSize);
+    if (!normalized) return null;
+
+    const display = screen.getDisplayMatching(normalized);
+    const area = display?.workArea || screen.getPrimaryDisplay().workArea;
+    const padding = 8;
+    const width = Math.min(
+      Math.max(normalized.width, fixedSize.width || 32),
+      Math.max(32, area.width - padding * 2)
+    );
+    const height = Math.min(
+      Math.max(normalized.height, fixedSize.height || 32),
+      Math.max(32, area.height - padding * 2)
+    );
+    const minX = area.x + padding;
+    const minY = area.y + padding;
+    const maxX = Math.max(minX, area.x + area.width - width - padding);
+    const maxY = Math.max(minY, area.y + area.height - height - padding);
+
+    return {
+      x: Math.min(Math.max(normalized.x, minX), maxX),
+      y: Math.min(Math.max(normalized.y, minY), maxY),
+      width,
+      height
+    };
+  }
+
+  getSavedLayoutBounds(layoutKey, fixedSize = {}) {
+    try {
+      const jsonStore = require('../store/jsonStore');
+      const bounds = jsonStore.getSettings()?.layout?.[layoutKey];
+      return this.constrainBoundsToVisibleArea(bounds, fixedSize);
+    } catch (error) {
+      log.warn(`[WINDOW_MANAGER] Failed to read saved layout for ${layoutKey}:`, error.message);
+      return null;
+    }
+  }
+
+  applySavedLayoutBounds(win, layoutKey, fixedSize = {}) {
+    if (!win || win.isDestroyed()) return;
+    const bounds = this.getSavedLayoutBounds(layoutKey, fixedSize);
+    if (bounds) {
+      win.setBounds(bounds);
+    }
+  }
+
+  saveLayoutBounds(layoutKey, bounds, fixedSize = {}) {
+    const normalized = this.constrainBoundsToVisibleArea(bounds, fixedSize);
+    if (!normalized) return;
+
+    try {
+      const jsonStore = require('../store/jsonStore');
+      const settings = jsonStore.getSettings();
+      jsonStore.saveSettings({
+        ...settings,
+        layout: {
+          ...(settings.layout || {}),
+          [layoutKey]: normalized
+        }
+      });
+    } catch (error) {
+      log.warn(`[WINDOW_MANAGER] Failed to save layout for ${layoutKey}:`, error.message);
+    }
+  }
+
+  rememberLayoutBounds(layoutKey, bounds, fixedSize = {}, immediate = false) {
+    if (immediate) {
+      clearTimeout(this.layoutSaveTimers[layoutKey]);
+      this.saveLayoutBounds(layoutKey, bounds, fixedSize);
+      return;
+    }
+
+    clearTimeout(this.layoutSaveTimers[layoutKey]);
+    this.layoutSaveTimers[layoutKey] = setTimeout(() => {
+      this.saveLayoutBounds(layoutKey, bounds, fixedSize);
+    }, 250);
+  }
+
+  trackLayoutBounds(win, layoutKey, fixedSize = {}) {
+    const scheduleSave = () => {
+      if (!win || win.isDestroyed()) return;
+      this.rememberLayoutBounds(layoutKey, win.getBounds(), fixedSize);
+    };
+    const saveNow = () => {
+      if (!win || win.isDestroyed()) return;
+      this.rememberLayoutBounds(layoutKey, win.getBounds(), fixedSize, true);
+    };
+
+    win.on('move', scheduleSave);
+    win.on('moved', scheduleSave);
+    win.on('resize', scheduleSave);
+    win.on('resized', scheduleSave);
+    win.on('hide', saveNow);
+    win.on('closed', () => clearTimeout(this.layoutSaveTimers[layoutKey]));
+  }
+
+  rememberFloatingHeadBounds(boundsOrWindow, immediate = false) {
+    const bounds = typeof boundsOrWindow?.getBounds === 'function'
+      ? boundsOrWindow.getBounds()
+      : boundsOrWindow;
+    this.rememberLayoutBounds(
+      'floatingHeadBounds',
+      bounds,
+      { width: FLOATING_HEAD_SIZE, height: FLOATING_HEAD_SIZE },
+      immediate
+    );
+  }
+
+  applyAlwaysOnTop(win, enabled, level = 'floating') {
     if (!win || win.isDestroyed()) return;
     if (enabled) {
       win.setAlwaysOnTop(false);
@@ -409,7 +566,7 @@ class WindowManager {
     [0, 50, 200, 500, 1200].forEach(delay => {
       setTimeout(() => {
         if (win.isDestroyed() || !win.isVisible()) return;
-        this.applyAlwaysOnTop(win, true, 'screen-saver');
+        this.applyAlwaysOnTop(win, true, 'floating');
         log.info(`[WINDOW_MANAGER] Enforced command alwaysOnTop from ${eventSource} after ${delay}ms`);
       }, delay);
     });
@@ -426,19 +583,61 @@ class WindowManager {
     return win;
   }
 
-  showFloatingHead() {
+  getFloatingHeadBounds(anchorBounds = null) {
+    const savedBounds = this.getSavedLayoutBounds('floatingHeadBounds', {
+      width: FLOATING_HEAD_SIZE,
+      height: FLOATING_HEAD_SIZE
+    });
+    if (savedBounds) return savedBounds;
+
+    const size = FLOATING_HEAD_SIZE;
+    const margin = 18;
+    const fallbackArea = screen.getPrimaryDisplay().workArea;
+    const display = anchorBounds ? screen.getDisplayMatching(anchorBounds) : screen.getPrimaryDisplay();
+    const area = display?.workArea || fallbackArea;
+
+    const preferredX = anchorBounds
+      ? anchorBounds.x + anchorBounds.width - size - margin
+      : area.x + area.width - size - margin;
+    const preferredY = anchorBounds
+      ? anchorBounds.y + anchorBounds.height - size - margin
+      : area.y + area.height - size - margin;
+
+    const minX = area.x + 8;
+    const minY = area.y + 8;
+    const maxX = area.x + area.width - size - 8;
+    const maxY = area.y + area.height - size - 8;
+
+    return this.constrainBoundsToVisibleArea({
+      x: Math.min(Math.max(Math.round(preferredX), minX), maxX),
+      y: Math.min(Math.max(Math.round(preferredY), minY), maxY),
+      width: size,
+      height: size
+    }, { width: size, height: size });
+  }
+
+  showFloatingHead(anchorBounds = null) {
     const win = this.get('floatingHead') || this.createFloatingHeadWindow();
     if (win.isDestroyed()) return null;
 
     const showHead = () => {
       if (win.isDestroyed()) return;
-      this.applyAlwaysOnTop(win, true, 'screen-saver');
-      win.show();
+      win.setBounds(this.getFloatingHeadBounds(anchorBounds));
+      this.applyAlwaysOnTop(win, true, 'pop-up-menu');
+      if (typeof win.showInactive === 'function') {
+        win.showInactive();
+      } else {
+        win.show();
+      }
       win.moveTop();
+      this.rememberFloatingHeadBounds(win.getBounds());
+      log.info('[WINDOW_MANAGER] Floating head shown', win.getBounds());
     };
 
     if (win.webContents.isLoading()) {
+      win.once('ready-to-show', () => setTimeout(showHead, 20));
       win.webContents.once('did-finish-load', () => setTimeout(showHead, 50));
+      setTimeout(showHead, 700);
     } else {
       showHead();
     }
@@ -449,13 +648,24 @@ class WindowManager {
   hideFloatingHead() {
     const win = this.get('floatingHead');
     if (win && !win.isDestroyed()) {
+      this.rememberFloatingHeadBounds(win, true);
       win.hide();
     }
   }
 
-  minimizeToFloatingHead() {
+  minimizeToFloatingHead(sourceWindow = null) {
+    const anchorWindow = sourceWindow && !sourceWindow.isDestroyed()
+      ? sourceWindow
+      : BrowserWindow.getFocusedWindow();
+    const anchorBounds = anchorWindow && !anchorWindow.isDestroyed()
+      ? anchorWindow.getBounds()
+      : null;
+    if (anchorWindow && this.getWindowName(anchorWindow) === 'command' && anchorBounds) {
+      this.rememberLayoutBounds('commandBounds', anchorBounds, {}, true);
+    }
+
+    this.showFloatingHead(anchorBounds);
     this.hideAppWindows();
-    this.showFloatingHead();
   }
 
   createSettingsWindow() {
@@ -473,7 +683,7 @@ class WindowManager {
 
   /**
    * Shows the unified command window and opens a specific internal panel.
-   * @param {'command'|'chat'|'settings'|'transcription'} panel
+   * @param {'command'|'chat'|'settings'|'transcription'|'voice'} panel
    * @returns {BrowserWindow}
    */
   showCommandPanel(panel = 'command') {
@@ -492,6 +702,9 @@ class WindowManager {
     };
 
     this.hideAllExcept(['command', 'suggestions']);
+    if (!win.isVisible()) {
+      this.applySavedLayoutBounds(win, 'commandBounds');
+    }
     win.show();
     win.focus();
     this.enforceCommandAlwaysOnTop('showCommandPanel');

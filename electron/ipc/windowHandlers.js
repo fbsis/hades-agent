@@ -19,7 +19,7 @@ function registerWindowHandlers() {
       } else if (win === settingsWin) {
         win.hide();
       } else {
-        windowManager.minimizeToFloatingHead();
+        windowManager.minimizeToFloatingHead(win);
       }
       return { success: true };
     }
@@ -32,13 +32,18 @@ function registerWindowHandlers() {
   ipcMain.handle('minimize-window', (event) => {
     const win = BrowserWindow.fromWebContents(event.sender);
     if (win) {
-      windowManager.minimizeToFloatingHead();
+      windowManager.minimizeToFloatingHead(win);
       return { success: true };
     }
     return { success: false, error: "Window not found" };
   });
 
-  ipcMain.handle('minimize-to-head', () => {
+  ipcMain.handle('minimize-to-head', (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    if (win) {
+      windowManager.minimizeToFloatingHead(win);
+      return { success: true };
+    }
     windowManager.minimizeToFloatingHead();
     return { success: true };
   });
@@ -81,7 +86,7 @@ function registerWindowHandlers() {
         if (win === commandWin && appState.isCommandPinned) {
           windowManager.enforceCommandAlwaysOnTop('file-dialog-restore');
         } else if (win === floatingHeadWin) {
-          windowManager.applyAlwaysOnTop(win, true, 'screen-saver');
+          windowManager.applyAlwaysOnTop(win, true, 'pop-up-menu');
         } else {
           win.setAlwaysOnTop(true, 'pop-up-menu');
         }
@@ -141,13 +146,13 @@ function registerWindowHandlers() {
       } else if (win === chatWin) {
         const isPinned = appState.isChatPinned;
         appState.isChatPinned = !isPinned;
-        windowManager.applyAlwaysOnTop(win, appState.isChatPinned, 'screen-saver');
+        windowManager.applyAlwaysOnTop(win, appState.isChatPinned, 'floating');
       } else if (win === susurroWin) {
         const isPinned = appState.isSusurroPinned;
         appState.isSusurroPinned = !isPinned;
-        windowManager.applyAlwaysOnTop(win, appState.isSusurroPinned, 'screen-saver');
+        windowManager.applyAlwaysOnTop(win, appState.isSusurroPinned, 'floating');
       } else {
-        windowManager.applyAlwaysOnTop(win, !win.isAlwaysOnTop(), 'screen-saver');
+        windowManager.applyAlwaysOnTop(win, !win.isAlwaysOnTop(), 'floating');
       }
     }
   });
@@ -198,12 +203,12 @@ function registerWindowHandlers() {
         }
       } else if (win === chatWin) {
         appState.isChatPinned = pinned;
-        windowManager.applyAlwaysOnTop(win, pinned, 'screen-saver');
+        windowManager.applyAlwaysOnTop(win, pinned, 'floating');
       } else if (win === susurroWin) {
         appState.isSusurroPinned = pinned;
-        windowManager.applyAlwaysOnTop(win, pinned, 'screen-saver');
+        windowManager.applyAlwaysOnTop(win, pinned, 'floating');
       } else {
-        windowManager.applyAlwaysOnTop(win, pinned, 'screen-saver');
+        windowManager.applyAlwaysOnTop(win, pinned, 'floating');
       }
     }
   });
@@ -251,6 +256,7 @@ function registerWindowHandlers() {
     const nextX = Math.min(Math.max(area.x, bounds.x + Math.round(delta?.x || 0)), area.x + area.width - bounds.width);
     const nextY = Math.min(Math.max(area.y, bounds.y + Math.round(delta?.y || 0)), area.y + area.height - bounds.height);
     win.setPosition(nextX, nextY);
+    windowManager.rememberFloatingHeadBounds(win.getBounds());
   });
 
   /**

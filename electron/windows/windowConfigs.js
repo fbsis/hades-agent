@@ -177,8 +177,8 @@ const windowConfigs = {
     }
   },
   floatingHead: {
-    width: 64,
-    height: 64,
+    width: 36,
+    height: 36,
     frame: false,
     transparent: true,
     hasShadow: false,
@@ -198,11 +198,15 @@ const windowConfigs = {
     },
     onInit: (win) => {
       const area = screen.getPrimaryDisplay().workArea;
-      win.setPosition(
-        Math.max(area.x + 12, area.x + area.width - 88),
-        Math.max(area.y + 12, area.y + area.height - 96)
-      );
-      win.setAlwaysOnTop(true, 'screen-saver');
+      const size = 36;
+      const margin = 18;
+      win.setBounds({
+        x: Math.max(area.x + 8, area.x + area.width - size - margin),
+        y: Math.max(area.y + 8, area.y + area.height - size - margin),
+        width: size,
+        height: size
+      });
+      win.setAlwaysOnTop(true, 'pop-up-menu');
       win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
     }
   },
@@ -230,7 +234,7 @@ const windowConfigs = {
         Math.floor((sw - 900) / 2),
         Math.floor((sh - 180) / 2)
       );
-      win.setAlwaysOnTop(true, 'screen-saver');
+      win.setAlwaysOnTop(true, 'floating');
       win.once('ready-to-show', () => {
         console.log('[WINDOW_CONFIGS] Splash window ready-to-show, showing now');
         win.show();

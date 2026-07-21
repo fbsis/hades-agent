@@ -10,22 +10,19 @@
 
 .floating-head-button {
   position: relative;
-  width: 62px;
-  height: 62px;
-  border: 2px solid rgba(248, 113, 113, 0.82);
+  width: 34px;
+  height: 34px;
+  border: 1px solid rgba(248, 113, 113, 0.82);
   border-radius: 50%;
-  background:
-    radial-gradient(circle at 32% 28%, rgba(255, 255, 255, 0.18), transparent 30%),
-    linear-gradient(145deg, rgba(25, 10, 10, 0.98), rgba(7, 5, 5, 0.96));
+  background: transparent;
   color: #ef4444;
   cursor: grab;
   display: flex;
   align-items: center;
   justify-content: center;
   box-shadow:
-    0 10px 26px rgba(0, 0, 0, 0.5),
-    0 0 24px rgba(220, 38, 38, 0.42),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+    0 4px 12px rgba(0, 0, 0, 0.28),
+    0 0 12px rgba(220, 38, 38, 0.3);
   -webkit-app-region: no-drag;
   user-select: none;
   touch-action: none;
@@ -46,8 +43,8 @@
 .floating-chat-bubbles {
   position: relative;
   z-index: 2;
-  width: 42px;
-  height: 36px;
+  width: 23px;
+  height: 20px;
   display: block;
   pointer-events: none;
   user-select: none;
@@ -62,26 +59,26 @@
     linear-gradient(145deg, rgba(248, 113, 113, 0.98), rgba(185, 28, 28, 0.98));
   border: 1px solid rgba(255, 255, 255, 0.22);
   box-shadow:
-    0 4px 10px rgba(0, 0, 0, 0.38),
-    0 0 14px rgba(239, 68, 68, 0.32);
+    0 2px 5px rgba(0, 0, 0, 0.3),
+    0 0 7px rgba(239, 68, 68, 0.28);
 }
 
 .chat-bubble-main {
-  left: 3px;
-  top: 6px;
-  width: 31px;
-  height: 23px;
-  gap: 3px;
-  border-radius: 14px 14px 14px 5px;
+  left: 2px;
+  top: 4px;
+  width: 17px;
+  height: 12px;
+  gap: 1px;
+  border-radius: 7px 7px 7px 3px;
 }
 
 .chat-bubble-main::after {
   content: "";
   position: absolute;
-  left: 4px;
-  bottom: -5px;
-  width: 9px;
-  height: 9px;
+  left: 3px;
+  bottom: -3px;
+  width: 5px;
+  height: 5px;
   background: rgba(185, 28, 28, 0.98);
   clip-path: polygon(0 0, 100% 0, 0 100%);
 }
@@ -89,9 +86,9 @@
 .chat-bubble-small {
   right: 1px;
   top: 0;
-  width: 19px;
-  height: 15px;
-  border-radius: 10px 10px 4px 10px;
+  width: 10px;
+  height: 8px;
+  border-radius: 5px 5px 2px 5px;
   background:
     linear-gradient(145deg, rgba(255, 255, 255, 0.95), rgba(248, 113, 113, 0.9));
 }
@@ -99,27 +96,27 @@
 .chat-bubble-small::after {
   content: "";
   position: absolute;
-  right: 3px;
-  bottom: -4px;
-  width: 7px;
-  height: 7px;
+  right: 2px;
+  bottom: -2px;
+  width: 4px;
+  height: 4px;
   background: rgba(248, 113, 113, 0.95);
   clip-path: polygon(100% 0, 100% 100%, 0 0);
 }
 
 .chat-bubble-dot {
-  width: 4px;
-  height: 4px;
+  width: 2px;
+  height: 2px;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.92);
-  box-shadow: 0 0 4px rgba(255, 255, 255, 0.28);
+  box-shadow: 0 0 2px rgba(255, 255, 255, 0.28);
 }
 
 .floating-head-glow {
   position: absolute;
-  inset: 9px;
+  inset: 4px;
   border-radius: 50%;
-  background: rgba(239, 68, 68, 0.16);
-  box-shadow: 0 0 18px rgba(239, 68, 68, 0.32);
+  background: transparent;
+  box-shadow: none;
   pointer-events: none;
 }
