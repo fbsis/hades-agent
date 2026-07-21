@@ -59,10 +59,9 @@ export const MessageCard = React.memo(({
   copiedId, 
   onCopy 
 }: MessageCardProps) => {
-  // When translated, we ONLY show the translatedText. 
-  // If translatedText isn't ready yet, we show a subtle placeholder instead of English.
-  const currentText = msg.isTranslated ? msg.translatedText : msg.text;
-  const textToCopy = msg.isTranslated ? (msg.translatedText || "") : msg.text;
+  const sourceText = `${msg.text || ""}${msg.pendingText || ""}`;
+  const currentText = msg.isTranslated ? (msg.translatedText || sourceText) : msg.text;
+  const textToCopy = msg.isTranslated ? (msg.translatedText || sourceText) : sourceText;
   
   const fallbackText = msg.pendingText ? "" : "...";
   const displayText = currentText || (msg.isTranslated ? (msg.isTranslating ? "Traduzindo..." : "") : fallbackText);

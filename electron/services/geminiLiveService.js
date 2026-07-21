@@ -17,6 +17,9 @@ class GeminiLiveService {
 
   // Latency tracking
   lastChunkTime = 0;
+  lastAudioLogAt = 0;
+  lastTranscriptionAt = 0;
+  audioStreamOpen = false;
   turnStartTime = 0;
 
   /**
@@ -41,13 +44,16 @@ class GeminiLiveService {
     this.chunkCount = 0;
     this._notifiedWaiting = false;
     this.turnStartTime = 0;
+    this.lastAudioLogAt = 0;
+    this.lastTranscriptionAt = 0;
+    this.audioStreamOpen = false;
 
     return new Promise((resolve) => {
       (async () => {
         try {
           this.client = new GoogleGenAI({ apiKey });
           
-          const model = "models/gemini-2.5-flash-native-audio-latest";
+          const model = "gemini-3.1-flash-live-preview";
 
           logger.info('GEMINI LIVE', `Connecting to session for model: ${model}`);
           
@@ -62,8 +68,16 @@ class GeminiLiveService {
                   text: personaPrompt || "VOCÊ É UM TRANSRITOR DE ÁUDIO DE ALTA PRECISÃO. REGRA ABSOLUTA: Transcreva EXATAMENTE o que é dito no áudio. NÃO responda, NÃO comente, NÃO gere 'Model Text'. Sua ÚNICA função é fornecer a transcrição via canal de input_audio_transcription. MANTENHA SILÊNCIO TOTAL NO CANAL DE RESPOSTA (AUDIO E TEXTO)."
                 }]
               },
-              inputAudioTranscription: { enabled: true },
-              outputAudioTranscription: { enabled: true }
+              inputAudioTranscription: {},
+              thinkingConfig: { thinkingLevel: "MINIMAL" },
+              realtimeInputConfig: {
+                automaticActivityDetection: {
+                  startOfSpeechSensitivity: "START_SENSITIVITY_HIGH",
+                  endOfSpeechSensitivity: "END_SENSITIVITY_HIGH",
+                  prefixPaddingMs: 100,
+                  silenceDurationMs: 500
+                }
+              }
             },
             callbacks: {
               onopen: () => {
@@ -149,6 +163,7 @@ class GeminiLiveService {
     if (!this.turnStartTime) this.turnStartTime = now;
     
     const latency = now - this.lastChunkTime;
+    this.lastTranscriptionAt = now;
     logger.info('GEMINI LIVE', `[INPUT] "${inputTranscription.text}" (Latency: ${latency}ms, Finished: ${inputTranscription.finished})`);
     
     if (inputTranscription.text) {
@@ -168,23 +183,28 @@ class GeminiLiveService {
   /**
    * Sends a base64 encoded audio chunk to the model.
    * @param {string} base64Audio 
+   * @param {number} rendererSeq
    */
-  sendChunk(base64Audio) {
+  sendChunk(base64Audio, rendererSeq) {
     if (this.session && this.isReady) {
       this.chunkCount++;
-      this.lastChunkTime = Date.now();
+      const now = Date.now();
+      this.lastChunkTime = now;
 
-      if (this.chunkCount % 50 === 1) {
-        logger.info('GEMINI LIVE', `Sending audio chunk #${this.chunkCount}`);
+      if (this.chunkCount === 1 || now - this.lastAudioLogAt >= 10000) {
+        const suffix = rendererSeq ? ` (renderer seq ${rendererSeq})` : '';
+        logger.info('GEMINI LIVE', `Sending audio chunk #${this.chunkCount}${suffix}`);
+        this.lastAudioLogAt = now;
       }
 
       try {
         this.session.sendRealtimeInput({
-          media: {
+          audio: {
             data: base64Audio,
             mimeType: "audio/pcm;rate=16000"
           }
         });
+        this.audioStreamOpen = true;
       } catch (err) {
         logger.error('GEMINI LIVE', 'Failed to send audio chunk:', err);
       }
@@ -195,11 +215,30 @@ class GeminiLiveService {
   }
 
   /**
+   * Signals that the current realtime audio stream paused while keeping the Live session open.
+   * @param {string} reason
+   */
+  sendAudioStreamEnd(reason = 'pause') {
+    if (!this.session || !this.isReady || !this.audioStreamOpen) return;
+
+    try {
+      this.session.sendRealtimeInput({ audioStreamEnd: true });
+      this.audioStreamOpen = false;
+      logger.info('GEMINI LIVE', `Audio stream end sent (${reason}).`);
+    } catch (e) {
+      logger.error('GEMINI LIVE', 'Error sending audio stream end', e);
+    }
+  }
+
+  /**
    * Closes the active session.
    */
   stop() {
+    this.sendAudioStreamEnd('stop');
+
     this.isReady = false;
     this._notifiedWaiting = false;
+    this.audioStreamOpen = false;
     this.turnStartTime = 0;
     if (this.session) {
       try {

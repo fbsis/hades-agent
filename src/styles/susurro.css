@@ -38,6 +38,107 @@
   flex-direction: column;
 }
 
+.susurro-question-panel {
+  flex-shrink: 0;
+  padding: 10px 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(8, 8, 8, 0.94);
+  -webkit-app-region: no-drag;
+}
+
+.susurro-answer-list {
+  max-height: 150px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 10px;
+  padding-right: 4px;
+}
+
+.susurro-answer-card {
+  border: 1px solid rgba(239, 68, 68, 0.16);
+  background: rgba(239, 68, 68, 0.06);
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+
+.susurro-answer-question {
+  color: rgba(255, 255, 255, 0.62);
+  font-size: 11px;
+  font-weight: 700;
+  margin-bottom: 5px;
+}
+
+.susurro-answer-text {
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 12px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.susurro-answer-provider {
+  margin-top: 6px;
+  color: rgba(239, 68, 68, 0.72);
+  font-size: 9px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.susurro-question-form {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.susurro-question-input {
+  flex: 1;
+  min-width: 0;
+  height: 34px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(255, 255, 255, 0.92);
+  outline: none;
+  padding: 0 11px;
+  font-size: 13px;
+}
+
+.susurro-question-input:focus {
+  border-color: rgba(239, 68, 68, 0.42);
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.1);
+}
+
+.susurro-question-input::placeholder {
+  color: rgba(255, 255, 255, 0.35);
+}
+
+.susurro-question-submit {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  border: 1px solid rgba(239, 68, 68, 0.22);
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.16s ease, border-color 0.16s ease;
+}
+
+.susurro-question-submit:hover:not(:disabled) {
+  background: rgba(239, 68, 68, 0.16);
+  border-color: rgba(239, 68, 68, 0.38);
+}
+
+.susurro-question-submit:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
 /* ─── Footer / mic button ────────────────────────────────────────────── */
 .susurro-footer {
   height: 72px;

@@ -4,6 +4,9 @@ import { useAudioRecorder } from './useAudioRecorder';
 import { updateMessageWithDeltas, calculateDeltaLength } from '../utils/transcription';
 import { electronService } from '../services/electron';
 
+const DELTA_RENDER_DEBOUNCE_MS = 40;
+const LOCAL_TURN_IDLE_MS = 900;
+
 /**
  * Hook to manage high-level transcription logic, delta processing, and message state.
  * Orchestrates the audio recording lifecycle and coordinates with Electron IPC for STT.
@@ -19,10 +22,64 @@ export const useTranscription = (
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const currentTurnIdRef = useRef<string | null>(null);
+  const persistedTurnIdsRef = useRef<Set<string>>(new Set());
   const pendingDeltaRef = useRef<{ text: string, isFinal: boolean }[]>([]);
   const deltaTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const localFinalizeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const { startRecording, stopRecording, gainNode } = useAudioRecorder();
+
+  const clearLocalFinalizeTimeout = useCallback(() => {
+    if (localFinalizeTimeoutRef.current) {
+      clearTimeout(localFinalizeTimeoutRef.current);
+      localFinalizeTimeoutRef.current = null;
+    }
+  }, []);
+
+  const persistFinalMessage = useCallback((message: SusurroMessage) => {
+    if (!message?.id || persistedTurnIdsRef.current.has(message.id)) return;
+    const text = (message.text || message.pendingText || '').trim();
+    if (!text) return;
+
+    persistedTurnIdsRef.current.add(message.id);
+    electronService.saveSusurroMessage({
+      ...message,
+      text,
+      pendingText: '',
+      timestamp: message.timestamp instanceof Date ? message.timestamp.toISOString() : message.timestamp
+    });
+  }, []);
+
+  const finalizeCurrentTurn = useCallback(() => {
+    const turnId = currentTurnIdRef.current;
+    if (!turnId) return;
+
+    setMessages(prev => {
+      const idx = prev.findIndex(m => m.id === turnId);
+      if (idx === -1) return prev;
+
+      const next = [...prev];
+      const target = next[idx];
+      const finalized = {
+        ...target,
+        text: (target.text || "") + (target.pendingText || ""),
+        pendingText: ""
+      };
+      next[idx] = finalized;
+      queueMicrotask(() => persistFinalMessage(finalized));
+      return next;
+    });
+
+    currentTurnIdRef.current = null;
+  }, [persistFinalMessage, setMessages]);
+
+  const scheduleLocalFinalize = useCallback(() => {
+    clearLocalFinalizeTimeout();
+    localFinalizeTimeoutRef.current = setTimeout(() => {
+      localFinalizeTimeoutRef.current = null;
+      finalizeCurrentTurn();
+    }, LOCAL_TURN_IDLE_MS);
+  }, [clearLocalFinalizeTimeout, finalizeCurrentTurn]);
 
   // Keep refs in sync for use in callbacks to avoid stale closures
   const settingsRef = useRef({ isSuggestionsEnabled, selectedPersona, isGlobalTranslationEnabled });
@@ -54,6 +111,7 @@ export const useTranscription = (
    */
   const processDeltas = useCallback((deltas: { text: string, isFinal: boolean }[]) => {
     if (deltas.length === 0) return;
+    clearLocalFinalizeTimeout();
 
     setMessages(prev => {
       let newMessages = [...prev];
@@ -83,7 +141,16 @@ export const useTranscription = (
     });
 
     updateExternalState(deltas);
-  }, [setMessages, updateExternalState]);
+
+    if (deltas.some(d => d.isFinal)) {
+      finalizeCurrentTurn();
+      return;
+    }
+
+    if (deltas.some(d => d.text)) {
+      scheduleLocalFinalize();
+    }
+  }, [clearLocalFinalizeTimeout, finalizeCurrentTurn, scheduleLocalFinalize, setMessages, updateExternalState]);
 
   /**
    * Handles status updates from the backend transcription service.
@@ -106,29 +173,15 @@ export const useTranscription = (
       setIsConnecting(false);
       setIsTranscribing(false);
       stopRecording(); // Ensure audio pipeline is torn down when backend closes
-      currentTurnIdRef.current = null;
+      clearLocalFinalizeTimeout();
+      finalizeCurrentTurn();
       return;
     }
 
     if (status !== 'turn_complete') return;
-    if (!currentTurnIdRef.current) return;
-
-    setMessages(prev => {
-      const idx = prev.findIndex(m => m.id === currentTurnIdRef.current);
-      if (idx === -1) return prev;
-
-      const next = [...prev];
-      const target = next[idx];
-      next[idx] = {
-        ...target,
-        text: (target.text || "") + (target.pendingText || ""),
-        pendingText: ""
-      };
-      return next;
-    });
-
-    currentTurnIdRef.current = null;
-  }, [setMessages]);
+    clearLocalFinalizeTimeout();
+    finalizeCurrentTurn();
+  }, [clearLocalFinalizeTimeout, finalizeCurrentTurn, stopRecording]);
 
   const isTranscribingRef = useRef(isTranscribing);
   useEffect(() => {
@@ -147,8 +200,8 @@ export const useTranscription = (
     console.log(`[TRANSCRIPTION] Toggle requested. State: isTranscribing=${isTranscribingRef.current}, isConnecting=${isConnectingRef.current}`);
 
     if (isTranscribingRef.current || isConnectingRef.current) {
-      electronService.stopSusurroLive();
       stopRecording();
+      await electronService.stopSusurroLive();
 
       // Flush any pending deltas immediately on manual stop
       if (pendingDeltaRef.current.length > 0) {
@@ -159,6 +212,7 @@ export const useTranscription = (
         clearTimeout(deltaTimeoutRef.current);
         deltaTimeoutRef.current = null;
       }
+      clearLocalFinalizeTimeout();
 
       // handleStatusUpdate will catch the 'closed' signal and cleanup
       return;
@@ -178,6 +232,9 @@ export const useTranscription = (
       isSystemAudio: true,
       onChunk: (base64, seq) => {
         electronService.sendSusurroChunk(base64, seq);
+      },
+      onAudioStreamEnd: () => {
+        electronService.endSusurroAudioStream();
       }
     });
 
@@ -186,7 +243,7 @@ export const useTranscription = (
       electronService.stopSusurroLive();
       setIsConnecting(false);
     }
-  }, [startRecording, stopRecording]);
+  }, [clearLocalFinalizeTimeout, processDeltas, startRecording, stopRecording]);
 
   // Sync gain node with volume state
   useEffect(() => {
@@ -207,7 +264,7 @@ export const useTranscription = (
             deltaTimeoutRef.current = null;
             processDeltas(pendingDeltaRef.current);
             pendingDeltaRef.current = [];
-          }, 100);
+          }, DELTA_RENDER_DEBOUNCE_MS);
         }
       }
     });
@@ -234,16 +291,18 @@ export const useTranscription = (
       if (removeStartSusurro) removeStartSusurro();
       if (removeStopSusurro) removeStopSusurro();
       if (deltaTimeoutRef.current) clearTimeout(deltaTimeoutRef.current);
+      clearLocalFinalizeTimeout();
     };
-  }, [processDeltas, handleStatusUpdate, toggleTranscription]);
+  }, [clearLocalFinalizeTimeout, processDeltas, handleStatusUpdate, toggleTranscription]);
 
   useEffect(() => {
     return () => {
       electronService.stopSusurroLive();
       stopRecording();
       if (deltaTimeoutRef.current) clearTimeout(deltaTimeoutRef.current);
+      clearLocalFinalizeTimeout();
     };
-  }, [stopRecording]);
+  }, [clearLocalFinalizeTimeout, stopRecording]);
 
   return {
     isTranscribing,

@@ -3,11 +3,17 @@ import { AUDIO_CONFIG } from '../constants';
 import { calculateRMS, floatTo16BitPCM, arrayBufferToBase64 } from '../utils/audio';
 import { electronService } from '../services/electron';
 
+const LIVE_TRANSCRIPTION_CHUNK_MS = 40;
+const SILENCE_HANGOVER_MS = 500;
+const ACTIVITY_LOG_INTERVAL_MS = 5000;
+const SEND_LOG_INTERVAL_MS = 10000;
+
 interface AudioRecorderOptions {
   sampleRate?: number;
   bufferSize?: number;
   onChunk?: (base64: string, seq: number) => void;
   onRawChunk?: (samples: Float32Array) => void;
+  onAudioStreamEnd?: () => void;
   onVolumeChange?: (volume: number) => void;
   isSystemAudio?: boolean;
 }
@@ -21,18 +27,25 @@ export const useAudioRecorder = () => {
   const streamRef = useRef<MediaStream | null>(null);
   const processorRef = useRef<AudioWorkletNode | null>(null);
   const gainNodeRef = useRef<GainNode | null>(null);
+  const sinkNodeRef = useRef<GainNode | null>(null);
   const chunkSeqRef = useRef<number>(0);
   const isRecordingActiveRef = useRef<boolean>(false);
+  const flushLiveAudioRef = useRef<(() => void) | null>(null);
 
   const stopRecording = useCallback(() => {
     isRecordingActiveRef.current = false;
+    if (flushLiveAudioRef.current) flushLiveAudioRef.current();
+    flushLiveAudioRef.current = null;
+
     if (processorRef.current) processorRef.current.disconnect();
     if (gainNodeRef.current) gainNodeRef.current.disconnect();
+    if (sinkNodeRef.current) sinkNodeRef.current.disconnect();
     if (audioContextRef.current) audioContextRef.current.close();
     if (streamRef.current) streamRef.current.getTracks().forEach(t => t.stop());
     
     processorRef.current = null;
     gainNodeRef.current = null;
+    sinkNodeRef.current = null;
     audioContextRef.current = null;
     streamRef.current = null;
     chunkSeqRef.current = 0;
@@ -44,6 +57,7 @@ export const useAudioRecorder = () => {
       bufferSize = AUDIO_CONFIG.BUFFER_SIZE,
       onChunk,
       onRawChunk,
+      onAudioStreamEnd,
       onVolumeChange,
       isSystemAudio = false
     } = options;
@@ -105,12 +119,18 @@ export const useAudioRecorder = () => {
       }
       audioContextRef.current = audioContext;
 
+      const liveChunkTargetSamples = Math.max(
+        1,
+        Math.round(sampleRate * (LIVE_TRANSCRIPTION_CHUNK_MS / 1000))
+      );
+      const workletBufferSize = onChunk ? liveChunkTargetSamples : bufferSize;
+
       const workletCode = `
         class VoiceProcessor extends AudioWorkletProcessor {
           constructor() {
             super();
             this.buffer = [];
-            this.bufferSize = ${bufferSize};
+            this.bufferSize = ${workletBufferSize};
           }
           process(inputs) {
             const input = inputs[0];
@@ -143,14 +163,52 @@ export const useAudioRecorder = () => {
 
       const source = audioContext.createMediaStreamSource(stream);
       const gainNode = audioContext.createGain();
+      const sinkNode = audioContext.createGain();
+      sinkNode.gain.value = 0;
       gainNodeRef.current = gainNode;
+      sinkNodeRef.current = sinkNode;
 
       const workletNode = new AudioWorkletNode(audioContext, 'voice-processor');
       processorRef.current = workletNode;
 
       const silenceCountRef = { current: 0 };
-      const HANGOVER_CHUNKS = 15; // ~1 second of silence to let the model finalize
-      let silentLogs = 0;
+      const chunkDurationMs = (workletBufferSize / sampleRate) * 1000;
+      const HANGOVER_CHUNKS = Math.max(1, Math.ceil(SILENCE_HANGOVER_MS / chunkDurationMs));
+      let hasOpenAudioStream = false;
+      let lastActivityLogAt = 0;
+      let lastSendLogAt = 0;
+      let liveChunks: Float32Array[] = [];
+      let liveChunkSampleCount = 0;
+
+      const flushLiveAudio = (force = false) => {
+        if (!onChunk || liveChunkSampleCount === 0) return;
+        if (!force && liveChunkSampleCount < liveChunkTargetSamples) return;
+
+        const merged = new Float32Array(liveChunkSampleCount);
+        let offset = 0;
+        for (const chunk of liveChunks) {
+          merged.set(chunk, offset);
+          offset += chunk.length;
+        }
+
+        liveChunks = [];
+        liveChunkSampleCount = 0;
+
+        const pcm16 = floatTo16BitPCM(merged);
+        const base64 = arrayBufferToBase64(pcm16);
+        chunkSeqRef.current++;
+
+        const now = Date.now();
+        if (chunkSeqRef.current === 1 || now - lastSendLogAt >= SEND_LOG_INTERVAL_MS) {
+          const durationMs = Math.round((merged.length / sampleRate) * 1000);
+          console.log(`[AUDIO_RECORDER] Sending chunk seq: ${chunkSeqRef.current}, duration: ${durationMs}ms`);
+          lastSendLogAt = now;
+        }
+
+        onChunk(base64, chunkSeqRef.current);
+        hasOpenAudioStream = true;
+      };
+      flushLiveAudioRef.current = () => flushLiveAudio(true);
 
       workletNode.port.onmessage = (e) => {
         if (!isRecordingActiveRef.current) {
@@ -174,29 +232,30 @@ export const useAudioRecorder = () => {
         // Send chunk if it's active OR if we are in the hangover period
         const shouldSend = !isSilent || silenceCountRef.current <= HANGOVER_CHUNKS;
         
-        // Log every 100th chunk even if it's below threshold to show it's "alive"
-        const debugSeq = chunkSeqRef.current + (silentLogs || 0);
-        if (debugSeq % 100 === 0) {
+        // Keep a low-frequency activity log so long sessions do not flood the terminal.
+        const now = Date.now();
+        if (now - lastActivityLogAt >= ACTIVITY_LOG_INTERVAL_MS) {
           console.log(`[AUDIO_RECORDER] Activity Check - RMS: ${rms.toFixed(4)}, Threshold: ${threshold}, Silent: ${isSilent}, Hangover: ${silenceCountRef.current}/${HANGOVER_CHUNKS}`);
+          lastActivityLogAt = now;
         }
 
         if (onChunk && shouldSend) {
-          const pcm16 = floatTo16BitPCM(samples);
-          const base64 = arrayBufferToBase64(pcm16);
-          chunkSeqRef.current++;
-          
-          if (chunkSeqRef.current === 1 || chunkSeqRef.current % 50 === 0) {
-            console.log(`[AUDIO_RECORDER] Sending chunk seq: ${chunkSeqRef.current}, RMS: ${rms.toFixed(4)}`);
-          }
-          onChunk(base64, chunkSeqRef.current);
+          liveChunks.push(samples);
+          liveChunkSampleCount += samples.length;
+          flushLiveAudio(false);
         } else {
-          silentLogs++;
+          flushLiveAudio(true);
+          if (hasOpenAudioStream) {
+            onAudioStreamEnd?.();
+            hasOpenAudioStream = false;
+          }
         }
       };
 
       source.connect(gainNode);
       gainNode.connect(workletNode);
-      workletNode.connect(audioContext.destination);
+      workletNode.connect(sinkNode);
+      sinkNode.connect(audioContext.destination);
 
       console.log(`[AUDIO_RECORDER] Recording pipeline connected successfully.`);
 

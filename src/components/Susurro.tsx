@@ -1,5 +1,5 @@
 import React from 'react';
-import { Activity } from 'lucide-react';
+import { Activity, Loader2, Send } from 'lucide-react';
 import { SusurroChatList } from './susurro/SusurroChatList';
 import { SusurroHeader } from './susurro/SusurroHeader';
 import { useSusurro } from '../hooks/useSusurro';
@@ -70,6 +70,46 @@ const Susurro: React.FC<SusurroProps> = ({ embedded = false, autoStart = false, 
         chatEndRef={s.chatEndRef}
         handleScroll={s.handleScroll}
       />
+
+      <div className="susurro-question-panel">
+        {s.transcriptAnswers.length > 0 && (
+          <div className="susurro-answer-list">
+            {s.transcriptAnswers.map(item => (
+              <div key={item.id} className="susurro-answer-card">
+                <div className="susurro-answer-question">{item.question}</div>
+                <div className="susurro-answer-text">{item.answer}</div>
+                {item.provider && (
+                  <div className="susurro-answer-provider">{item.provider}</div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
+        <form
+          className="susurro-question-form"
+          onSubmit={(event) => {
+            event.preventDefault();
+            s.askTranscriptQuestion();
+          }}
+        >
+          <input
+            className="susurro-question-input"
+            value={s.transcriptQuestion}
+            onChange={(event) => s.setTranscriptQuestion(event.target.value)}
+            placeholder="Pergunte sobre a transcrição..."
+            disabled={s.isAskingTranscript}
+          />
+          <button
+            type="submit"
+            className="susurro-question-submit"
+            disabled={s.isAskingTranscript || !s.transcriptQuestion.trim()}
+            title="Perguntar sobre a transcrição"
+          >
+            {s.isAskingTranscript ? <Loader2 size={15} className="animate-spin" /> : <Send size={15} />}
+          </button>
+        </form>
+      </div>
 
       {/* Footer Controls */}
       <div className="susurro-footer">

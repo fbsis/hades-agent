@@ -35,11 +35,26 @@ function registerSusurroHandlers() {
     }
   });
 
+  ipcMain.handle('ask-susurro-transcript', async (event, data) => {
+    try {
+      const answer = await aiService.answerTranscriptQuestion(data || {});
+      return { success: true, data: answer };
+    } catch (error) {
+      logger.error('IPC', 'ask-susurro-transcript error', error);
+      return { success: false, error: error.message };
+    }
+  });
+
   // --- Persistence ---
   ipcMain.handle('save-susurro-message', (event, msg) => {
     try {
       const history = store.getSusurroHistory();
-      history.push(msg);
+      const index = history.findIndex(item => item.id && item.id === msg?.id);
+      if (index === -1) {
+        history.push(msg);
+      } else {
+        history[index] = { ...history[index], ...msg };
+      }
       store.saveSusurroHistory(history);
       return { success: true, data: true };
     } catch (error) {
@@ -78,8 +93,12 @@ function registerSusurroHandlers() {
     logger.info('IPC', `System audio toggled: ${enabled}`);
   });
 
-  ipcMain.on('susurro-send-chunk', (event, chunk) => {
-    geminiLiveService.sendChunk(chunk);
+  ipcMain.on('susurro-send-chunk', (event, chunk, seq) => {
+    geminiLiveService.sendChunk(chunk, seq);
+  });
+
+  ipcMain.on('susurro-audio-stream-end', () => {
+    geminiLiveService.sendAudioStreamEnd('renderer_pause');
   });
 
   ipcMain.handle('susurro-start-live', async (event, personaPrompt) => {
