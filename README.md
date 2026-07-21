@@ -14,17 +14,17 @@
     </td>
     <td width="65%" valign="top" style="padding-left: 20px;">
       <h1 style="margin-top: 0; margin-bottom: 8px;">Hades Agent <img src="https://res.cloudinary.com/dmii83n8i/image/upload/v1779302517/hades-tray-icon-128_dks55n.png" width="36" height="36" align="center" style="display: inline-block; vertical-align: middle; margin-left: 6px;" alt="Hades Icon" /></h1>
-      <p><strong>Hades is an invisible, ultra-fast desktop companion with autonomous background memory consolidation and a local task scheduler.</strong></p>
-      <p><strong>Safety Limits:</strong> Sandboxed with <strong>zero system-write access</strong> (cannot create, edit, or delete files, nor run scripts). The AI is strictly restricted to real-time Google queries (via Tavily) and local memory logs, keeping your PC 100% safe.</p>
+      <p><strong>Hades is an always-on desktop assistant with live transcription, contextual chat, visual understanding, Hermes-backed memory, and a draggable floating bubble.</strong></p>
+      <p><strong>Safety Model:</strong> the renderer stays sandboxed behind a typed IPC bridge. API keys are stored locally, Hermes access is opt-in, and privileged operations remain in the Electron main process.</p>
     </td>
   </tr>
 </table>
 
 <p align="center" style="margin-top: 20px;">
-  <a href="https://github.com/euvictorldev/Hades-Agent/releases"><img src="https://img.shields.io/badge/Releases-Download-FF2A2A?style=for-the-badge&logo=github" alt="Releases"></a>
-  <a href="https://github.com/euvictorldev/Hades-Agent/blob/master/LICENSE"><img src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge" alt="License: MIT"></a>
-  <a href="https://github.com/euvictorldev/Hades-Agent"><img src="https://img.shields.io/badge/Built%20With-Gemini%20Live%20API-blueviolet?style=for-the-badge" alt="Built with Gemini Live"></a>
-  <a href="https://github.com/euvictorldev/Hades-Agent"><img src="https://img.shields.io/badge/Platform-Windows%20%2F%20macOS-0078D6?style=for-the-badge&logo=apple&logoColor=white" alt="Platform: Windows / macOS"></a>
+  <a href="https://github.com/fbsis/hades-agent/releases"><img src="https://img.shields.io/badge/Releases-Download-FF2A2A?style=for-the-badge&logo=github" alt="Releases"></a>
+  <a href="https://github.com/fbsis/hades-agent/blob/master/LICENSE"><img src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge" alt="License: MIT"></a>
+  <a href="https://github.com/fbsis/hades-agent"><img src="https://img.shields.io/badge/Built%20With-Gemini%20Live%20API-blueviolet?style=for-the-badge" alt="Built with Gemini Live"></a>
+  <a href="https://github.com/fbsis/hades-agent"><img src="https://img.shields.io/badge/Platform-Windows%20%2F%20macOS-0078D6?style=for-the-badge&logo=apple&logoColor=white" alt="Platform: Windows / macOS"></a>
 </p>
 
 <table>
@@ -34,15 +34,15 @@
 </tr>
 <tr>
   <td><b>🎙️ Real-time Transcription (Alt+B)</b></td>
-  <td>Press <code>Alt+B</code> to capture and transcribe PC internal audio (like meetings or video classes) in real-time. Streams raw <strong>16 kHz PCM audio</strong> over a full-duplex WebSocket directly to the <strong>Gemini Live API</strong>, achieving sub-100ms transcription latency.</td>
+  <td>Open the Susurro panel to capture system audio, stream raw <strong>16 kHz PCM</strong> to <strong>Gemini Live</strong>, render low-latency deltas, locally finalize turns, ask questions over the transcript, and send meeting summaries to Hermes.</td>
 </tr>
 <tr>
   <td><b>⚡ Spotlight Command Bar</b></td>
-  <td>Press <code>Alt+D</code> to summon a floating, borderless command bar. Delivers <strong>real-time internet-grounded answers</strong> powered by the Tavily Search API — attach images, switch AI models, and get answers without ever leaving your workflow.</td>
+  <td>Press <code>Alt+D</code> to summon a floating, borderless command workspace with MiniChat, Settings, live transcription, and one-shot voice input in one unified window.</td>
 </tr>
 <tr>
   <td><b>💬 Session MiniChat</b></td>
-  <td>A persistent chat HUD that displays the <strong>active model, live token count, and session cost</strong>. Wipe the session instantly to reset all timers, history, and spend back to zero — no restart required.</td>
+  <td>A persistent chat HUD that can route most reasoning to <strong>Hermes</strong>, use Gemini for visual context and fallback, display token usage, and keep the active assistant mode close to your workflow.</td>
 </tr>
 <tr>
   <td><b>🧠 Dream Memory Consolidation</b></td>
@@ -51,6 +51,18 @@
 <tr>
   <td><b>🤖 Hermes Primary Agent</b></td>
   <td>Hades can use a local <strong>Hermes Agent</strong> server as the main brain for MiniChat, memory, web/API/CLI, interview, research, suggestions, and multi-step work while keeping Gemini on the fast transcription path.</td>
+</tr>
+<tr>
+  <td><b>👁️ Gemini Visual Context</b></td>
+  <td>Images are read by Gemini first. Hades extracts text, code, UI state, and visible answers, then either answers directly or forwards compact visual context to Hermes.</td>
+</tr>
+<tr>
+  <td><b>🫧 Floating Bubble Mode</b></td>
+  <td>Minimize the app into a transparent, draggable, always-on-top chat bubble. Its position is persisted and clicking it restores the unified command window.</td>
+</tr>
+<tr>
+  <td><b>🎤 Embedded Voice Input</b></td>
+  <td><code>Alt+V</code> opens a one-shot voice recorder inside the same command window, transcribes audio with Gemini, and sends the result back to MiniChat.</td>
 </tr>
 <tr>
   <td><b>📋 Safe Task Scheduler</b></td>
@@ -64,7 +76,7 @@
 
 ### For Users (Download Installer)
 
-1. Head to the **[Releases](https://github.com/euvictorldev/Hades-Agent/releases)** page.
+1. Head to the **[Releases](https://github.com/fbsis/hades-agent/releases)** page.
 2. Download **`Hades-Agent-Setup-1.0.0.exe`** (or the `.zip` portable version).
 3. Run the installer, launch Hades, then press **`Alt+S`** to enter your API keys.
 
@@ -82,14 +94,14 @@
 
 | Requirement | Version | Notes |
 | :--- | :--- | :--- |
-| [Node.js](https://nodejs.org/) | v18.x or newer | LTS recommended |
+| [Node.js](https://nodejs.org/) | v22.12.0 or newer | Required by Electron 42 |
 | npm | bundled with Node.js | — |
 | Windows or macOS | 10 / 11 / Ventura+ | macOS build is supported via `electron-builder --mac` |
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/euvictorldev/Hades-Agent.git
-cd Hades-Agent
+git clone git@github.com:fbsis/hades-agent.git
+cd hades-agent
 
 # 2. Install all dependencies
 npm install
@@ -98,7 +110,7 @@ npm install
 npm run dev
 ```
 
-The dev server starts Vite (React renderer on `:3000`) and Electron concurrently with full hot-reload on both sides.
+The dev server first clears stale Hades Electron processes, then starts Vite (React renderer on `:3000`) and Electron concurrently with full hot-reload on both sides.
 
 ### Build / Package commands
 
@@ -117,7 +129,7 @@ Enable the Hermes API server in `~/.hermes/.env`:
 
 ```env
 API_SERVER_ENABLED=true
-API_SERVER_KEY=troque-esta-chave
+API_SERVER_KEY=replace-this-key
 API_SERVER_HOST=127.0.0.1
 API_SERVER_PORT=8642
 ```
@@ -128,7 +140,7 @@ Start Hermes:
 hermes gateway
 ```
 
-Open **Settings > Agente**, enable Hermes, keep **Hermes como agente principal** on, set the Base URL to `http://127.0.0.1:8642`, fill the API key and test the connection.
+Open **Settings > Agent**, enable Hermes, keep **Use Hermes as primary agent** on, set the Base URL to `http://127.0.0.1:8642`, fill the API key and test the connection.
 
 See [docs/hermes-agent.md](docs/hermes-agent.md) for memory behavior, low-token routing, modes, resume/interview workflow and the recommended Hermes setup.
 
@@ -136,14 +148,14 @@ See [docs/hermes-agent.md](docs/hermes-agent.md) for memory behavior, low-token 
 
 ## <img src="https://api.iconify.design/lucide:keyboard.svg?color=%23ff2a2a" width="22" height="22" align="center" style="vertical-align: middle; margin-right: 8px;" /> Keyboard Shortcuts
 
-Hades lives silently in your system tray and can be summoned from any application, at any time:
+Hades opens as a compact command window by default and can be minimized into a draggable floating bubble:
 
 | Shortcut | Action |
 | :--- | :--- |
-| **`Alt+D`** | Summon / dismiss the Spotlight Command Bar |
-| **`Alt+B`** | Summon / dismiss the Real-time Transcription HUD |
+| **`Alt+D`** | Summon / dismiss the unified command window |
+| **`Alt+B`** | Open the real-time transcription panel |
 | **`Alt+S`** | Open Settings & Shortcut Customization |
-| **`Alt+V`** | Toggle voice input mode |
+| **`Alt+V`** | Open one-shot voice input mode |
 | **`Esc`** | Hide the active window and restore prior focus |
 
 > [!TIP]
@@ -168,6 +180,8 @@ graph TD
         CommandBar[Alt+D: Spotlight Command]:::float
         MiniChat[MiniChat Dynamic Window]:::float
         Susurro[Alt+B: Real-time Transcription HUD]:::float
+        Voice[Alt+V: Embedded Voice Input]:::float
+        Bubble[Draggable Floating Bubble]:::float
         Notification[Alerts & Notifications]:::float
         Settings[Alt+S: Settings & Shortcuts]:::float
     end
@@ -183,6 +197,7 @@ graph TD
     end
 
     Main -->|Manages Window States| UI_Layers
+    Bubble -->|Restores| CommandBar
     UI_Layers -->|IPC Signals & Actions| SSoT
     SSoT -->|Electron Event Handlers| Main
     Main -->|Reads/Writes AES-256 Secrets| Store
@@ -215,7 +230,7 @@ Hades was co-engineered with **[Google Antigravity](https://deepmind.google/)** 
 
 ## <img src="https://api.iconify.design/lucide:star.svg?color=%23ff2a2a" width="22" height="22" align="center" style="vertical-align: middle; margin-right: 8px;" /> Star History
 
-[![Star History Chart](https://api.star-history.com/chart?repos=euvictorldev/hades-agent&type=date&legend=top-left)](https://www.star-history.com/?repos=euvictorldev%2Fhades-agent&type=date&legend=top-left)
+[![Star History Chart](https://api.star-history.com/chart?repos=fbsis/hades-agent&type=date&legend=top-left)](https://www.star-history.com/?repos=fbsis%2Fhades-agent&type=date&legend=top-left)
 
 ---
 
@@ -223,4 +238,4 @@ Hades was co-engineered with **[Google Antigravity](https://deepmind.google/)** 
 
 MIT — See [LICENSE](LICENSE).
 
-Built with dedication by [Victor L.](https://github.com/euvictorldev)
+Maintained by [fbsis](https://github.com/fbsis).
