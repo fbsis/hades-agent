@@ -1,4 +1,11 @@
-import { ElectronAPI, IPCResponse, SettingsData } from '../types/electron';
+import {
+  ElectronAPI,
+  HermesAskInput,
+  HermesDocumentInput,
+  HermesMemoryInput,
+  IPCResponse,
+  SettingsData
+} from '../types/electron';
 
 /**
  * Service to interact with the Electron IPC layer.
@@ -60,7 +67,7 @@ class ElectronService {
   onFocusInput(callback: () => void) {
     return this.electron?.onFocusInput(callback) || (() => {});
   }
-  onOpenCommandPanel(callback: (panel: 'command' | 'chat' | 'settings' | 'transcription') => void) {
+  onOpenCommandPanel(callback: (panel: 'command' | 'chat' | 'settings' | 'transcription' | 'voice') => void) {
     return this.electron?.onOpenCommandPanel(callback) || (() => {});
   }
   onNotify(callback: (message: string) => void) {
@@ -102,6 +109,7 @@ class ElectronService {
     return await this.handleResponse(this.electron?.stopSusurroLive(), undefined, 'stopSusurroLive'); 
   }
   sendSusurroChunk(base64: string, seq: number) { this.electron?.sendSusurroChunk(base64, seq); }
+  endSusurroAudioStream() { this.electron?.endSusurroAudioStream?.(); }
   onSusurroLiveDelta(callback: (delta: any) => void) {
     return this.electron?.onSusurroLiveDelta(callback) || (() => {});
   }
@@ -116,6 +124,9 @@ class ElectronService {
   }
   onStopSusurro(callback: () => void) {
     return this.electron?.onStopSusurro(callback) || (() => {});
+  }
+  async askSusurroTranscript(data: { question: string; transcript: string; personaPrompt?: string }) {
+    return await this.handleResponse(this.electron?.askSusurroTranscript(data), null, 'askSusurroTranscript');
   }
   async generateSuggestion(data: { transcription: string, personaPrompt: string }) {
     return await this.handleResponse(this.electron?.generateSuggestion(data), '', 'generateSuggestion');
@@ -137,6 +148,24 @@ class ElectronService {
   // --- Session Logger ---
   async logSession(data: any) { return await this.handleResponse(this.electron?.logSession(data), null, 'logSession'); }
   async getLearnings() { return await this.handleResponse(this.electron?.getLearnings(), 'Nenhuma memória consolidada ainda.', 'getLearnings'); }
+  async getHermesDashboard() {
+    return await this.handleResponse(this.electron?.getHermesDashboard(), null, 'getHermesDashboard');
+  }
+  async testHermesConnection() {
+    return await this.handleResponse(this.electron?.testHermesConnection(), null, 'testHermesConnection');
+  }
+  async askHermes(args: HermesAskInput) {
+    return await this.handleResponse(this.electron?.askHermes(args), null, 'askHermes');
+  }
+  async rememberWithHermes(memory: HermesMemoryInput) {
+    return await this.handleResponse(this.electron?.rememberWithHermes(memory), null, 'rememberWithHermes');
+  }
+  async ingestHermesDocument(document: HermesDocumentInput) {
+    return await this.handleResponse(this.electron?.ingestHermesDocument(document), null, 'ingestHermesDocument');
+  }
+  async syncHermesContext() {
+    return await this.handleResponse(this.electron?.syncHermesContext(), null, 'syncHermesContext');
+  }
 
   // --- Settings ---
   async getSettings(): Promise<SettingsData | null> { 
@@ -175,7 +204,9 @@ class ElectronService {
   async translateIncremental(text: string, previousText: string, targetLanguage: string) {
     return await this.handleResponse(this.electron?.translateIncremental(text, previousText, targetLanguage), '', 'translateIncremental');
   }
-  async transcribeAudio(base64: string) { return await this.electron?.transcribeAudio(base64) || ''; }
+  async transcribeAudio(base64: string) {
+    return await this.handleResponse(this.electron?.transcribeAudio(base64), '', 'transcribeAudio');
+  }
   async getSystemAudioSourceId() { 
     return await this.handleResponse(this.electron?.getSystemAudioSourceId(), '', 'getSystemAudioSourceId'); 
   }

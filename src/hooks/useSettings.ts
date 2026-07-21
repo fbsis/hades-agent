@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { electronService } from '../services/electron';
 import { SettingsData } from '../types/electron';
 
-export type SettingsTab = 'history' | 'audio' | 'general' | 'shortcuts';
+export type SettingsTab = 'history' | 'audio' | 'general' | 'hermes' | 'shortcuts';
 
 export function useSettings() {
   const [activeTab, setActiveTab] = useState<SettingsTab>('history');
@@ -60,6 +60,22 @@ export function useSettings() {
     });
   };
 
+  const updateHermesSettings = (updates: Partial<SettingsData['hermes']>) => {
+    setSettings((prev) => {
+      if (!prev) return null;
+      const nextHermes = { ...prev.hermes, ...updates };
+      return { ...prev, hermes: nextHermes };
+    });
+  };
+
+  const updateAssistantSettings = (updates: Partial<SettingsData['assistant']>) => {
+    setSettings((prev) => {
+      if (!prev) return null;
+      const nextAssistant = { ...prev.assistant, ...updates };
+      return { ...prev, assistant: nextAssistant };
+    });
+  };
+
   const saveAll = async () => {
     if (!settings) return;
     setIsSaving(true);
@@ -81,6 +97,8 @@ export function useSettings() {
     updateAudioSettings,
     updateGeneralSettings,
     updateShortcutsSettings,
+    updateHermesSettings,
+    updateAssistantSettings,
     saveAll
   };
 }

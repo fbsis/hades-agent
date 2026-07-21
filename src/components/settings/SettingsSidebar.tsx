@@ -1,6 +1,6 @@
 import React from 'react';
 import { SettingsTab } from '../../hooks/useSettings';
-import { Clock, Volume2, Settings as SettingsIcon, Keyboard } from 'lucide-react';
+import { Bot, Clock, Volume2, Settings as SettingsIcon, Keyboard } from 'lucide-react';
 
 interface SidebarProps {
   activeTab: SettingsTab;
@@ -37,6 +37,15 @@ const SettingsSidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) =>
       >
         <SettingsIcon size={16} />
         <span>Configurações</span>
+      </button>
+
+      <button
+        type="button"
+        className={`sidebar-item ${activeTab === 'hermes' ? 'active' : ''}`}
+        onClick={() => setActiveTab('hermes')}
+      >
+        <Bot size={16} />
+        <span>Agente</span>
       </button>
 
       <button 

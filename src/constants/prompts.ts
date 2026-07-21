@@ -13,13 +13,22 @@ export interface HadesContext {
   platform: string;      // e.g. "Windows 11 - Electron"
   activeSkills?: string; // Populated in Phase 4
   userMemory?: string;   // Populated in Phase 5
+  assistantMode?: string;
+  preferredAnswerStyle?: string;
+  hermesContext?: string;
 }
 
 /**
  * Builds a rich HadesContext object from the current environment.
  * Called in useGemini.ts before each inference.
  */
-export const buildHadesContext = (activeSkills: string = 'Nenhuma skill carregada ainda.', userMemory: string = 'Nenhuma memória consolidada ainda.'): HadesContext => {
+export const buildHadesContext = (
+  activeSkills: string = 'Nenhuma skill carregada ainda.',
+  userMemory: string = 'Nenhuma memória consolidada ainda.',
+  assistantMode: string = 'auto',
+  preferredAnswerStyle: string = 'auto',
+  hermesContext: string = 'Hermes desativado ou delegacao desligada.'
+): HadesContext => {
   const now = new Date();
   const locale = 'pt-BR';
 
@@ -46,6 +55,9 @@ export const buildHadesContext = (activeSkills: string = 'Nenhuma skill carregad
     platform: 'Windows - Electron',
     activeSkills,
     userMemory,
+    assistantMode,
+    preferredAnswerStyle,
+    hermesContext,
   };
 };
 
@@ -64,6 +76,9 @@ export const getHadesSystemPrompt = (ctx: HadesContext): string => {
   prompt = prompt.replace('{{platform}}', ctx.platform);
   prompt = prompt.replace('{{activeSkills}}', ctx.activeSkills || 'Nenhuma skill carregada ainda.');
   prompt = prompt.replace('{{userMemory}}', ctx.userMemory || 'Nenhuma memória consolidada ainda.');
+  prompt = prompt.replace('{{assistantMode}}', ctx.assistantMode || 'auto');
+  prompt = prompt.replace('{{preferredAnswerStyle}}', ctx.preferredAnswerStyle || 'auto');
+  prompt = prompt.replace('{{hermesContext}}', ctx.hermesContext || 'Hermes desativado ou delegacao desligada.');
   return prompt.trim();
 };
 

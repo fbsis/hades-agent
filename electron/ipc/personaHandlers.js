@@ -1,6 +1,7 @@
 const { ipcMain } = require('electron');
 const store = require('../store/jsonStore');
 const logger = require('../services/logger');
+const hermesService = require('../services/hermesService');
 
 /**
  * Registers IPC handlers for managing user personas and system instructions.
@@ -26,6 +27,12 @@ function registerPersonaHandlers() {
       }
       
       store.savePersonas(personas);
+      const settings = store.getSettings();
+      if (settings?.hermes?.autoForwardTasksPersonas) {
+        hermesService.syncLocalContext().catch(error => {
+          logger.error('HERMES', 'persona sync error', error);
+        });
+      }
       return { success: true };
     }
 
@@ -39,6 +46,12 @@ function registerPersonaHandlers() {
     if (id) {
       const personas = store.getPersonas().filter(p => p.id !== id);
       store.savePersonas(personas);
+      const settings = store.getSettings();
+      if (settings?.hermes?.autoForwardTasksPersonas) {
+        hermesService.syncLocalContext().catch(error => {
+          logger.error('HERMES', 'persona sync error', error);
+        });
+      }
       return { success: true };
     }
     return { success: false, error: "Missing ID" };

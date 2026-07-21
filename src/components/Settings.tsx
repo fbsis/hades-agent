@@ -8,6 +8,7 @@ import SettingsSidebar from './settings/SettingsSidebar';
 import HistoryTab from './settings/HistoryTab';
 import AudioTab from './settings/AudioTab';
 import GeneralTab from './settings/GeneralTab';
+import HermesTab from './settings/HermesTab';
 import ShortcutsTab from './settings/ShortcutsTab';
 
 interface SettingsProps {
@@ -24,6 +25,8 @@ const Settings: React.FC<SettingsProps> = ({ embedded = false, onClosePanel }) =
     isSaving,
     updateAudioSettings,
     updateGeneralSettings,
+    updateHermesSettings,
+    updateAssistantSettings,
     updateShortcutsSettings,
     saveAll
   } = useSettings();
@@ -74,6 +77,15 @@ const Settings: React.FC<SettingsProps> = ({ embedded = false, onClosePanel }) =
             <GeneralTab 
               settings={settings.general} 
               updateSettings={updateGeneralSettings} 
+            />
+          )}
+
+          {activeTab === 'hermes' && (
+            <HermesTab
+              hermes={settings.hermes}
+              assistant={settings.assistant}
+              updateHermes={updateHermesSettings}
+              updateAssistant={updateAssistantSettings}
             />
           )}
 

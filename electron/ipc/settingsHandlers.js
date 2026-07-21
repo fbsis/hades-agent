@@ -61,6 +61,7 @@ function registerSettingsHandlers() {
       const stealthModeChanged = oldStealth !== newStealth;
 
       jsonStore.saveSettings(settings);
+      const savedSettings = jsonStore.getSettings();
       
       if (stealthModeChanged) {
         logger.info('SETTINGS', 'Stealth mode changed. Restarting application to apply DWM composition securely.');
@@ -71,7 +72,7 @@ function registerSettingsHandlers() {
       }
 
       applyStealthMode(newStealth);
-      applyApiKey(settings.general.apiKey);
+      applyApiKey(savedSettings.general.apiKey);
       
       // Update global shortcuts dynamically on save
       registerGlobalShortcuts();
@@ -80,7 +81,7 @@ function registerSettingsHandlers() {
       const allWindows = BrowserWindow.getAllWindows();
       allWindows.forEach(win => {
         if (!win.isDestroyed()) {
-          win.webContents.send('settings-updated', settings);
+          win.webContents.send('settings-updated', savedSettings);
         }
       });
       

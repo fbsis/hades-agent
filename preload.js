@@ -84,6 +84,7 @@ contextBridge.exposeInMainWorld('electron', {
   startSusurroLive: (persona) => ipcRenderer.invoke('susurro-start-live', persona),
   stopSusurroLive: () => ipcRenderer.invoke('susurro-stop-live'),
   sendSusurroChunk: (base64, seq) => ipcRenderer.send('susurro-send-chunk', base64, seq),
+  endSusurroAudioStream: () => ipcRenderer.send('susurro-audio-stream-end'),
   onSusurroLiveDelta: (callback) => {
     const sub = (_event, delta) => callback(delta);
     ipcRenderer.on('susurro-live-delta', sub);
@@ -109,6 +110,7 @@ contextBridge.exposeInMainWorld('electron', {
     ipcRenderer.on('stop-susurro', sub);
     return () => ipcRenderer.removeListener('stop-susurro', sub);
   },
+  askSusurroTranscript: (data) => ipcRenderer.invoke('ask-susurro-transcript', data),
 
   // --- Screen Capture ---
   getSources: () => ipcRenderer.invoke('get-sources'),
@@ -155,6 +157,12 @@ contextBridge.exposeInMainWorld('electron', {
   // --- Session Logger ---
   logSession: (data) => ipcRenderer.invoke('log-session', data),
   getLearnings: () => ipcRenderer.invoke('get-learnings'),
+  getHermesDashboard: () => ipcRenderer.invoke('hermes-dashboard'),
+  testHermesConnection: () => ipcRenderer.invoke('hermes-test-connection'),
+  askHermes: (args) => ipcRenderer.invoke('hermes-ask', args),
+  rememberWithHermes: (args) => ipcRenderer.invoke('hermes-remember', args),
+  ingestHermesDocument: (document) => ipcRenderer.invoke('hermes-ingest-document', document),
+  syncHermesContext: () => ipcRenderer.invoke('hermes-sync-context'),
 
   // --- Settings ---
   getSettings: () => ipcRenderer.invoke('get-settings'),

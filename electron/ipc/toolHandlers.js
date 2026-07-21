@@ -4,6 +4,7 @@ const logger = require('../services/logger');
 const skillService = require('../services/skillService');
 const sessionLogger = require('../services/sessionLogger');
 const searchService = require('../services/searchService');
+const hermesService = require('../services/hermesService');
 
 /**
 
@@ -36,7 +37,11 @@ function registerToolHandlers() {
    * Session / Dreaming System
    */
   ipcMain.handle('log-session', async (event, sessionData) => {
-    return sessionLogger.logSession(sessionData);
+    const result = sessionLogger.logSession(sessionData);
+    hermesService.rememberConversation(sessionData).catch(error => {
+      logger.error('HERMES', 'conversation memory error', error);
+    });
+    return result;
   });
   
   ipcMain.handle('get-learnings', async () => {

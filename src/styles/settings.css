@@ -209,6 +209,29 @@
   background: rgba(255, 255, 255, 0.08);
 }
 
+.settings-input.wide {
+  width: 360px;
+  max-width: 100%;
+}
+
+.settings-textarea {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #fff;
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-family: inherit;
+  resize: vertical;
+  min-height: 120px;
+  outline: none;
+}
+
+.settings-textarea:focus {
+  border-color: #dc2626;
+  box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.18);
+}
+
 .settings-select {
   appearance: none;
   -webkit-appearance: none;
@@ -355,6 +378,207 @@ input:checked + .slider:before {
 
 .btn-save:active {
   transform: translateY(0);
+}
+
+.settings-action-btn {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.82);
+  height: 34px;
+  padding: 0 12px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.16s ease;
+}
+
+.settings-action-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(220, 38, 38, 0.35);
+  color: #fff;
+}
+
+.settings-action-btn.primary {
+  border-color: rgba(220, 38, 38, 0.5);
+  background: rgba(220, 38, 38, 0.2);
+  color: #fff;
+}
+
+.settings-action-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.agent-status-row,
+.agent-actions,
+.agent-search-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.agent-status-row {
+  justify-content: space-between;
+  margin-bottom: 18px;
+}
+
+.agent-status-pill {
+  min-height: 34px;
+  border-radius: 6px;
+  padding: 0 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.68);
+  font-size: 12px;
+}
+
+.agent-status-pill.connected {
+  background: rgba(22, 163, 74, 0.14);
+  border-color: rgba(34, 197, 94, 0.32);
+  color: #bbf7d0;
+}
+
+.agent-metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(120px, 1fr));
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.agent-metric {
+  min-height: 68px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.035);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+}
+
+.agent-metric-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(220, 38, 38, 0.14);
+  color: #f87171;
+}
+
+.agent-metric-value {
+  font-size: 18px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.agent-metric-label,
+.agent-empty {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.48);
+}
+
+.agent-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(220px, 1fr));
+  gap: 12px;
+  margin: 16px 0;
+}
+
+.agent-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.agent-field span {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.52);
+}
+
+.agent-field .settings-input {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.agent-status-message {
+  margin-top: 12px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.62);
+}
+
+.agent-document-form {
+  display: grid;
+  grid-template-columns: minmax(240px, 1fr) 180px;
+  gap: 10px;
+}
+
+.agent-textarea {
+  grid-column: 1 / -1;
+}
+
+.agent-document-form .settings-action-btn {
+  justify-self: start;
+}
+
+.agent-results {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.agent-result,
+.agent-recent-list {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.035);
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.agent-result-meta {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 6px;
+  font-size: 10px;
+  color: #f87171;
+  text-transform: uppercase;
+}
+
+.agent-result-title,
+.agent-recent-title {
+  font-size: 13px;
+  font-weight: 650;
+  color: #fff;
+  margin-bottom: 6px;
+}
+
+.agent-result-text,
+.agent-recent-item span {
+  font-size: 12px;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.62);
+}
+
+.agent-recent-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(240px, 1fr));
+  gap: 12px;
+}
+
+.agent-recent-item {
+  padding: 9px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.82);
 }
 
 /* History Tab Specifics */

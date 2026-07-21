@@ -1,6 +1,7 @@
 const { ipcMain } = require('electron');
 const store = require('../store/jsonStore');
 const logger = require('../services/logger');
+const hermesService = require('../services/hermesService');
 
 /**
  * Registers IPC handlers for task scheduling and management.
@@ -25,6 +26,12 @@ function registerTaskHandlers() {
     const tasks = store.getTasks();
     tasks.push(newTask);
     store.saveTasks(tasks);
+    const settings = store.getSettings();
+    if (settings?.hermes?.autoForwardTasksPersonas) {
+      hermesService.syncLocalContext().catch(error => {
+        logger.error('HERMES', 'task sync error', error);
+      });
+    }
     
     return { success: true, data: newTask };
   });
@@ -43,6 +50,12 @@ function registerTaskHandlers() {
     if (!id) return { success: false, error: "Missing ID" };
     const tasks = store.getTasks().filter(t => t.id !== id);
     store.saveTasks(tasks);
+    const settings = store.getSettings();
+    if (settings?.hermes?.autoForwardTasksPersonas) {
+      hermesService.syncLocalContext().catch(error => {
+        logger.error('HERMES', 'task sync error', error);
+      });
+    }
     return { success: true };
   });
 }

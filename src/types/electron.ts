@@ -30,7 +30,7 @@ export interface ElectronAPI {
   showNotification: (text: string) => void;
   onNewChatMessage: (callback: (msg: string, img?: string) => void) => () => void;
   onFocusInput: (callback: () => void) => () => void;
-  onOpenCommandPanel: (callback: (panel: 'command' | 'chat' | 'settings' | 'transcription') => void) => () => void;
+  onOpenCommandPanel: (callback: (panel: 'command' | 'chat' | 'settings' | 'transcription' | 'voice') => void) => () => void;
   onNotify: (callback: (message: string) => void) => () => void;
   notifHidden: () => void;
   
@@ -54,12 +54,14 @@ export interface ElectronAPI {
   startSusurroLive: (personaPrompt?: string) => Promise<IPCResponse<boolean>>;
   stopSusurroLive: () => Promise<IPCResponse<void>>;
   sendSusurroChunk: (base64: string, seq: number) => void;
+  endSusurroAudioStream: () => void;
   onSusurroLiveDelta: (callback: (delta: any) => void) => () => void;
   onSusurroLiveStatus: (callback: (status: string) => void) => () => void;
   onToggleSusurroTranscriptionSignal: (callback: () => void) => () => void;
   onStartSusurro: (callback: () => void) => () => void;
   onStopSusurro: (callback: () => void) => () => void;
   generateSuggestion: (data: { transcription: string, personaPrompt: string }) => Promise<IPCResponse<string>>;
+  askSusurroTranscript: (data: { question: string; transcript: string; personaPrompt?: string }) => Promise<IPCResponse<{ text: string; provider: string }>>;
   saveSusurroMessage: (msg: any) => Promise<IPCResponse<void>>;
   
   // Tools & IPC
@@ -75,6 +77,12 @@ export interface ElectronAPI {
   // Session Logging
   logSession: (data: any) => Promise<IPCResponse<any>>;
   getLearnings: () => Promise<IPCResponse<string>>;
+  getHermesDashboard: () => Promise<IPCResponse<HermesDashboard>>;
+  testHermesConnection: () => Promise<IPCResponse<any>>;
+  askHermes: (args: HermesAskInput) => Promise<IPCResponse<HermesAskResult>>;
+  rememberWithHermes: (args: HermesMemoryInput) => Promise<IPCResponse<HermesAskResult>>;
+  ingestHermesDocument: (document: HermesDocumentInput) => Promise<IPCResponse<HermesAskResult>>;
+  syncHermesContext: () => Promise<IPCResponse<HermesAskResult>>;
 
   scheduleTask: (args: any) => Promise<IPCResponse<any>>;
 
@@ -84,7 +92,7 @@ export interface ElectronAPI {
   showChat: () => void;
   translateText: (text: string, targetLanguage: string) => Promise<IPCResponse<string>>;
   translateIncremental: (text: string, previousText: string, targetLanguage: string) => Promise<IPCResponse<string>>;
-  transcribeAudio: (base64: string) => Promise<string>;
+  transcribeAudio: (base64: string) => Promise<IPCResponse<string>>;
   getSystemAudioSourceId: () => Promise<IPCResponse<string>>;
   updateChatPin: (pinned: boolean) => void;
   getPersonas: () => Promise<IPCResponse<any[]>>;
@@ -141,6 +149,33 @@ export interface GeneralSettings {
   dreamingModel: string;
 }
 
+export interface HermesSettings {
+  enabled: boolean;
+  baseUrl: string;
+  apiKey: string;
+  sessionKey: string;
+  model: string;
+  timeoutMs: number;
+  maxContextChars: number;
+  meetingSummaryMaxChars: number;
+  useAsPrimaryAgent: boolean;
+  useForExternalActions: boolean;
+  useForMemory: boolean;
+  autoForwardConversations: boolean;
+  autoForwardTasksPersonas: boolean;
+  autoSummarizeMeetings: boolean;
+}
+
+export type AssistantMode = 'auto' | 'interview' | 'help' | 'idea' | 'coding';
+export type AssistantAnswerStyle = 'auto' | 'short' | 'structured' | 'code' | 'code_explained';
+
+export interface AssistantSettings {
+  mode: AssistantMode;
+  delegationEnabled: boolean;
+  compactContext: boolean;
+  preferredAnswerStyle: AssistantAnswerStyle;
+}
+
 export interface ShortcutsSettings {
   toggleCommand: string;
   toggleSettings: string;
@@ -148,10 +183,91 @@ export interface ShortcutsSettings {
   toggleVoice: string;
 }
 
+export interface WindowBounds {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+export interface LayoutSettings {
+  commandBounds?: WindowBounds | null;
+  floatingHeadBounds?: WindowBounds | null;
+}
+
 export interface SettingsData {
   audio: AudioSettings;
   general: GeneralSettings;
+  hermes: HermesSettings;
+  assistant: AssistantSettings;
+  layout?: LayoutSettings;
   shortcuts?: ShortcutsSettings;
+}
+
+export interface HermesAskInput {
+  prompt: string;
+  context?: string;
+  instruction?: string;
+  mode?: AssistantMode | string;
+  preferredAnswerStyle?: AssistantAnswerStyle | string;
+  includeLocalContext?: boolean;
+  maxOutputTokens?: number;
+  timeoutMs?: number;
+  logType?: string;
+  primaryAgent?: boolean;
+}
+
+export interface HermesAskResult {
+  success: boolean;
+  text?: string;
+  model?: string;
+  usage?: Record<string, any> | null;
+  sessionKey?: string;
+  durationMs?: number;
+  error?: string;
+}
+
+export interface HermesDocumentInput {
+  title: string;
+  text: string;
+  type?: string;
+  source?: string;
+  metadata?: Record<string, any>;
+}
+
+export interface HermesMemoryInput {
+  kind?: string;
+  title?: string;
+  source?: string;
+  text: string;
+}
+
+export interface HermesUsageEntry {
+  id: string;
+  timestamp: string;
+  type: string;
+  success: boolean;
+  durationMs?: number;
+  promptChars?: number;
+  responseChars?: number;
+  model?: string;
+  error?: string;
+}
+
+export interface HermesDashboard {
+  connected: boolean;
+  enabled: boolean;
+  reason?: string;
+  error?: string;
+  config?: Record<string, any>;
+  counts?: {
+    requests: number;
+    failures: number;
+    promptChars: number;
+    responseChars: number;
+    estimatedTokens: number;
+  };
+  recentRequests?: HermesUsageEntry[];
 }
 
 declare global {

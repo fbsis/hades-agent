@@ -43,6 +43,32 @@ class JsonStore {
         dreamingEnabled: true,
         dreamingModel: 'gemini-2.5-flash'
       },
+      hermes: {
+        enabled: false,
+        baseUrl: 'http://127.0.0.1:8642',
+        apiKey: '',
+        sessionKey: 'hades-default',
+        model: 'hermes-agent',
+        timeoutMs: 30000,
+        maxContextChars: 3200,
+        meetingSummaryMaxChars: 12000,
+        useAsPrimaryAgent: true,
+        useForExternalActions: true,
+        useForMemory: true,
+        autoForwardConversations: false,
+        autoForwardTasksPersonas: false,
+        autoSummarizeMeetings: true
+      },
+      assistant: {
+        mode: 'auto',
+        delegationEnabled: true,
+        compactContext: true,
+        preferredAnswerStyle: 'auto'
+      },
+      layout: {
+        commandBounds: null,
+        floatingHeadBounds: null
+      },
       shortcuts: {
         toggleCommand: 'Alt+D',
         toggleSettings: 'Alt+S',
@@ -165,6 +191,9 @@ class JsonStore {
     this.cache.settings = {
       audio: { ...this._defaultSettings.audio, ...(saved.audio || {}) },
       general: { ...this._defaultSettings.general, ...(saved.general || {}) },
+      hermes: { ...this._defaultSettings.hermes, ...(saved.hermes || {}) },
+      assistant: { ...this._defaultSettings.assistant, ...(saved.assistant || {}) },
+      layout: { ...this._defaultSettings.layout, ...(saved.layout || {}) },
       shortcuts: { ...this._defaultSettings.shortcuts, ...(saved.shortcuts || {}) }
     };
 
@@ -239,11 +268,24 @@ class JsonStore {
   }
 
   getSettings() { return this.cache.settings; }
-  saveSettings(settings) {
-    this.cache.settings = settings;
-    this.safeSaveSettings(settings);
-    process.env.VITE_GEMINI_API_KEY = settings.general.apiKey || '';
-    process.env.VITE_TAVILY_API_KEY = settings.general.tavilyApiKey || '';
+  saveSettings(settings = {}) {
+    const nextSettings = {
+      audio: { ...this._defaultSettings.audio, ...(settings.audio || {}) },
+      general: { ...this._defaultSettings.general, ...(settings.general || {}) },
+      hermes: { ...this._defaultSettings.hermes, ...(settings.hermes || {}) },
+      assistant: { ...this._defaultSettings.assistant, ...(settings.assistant || {}) },
+      layout: {
+        ...this._defaultSettings.layout,
+        ...(this.cache.settings.layout || {}),
+        ...(settings.layout || {})
+      },
+      shortcuts: { ...this._defaultSettings.shortcuts, ...(settings.shortcuts || {}) }
+    };
+
+    this.cache.settings = nextSettings;
+    this.safeSaveSettings(nextSettings);
+    process.env.VITE_GEMINI_API_KEY = nextSettings.general.apiKey || '';
+    process.env.VITE_TAVILY_API_KEY = nextSettings.general.tavilyApiKey || '';
   }
 }
 

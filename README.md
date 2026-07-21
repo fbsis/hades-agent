@@ -49,6 +49,10 @@
   <td>Scheduled background AI cycles synthesize recent session logs into a <strong>compressed <code>learnings.json</code> memory profile</strong> — similar to how the brain consolidates long-term memory during sleep. Runs fully offline.</td>
 </tr>
 <tr>
+  <td><b>🤖 Hermes Primary Agent</b></td>
+  <td>Hades can use a local <strong>Hermes Agent</strong> server as the main brain for MiniChat, memory, web/API/CLI, interview, research, suggestions, and multi-step work while keeping Gemini on the fast transcription path.</td>
+</tr>
+<tr>
   <td><b>📋 Safe Task Scheduler</b></td>
   <td>A strictly sandboxed, <strong>offline task ledger</strong> with zero system-write permissions. Safely schedule automated web searches, create daily reminders, and organize MiniChat responses without risking modifications to your local files. Managed through encrypted IPC database handlers.</td>
 </tr>
@@ -103,6 +107,31 @@ The dev server starts Vite (React renderer on `:3000`) and Electron concurrently
 - `npm run dist:win` — build production assets and package for Windows
 - `npm run dist:mac` — build production assets and package for macOS
 
+### Hermes Agent
+
+Hades can connect to a local Hermes Agent API server for MiniChat, persistent memory, context-aware interviews, web/API/CLI work, research, suggestions and multi-step tasks.
+
+Hades remains the desktop UI/audio assistant. Hermes becomes the primary agent when enabled. Gemini stays on the fast transcription path, session titles and fallback.
+
+Enable the Hermes API server in `~/.hermes/.env`:
+
+```env
+API_SERVER_ENABLED=true
+API_SERVER_KEY=troque-esta-chave
+API_SERVER_HOST=127.0.0.1
+API_SERVER_PORT=8642
+```
+
+Start Hermes:
+
+```bash
+hermes gateway
+```
+
+Open **Settings > Agente**, enable Hermes, keep **Hermes como agente principal** on, set the Base URL to `http://127.0.0.1:8642`, fill the API key and test the connection.
+
+See [docs/hermes-agent.md](docs/hermes-agent.md) for memory behavior, low-token routing, modes, resume/interview workflow and the recommended Hermes setup.
+
 ---
 
 ## <img src="https://api.iconify.design/lucide:keyboard.svg?color=%23ff2a2a" width="22" height="22" align="center" style="vertical-align: middle; margin-right: 8px;" /> Keyboard Shortcuts
@@ -146,6 +175,7 @@ graph TD
     SSoT[IPC Bridge Protocol]:::service
     Store[AES-256 Secure JsonStore]:::service
     Dream[DreamService AI Sleep]:::service
+    Hermes[Hermes Agent API Server]:::external
     
     subgraph Cloud_APIs [Cloud Intelligence Services]
         Gemini[Gemini Live API]:::external
@@ -158,6 +188,7 @@ graph TD
     Main -->|Reads/Writes AES-256 Secrets| Store
     Main -->|Schedules AI Consolidation| Dream
     Dream -->|Persists Insights| Store
+    Main -->|Delegates memory, web/API/CLI and multi-step tasks| Hermes
     
     Main <-->|16kHz Raw PCM Audio Stream| Gemini
     Main <-->|Asynchronous Web Queries| Tavily
@@ -193,4 +224,3 @@ Hades was co-engineered with **[Google Antigravity](https://deepmind.google/)** 
 MIT — See [LICENSE](LICENSE).
 
 Built with dedication by [Victor L.](https://github.com/euvictorldev)
-

@@ -62,6 +62,33 @@ export const GEMINI_TOOLS = {
       parameters: { type: "object", properties: { id: { type: "string", description: "ID" } }, required: ["id"] }
     },
     {
+      name: "ask_hermes",
+      description: "Chama o Hermes como agente principal/auxiliar para memoria persistente, contexto pessoal, web atual, APIs externas, CLI, pesquisa profunda ou trabalho multi-step.",
+      parameters: {
+        type: "object",
+        properties: {
+          prompt: { type: "string", description: "Tarefa objetiva para o Hermes executar" },
+          context: { type: "string", description: "Contexto compacto que o Hades deve fornecer ao Hermes" },
+          instruction: { type: "string", description: "Como o Hermes deve devolver o resultado ao Hades" },
+          maxOutputTokens: { type: "number", description: "Limite opcional de tokens de resposta" }
+        },
+        required: ["prompt"]
+      }
+    },
+    {
+      name: "remember_with_hermes",
+      description: "Pede para o Hermes registrar uma memoria, ideia, preferencia, curriculo ou fato reutilizavel na memoria persistente dele.",
+      parameters: {
+        type: "object",
+        properties: {
+          kind: { type: "string", description: "Tipo: idea, preference, fact, resume, interview_context, note" },
+          title: { type: "string", description: "Titulo opcional da memoria" },
+          text: { type: "string", description: "Memoria concisa e verificavel" }
+        },
+        required: ["kind", "text"]
+      }
+    },
+    {
       name: "save_skill",
       description: "Salva workflow como skill.",
       parameters: { type: "object", properties: { name: { type: "string", description: "Nome" }, description: { type: "string", description: "Resumo" }, procedure: { type: "string", description: "Passos markdown" } }, required: ["name", "description", "procedure"] }
@@ -78,4 +105,3 @@ export const GEMINI_TOOLS = {
     }
   ]
 };
-
