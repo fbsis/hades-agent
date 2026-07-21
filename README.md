@@ -24,7 +24,7 @@
   <a href="https://github.com/euvictorldev/Hades-Agent/releases"><img src="https://img.shields.io/badge/Releases-Download-FF2A2A?style=for-the-badge&logo=github" alt="Releases"></a>
   <a href="https://github.com/euvictorldev/Hades-Agent/blob/master/LICENSE"><img src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge" alt="License: MIT"></a>
   <a href="https://github.com/euvictorldev/Hades-Agent"><img src="https://img.shields.io/badge/Built%20With-Gemini%20Live%20API-blueviolet?style=for-the-badge" alt="Built with Gemini Live"></a>
-  <a href="https://github.com/euvictorldev/Hades-Agent"><img src="https://img.shields.io/badge/Platform-Windows-0078D6?style=for-the-badge&logo=windows&logoColor=white" alt="Platform: Windows"></a>
+  <a href="https://github.com/euvictorldev/Hades-Agent"><img src="https://img.shields.io/badge/Platform-Windows%20%2F%20macOS-0078D6?style=for-the-badge&logo=apple&logoColor=white" alt="Platform: Windows / macOS"></a>
 </p>
 
 <table>
@@ -65,7 +65,7 @@
 3. Run the installer, launch Hades, then press **`Alt+S`** to enter your API keys.
 
 > [!WARNING]
-> **Platform:** Hades has been tested exclusively on **Windows 10**. Windows 11 may work but is untested. macOS and Linux are **not supported** — the Anti-Recording Shield (`setContentProtection`) and global hotkey registration rely on Windows-specific Electron APIs.
+> **Platform:** Hades was originally built for **Windows**, but the repository now includes macOS packaging support via `electron-builder --mac`. Some macOS-specific behavior still needs validation, especially around tray icon presentation and stealth window handling.
 
 > [!IMPORTANT]
 > Hades requires two free API keys to operate:
@@ -80,7 +80,7 @@
 | :--- | :--- | :--- |
 | [Node.js](https://nodejs.org/) | v18.x or newer | LTS recommended |
 | npm | bundled with Node.js | — |
-| Windows | 10 / 11 | `setContentProtection` is Windows-only |
+| Windows or macOS | 10 / 11 / Ventura+ | macOS build is supported via `electron-builder --mac` |
 
 ```bash
 # 1. Clone the repository
@@ -95,6 +95,13 @@ npm run dev
 ```
 
 The dev server starts Vite (React renderer on `:3000`) and Electron concurrently with full hot-reload on both sides.
+
+### Build / Package commands
+
+- `npm run package:win` — package a Windows installer
+- `npm run package:mac` — package a macOS `.dmg` and `.zip`
+- `npm run dist:win` — build production assets and package for Windows
+- `npm run dist:mac` — build production assets and package for macOS
 
 ---
 

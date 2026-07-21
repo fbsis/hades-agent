@@ -6,13 +6,17 @@
   "scripts": {
     "dev:react": "vite",
     "dev:electron": "wait-on http://localhost:3000 && electron .",
-    "dev": "taskkill /F /IM electron.exe 2>nul & npx kill-port 3000 && concurrently \"npm run dev:react\" \"npm run dev:electron\"",
+    "dev": "npx kill-port 3000 && concurrently \"npm run dev:react\" \"npm run dev:electron\"",
     "build": "vite build",
     "preview": "vite preview",
     "test": "vitest",
     "build:app": "vite build",
-    "package": "electron-builder --win",
-    "dist": "vite build && electron-builder --win"
+    "package": "electron-builder",
+    "package:win": "electron-builder --win",
+    "package:mac": "electron-builder --mac",
+    "dist": "vite build && electron-builder",
+    "dist:win": "vite build && electron-builder --win",
+    "dist:mac": "vite build && electron-builder --mac"
   },
   "build": {
     "appId": "com.victorl.hades",
@@ -45,6 +49,13 @@
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "artifactName": "Hades-Agent-Setup-${version}.exe"
+    },
+    "mac": {
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "icon": "public/icon/icon.png"
     }
   },
   "keywords": [],
