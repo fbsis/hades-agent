@@ -29,12 +29,12 @@
 
 <table>
 <tr>
-  <td><b>🛡️ Anti-Recording Shield</b></td>
-  <td>Native OS-level content protection via <code>setContentProtection</code>. Hades becomes <strong>completely invisible</strong> to OBS Studio, Discord, Teams, Zoom, and all Windows screen-capture APIs — your private data never leaks through shared screens.</td>
+  <td><b>🛡️ Screen-Share Privacy</b></td>
+  <td>Native OS-level content protection via <code>setContentProtection</code>. Support varies by operating system and capture application, so this is a privacy aid rather than a guarantee of invisibility.</td>
 </tr>
 <tr>
-  <td><b>🎙️ Real-time Transcription (Alt+B)</b></td>
-  <td>Open the Susurro panel to capture system audio, stream raw <strong>16 kHz PCM</strong> to <strong>Gemini Live</strong>, render low-latency deltas, locally finalize turns, ask questions over the transcript, and send meeting summaries to Hermes.</td>
+  <td><b>🎙️ Interview Copilot (Alt+B)</b></td>
+  <td>Capture system audio with <strong>Gemini Live</strong>, optionally transcribe the microphone in a separate session, detect interview questions locally, and stream a natural answer from <strong>Hermes</strong> when you click <strong>Answer</strong> or press <code>Space</code>.</td>
 </tr>
 <tr>
   <td><b>⚡ Spotlight Command Bar</b></td>
@@ -144,6 +144,18 @@ Open **Settings > Agent**, enable Hermes, keep **Use Hermes as primary agent** o
 
 See [docs/hermes-agent.md](docs/hermes-agent.md) for memory behavior, low-token routing, modes, resume/interview workflow and the recommended Hermes setup.
 
+### Interview Copilot
+
+Open **Options > Interview** or press `Alt+B`. Before listening, set the target role, company, job description, language, answer style, and optional instructions.
+
+- System audio is transcribed by default. Microphone transcription is optional and uses a second Gemini Live session so speakers remain separated.
+- The latest likely interviewer question is highlighted locally without an LLM request. Every finalized interviewer turn still has an explicit **Answer** action.
+- Click **Answer** or press `Space` outside an input to stream one Hermes response into the answer pane. The transcript continues while Hermes responds.
+- Use the answer toolbar to stop, copy, shorten, expand, rewrite as STAR, generate code, or retry.
+- Screen capture is manual. Gemini extracts the visible question, code, and terminal context, then sends compact visual context to Hermes.
+- Each answer sends only the selected question, up to six prior finalized turns, session metadata, and optional screen context. Resume and document knowledge stays in Hermes memory.
+- Transcripts and answers are stored in `interview_sessions.json`. Audio recording is off by default; when enabled, WAV artifacts are stored under the app's local `interview-audio` directory.
+
 ---
 
 ## <img src="https://api.iconify.design/lucide:keyboard.svg?color=%23ff2a2a" width="22" height="22" align="center" style="vertical-align: middle; margin-right: 8px;" /> Keyboard Shortcuts
@@ -153,7 +165,8 @@ Hades opens as a compact command window by default and can be minimized into a d
 | Shortcut | Action |
 | :--- | :--- |
 | **`Alt+D`** | Summon / dismiss the unified command window |
-| **`Alt+B`** | Open the real-time transcription panel |
+| **`Alt+B`** | Open the Interview Copilot |
+| **`Space`** | Answer the selected interview question when no input is focused |
 | **`Alt+S`** | Open Settings & Shortcut Customization |
 | **`Alt+V`** | Open one-shot voice input mode |
 | **`Esc`** | Hide the active window and restore prior focus |
@@ -179,7 +192,7 @@ graph TD
     subgraph UI_Layers [Transparent Overlay Windows]
         CommandBar[Alt+D: Spotlight Command]:::float
         MiniChat[MiniChat Dynamic Window]:::float
-        Susurro[Alt+B: Real-time Transcription HUD]:::float
+        Susurro[Alt+B: Interview Copilot]:::float
         Voice[Alt+V: Embedded Voice Input]:::float
         Bubble[Draggable Floating Bubble]:::float
         Notification[Alerts & Notifications]:::float
