@@ -34,7 +34,7 @@
 </tr>
 <tr>
   <td><b>🎙️ Interview Copilot (Alt+B)</b></td>
-  <td>Capture system audio with <strong>Gemini Live</strong> by default, optionally switch to Google Cloud Speech-to-Text interim results, and stream an interview answer from <strong>Gemini</strong> when you click <strong>Answer question</strong> or press <code>Space</code>.</td>
+  <td>Capture system audio with bundled, local <strong>whisper.cpp</strong> transcription by default, optionally switch to Gemini Live or Google Cloud, and stream an interview answer from <strong>Gemini</strong> when you click <strong>Answer question</strong> or press <code>Space</code>.</td>
 </tr>
 <tr>
   <td><b>⚡ Spotlight Command Bar</b></td>
@@ -97,6 +97,8 @@
 | [Node.js](https://nodejs.org/) | v22.12.0 or newer | Required by Electron 42 |
 | npm | bundled with Node.js | — |
 | Windows or macOS | 10 / 11 / Ventura+ | macOS build is supported via `electron-builder --mac` |
+| CMake | 3.10+ | macOS only; compiles the native `whisper.cpp` server |
+| curl | current | downloads the pinned runtime source and multilingual model |
 
 ```bash
 # 1. Clone the repository
@@ -110,7 +112,7 @@ npm install
 npm run dev
 ```
 
-The dev server first clears stale Hades Electron processes, then starts Vite (React renderer on `:3000`) and Electron concurrently with full hot-reload on both sides.
+The first `npm run dev` downloads the quantized multilingual Whisper `large-v3-turbo-q5_0` model and prepares the native runtime. Later starts reuse those files, clear stale Hades Electron processes, then launch Vite and Electron concurrently.
 
 ### Build / Package commands
 
@@ -148,11 +150,16 @@ See [docs/hermes-agent.md](docs/hermes-agent.md) for memory behavior, low-token 
 
 Open **Options > Interview** or press `Alt+B`. Before listening, set the target role, company, resume, job description, language, answer style, and optional instructions.
 
-- Gemini Live is the default transcription provider and uses the Google AI Studio API key already configured in Hades. Gemini 3.1 normally publishes input transcription after a speech boundary; Hades still consumes interim hypotheses when the API provides them, and applies Portuguese/English language hints plus interview vocabulary from the configured role, company, and resume.
+- Local Whisper is the default transcription provider. Hades bundles `whisper.cpp` v1.9.1 and the quantized multilingual `large-v3-turbo-q5_0` model in packaged builds and transcribes two-second PCM windows without an API key or per-minute charge. The model adds about 547 MB before installer compression.
+- The model is loaded only after interview listening starts. System audio and the optional microphone share one server; pausing or finishing the final transcription source terminates that server and releases the model memory.
+- A bundled Silero VAD 6.2 model rejects non-speech segments before inference. Adaptive noise detection, a 240 ms speech pre-roll, and a second PCM activity gate prevent silence hallucinations and preserve quiet word beginnings.
+- Portuguese is the default recognition language to avoid unreliable language detection on short windows. Select English or automatic detection in the interview setup when needed.
+- `npm run whisper:prepare` prepares the current machine explicitly. macOS builds compile a static Metal/Accelerate-enabled server; Windows x64 builds use the official prebuilt runtime. Generated binaries and model files stay outside Git and are copied into the application by `electron-builder`.
+- Gemini Live remains available and uses the Google AI Studio API key already configured in Hades. Gemini 3.1 normally publishes input transcription after a speech boundary; Hades still consumes interim hypotheses when the API provides them.
 - To use Google Cloud instead, select **Google Cloud (continuous transcription)**, enter a project ID, and click **Connect** before the meeting. Hades starts `gcloud auth application-default login`, opens the Google authorization page, sets that project as the ADC quota project, and validates both the token and quota configuration.
 - Hades uses Speech-to-Text V1 for the free monthly allowance and lowest discounted streaming price. **Lower cost** opens the project page where data logging can be enabled after accepting Google's terms. Data logging allows Google to use and retain submitted audio/transcripts for model improvement; enable it only when you have permission from every data originator.
 - The Google Cloud CLI must be installed, billing must be linked to the selected project, `speech.googleapis.com` must be enabled, and the signed-in account must have `serviceusage.services.use` (normally through **Service Usage Consumer**) on that project. See the official [Cloud STT setup](https://cloud.google.com/speech-to-text/docs/setup), [authentication](https://cloud.google.com/speech-to-text/docs/authentication), and [pricing](https://cloud.google.com/speech-to-text/pricing) pages.
-- System audio is transcribed by Gemini Live by default. Microphone transcription is optional and uses a separate session so speakers remain separated.
+- System audio is transcribed locally by default. Microphone transcription is optional and remains a separate source so speakers stay separated.
 - If ADC is unavailable, expired, or rejected, Hades automatically falls back to Gemini Live. Gemini Live remains functional but does not guarantee continuous interim transcript updates.
 - The latest likely interviewer question is highlighted locally without an LLM request. Every finalized interviewer turn still has an explicit **Answer** action.
 - Click **Answer question** or press `Space` outside an input to send the latest five conversation texts, resume, job description, and interview instructions to a separate Gemini stream. The transcript continues while Gemini responds.
@@ -210,6 +217,10 @@ graph TD
     Dream[DreamService AI Sleep]:::service
     Hermes[Hermes Agent API Server]:::external
     
+    subgraph Local_AI [Bundled Local Runtime]
+        Whisper[whisper.cpp + Turbo Q5 + Silero VAD]:::service
+    end
+
     subgraph Cloud_APIs [Cloud Intelligence Services]
         Gemini[Gemini Live API]:::external
         Speech[Google Cloud Speech-to-Text]:::external
@@ -225,7 +236,8 @@ graph TD
     Dream -->|Persists Insights| Store
     Main -->|Delegates memory, web/API/CLI and multi-step tasks| Hermes
     
-    Main -->|16kHz Raw PCM Streaming| Speech
+    Main -->|Two-second 16kHz PCM windows| Whisper
+    Main -->|Optional continuous streaming| Speech
     Main <-->|Answers and transcription fallback| Gemini
     Main <-->|Asynchronous Web Queries| Tavily
 ```
@@ -258,5 +270,7 @@ Hades was co-engineered with **[Google Antigravity](https://deepmind.google/)** 
 ## <img src="https://api.iconify.design/lucide:file-text.svg?color=%23ff2a2a" width="22" height="22" align="center" style="vertical-align: middle; margin-right: 8px;" /> License
 
 MIT — See [LICENSE](LICENSE).
+
+Bundled Whisper components are listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 Maintained by [fbsis](https://github.com/fbsis).
