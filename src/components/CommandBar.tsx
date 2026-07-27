@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronDown, X, Paperclip } from 'lucide-react';
+import { Camera, Cog, Minus, Paperclip, Pin, PinOff, Power, Users, X } from 'lucide-react';
 import { CommandPanel, useCommandBar } from '../hooks/useCommandBar';
 import { electronService } from '../services/electron';
 import MiniChat from './MiniChat';
@@ -13,12 +13,10 @@ import VoiceRecorder from './VoiceRecorder';
  */
 const CommandBar: React.FC = () => {
   const [activePanel, setActivePanel] = useState<CommandPanel>('command');
-  const [isOptionsOpen, setIsOptionsOpen] = useState(false);
   const {
     query,
     setQuery,
     attachedImage,
-    setAttachedImage,
     inputRef,
     containerRef,
     MAX_CHARS,
@@ -26,7 +24,7 @@ const CommandBar: React.FC = () => {
     handleKeyDown,
     handlePaste,
     removeAttachment
-  } = useCommandBar(activePanel, isOptionsOpen);
+  } = useCommandBar(activePanel, false);
 
   const [isOnTop, setIsOnTop] = useState(true);
 
@@ -72,7 +70,6 @@ const CommandBar: React.FC = () => {
       }
 
       event.preventDefault();
-      setIsOptionsOpen(false);
       setQuery((current) => {
         if (current.length >= MAX_CHARS) return current;
         return `${current}${event.key}`;
@@ -92,65 +89,30 @@ const CommandBar: React.FC = () => {
     };
   }, [MAX_CHARS, activePanel, inputRef, setQuery]);
 
-  const handleFileOpen = async () => {
-    setIsOptionsOpen(false);
-    const base64 = await electronService.openFileDialog();
-    if (base64) {
-      setAttachedImage(base64);
-      // Return focus to the text input so the user can type immediately
-      setTimeout(() => inputRef.current?.focus(), 50);
-    }
-  };
-
   const handleOpenChat = () => {
-    setIsOptionsOpen(false);
     setActivePanel(activePanel === 'chat' ? 'command' : 'chat');
   };
 
   const handleOpenSettings = () => {
-    setIsOptionsOpen(false);
     setActivePanel(activePanel === 'settings' ? 'command' : 'settings');
   };
 
   const handleOpenTranscription = () => {
-    setIsOptionsOpen(false);
     setActivePanel(activePanel === 'transcription' ? 'command' : 'transcription');
   };
 
-  const handleOpenVoice = () => {
-    setIsOptionsOpen(false);
-    setActivePanel(activePanel === 'voice' ? 'command' : 'voice');
-  };
-
   const handleMinimizeToHead = () => {
-    setIsOptionsOpen(false);
     electronService.minimizeToHead();
   };
 
   const handleQuitApp = () => {
-    setIsOptionsOpen(false);
     electronService.quitApp();
   };
 
   const handleToggleOnTop = () => {
     const next = !isOnTop;
     setIsOnTop(next);
-    setIsOptionsOpen(false);
     electronService.togglePin();
-  };
-
-  const handleToggleOptions = () => {
-    if (activePanel !== 'command') {
-      setActivePanel('command');
-      setIsOptionsOpen(true);
-      return;
-    }
-    setIsOptionsOpen((open) => !open);
-  };
-
-  const handleCaptureOption = async () => {
-    setIsOptionsOpen(false);
-    await handleCapture();
   };
 
   return (
@@ -186,6 +148,15 @@ const CommandBar: React.FC = () => {
               onRemove={removeAttachment} 
             />
           )}
+          <button
+            type="button"
+            className="command-input-action"
+            onClick={handleCapture}
+            title="Capturar tela"
+            aria-label="Capturar tela"
+          >
+            <Camera size={15} />
+          </button>
         </div>
       </div>
       
@@ -199,42 +170,59 @@ const CommandBar: React.FC = () => {
           Conversation
         </button>
 
-        <button
-          type="button"
-          className={`footer-btn text-btn select-btn ${isOptionsOpen ? 'active' : ''}`}
-          onClick={handleToggleOptions}
-          title="Abrir opções"
-          aria-expanded={isOptionsOpen}
-        >
-          Opções
-          <ChevronDown size={12} />
-        </button>
-
         <div className="footer-spacer" />
 
         <button
           type="button"
-          className="footer-btn text-btn"
+          className={`footer-btn icon-btn ${activePanel === 'settings' ? 'active' : ''}`}
+          onClick={handleOpenSettings}
+          title="Configurações"
+          aria-label="Configurações"
+          data-tooltip="Configurações"
+        >
+          <Cog size={16} />
+        </button>
+        <button
+          type="button"
+          className={`footer-btn icon-btn ${activePanel === 'transcription' ? 'active' : ''}`}
+          onClick={handleOpenTranscription}
+          title="Reunião"
+          aria-label="Reunião"
+          data-tooltip="Reunião"
+        >
+          <Users size={16} />
+        </button>
+        <button
+          type="button"
+          className={`footer-btn icon-btn ${isOnTop ? 'active' : ''}`}
+          onClick={handleToggleOnTop}
+          title={isOnTop ? 'Desativar always-on-top' : 'Ativar always-on-top'}
+          aria-label={isOnTop ? 'Desativar always-on-top' : 'Ativar always-on-top'}
+          data-tooltip={isOnTop ? 'Desativar on top' : 'Ativar on top'}
+        >
+          {isOnTop ? <PinOff size={16} /> : <Pin size={16} />}
+        </button>
+        <button
+          type="button"
+          className="footer-btn icon-btn"
           onClick={handleMinimizeToHead}
           title="Minimizar para bolha"
+          aria-label="Minimizar para bolha"
+          data-tooltip="Minimizar"
         >
-          Minimizar
+          <Minus size={16} />
+        </button>
+        <button
+          type="button"
+          className="footer-btn icon-btn danger"
+          onClick={handleQuitApp}
+          title="Sair do Hades"
+          aria-label="Sair do Hades"
+          data-tooltip="Sair"
+        >
+          <Power size={16} />
         </button>
       </div>
-
-      {isOptionsOpen && activePanel === 'command' && (
-        <div className="command-options-menu" role="menu">
-          <button type="button" className="option-row" onClick={handleFileOpen}>Upload imagem</button>
-          <button type="button" className="option-row" onClick={handleCaptureOption}>Capturar tela</button>
-          <button type="button" className="option-row" onClick={handleOpenSettings}>Configurações</button>
-          <button type="button" className="option-row" onClick={handleOpenTranscription}>Entrevista</button>
-          <button type="button" className="option-row" onClick={handleOpenVoice}>Escutar</button>
-          <button type="button" className="option-row" onClick={handleToggleOnTop}>
-            {isOnTop ? 'Desativar on top' : 'Ativar on top'}
-          </button>
-          <button type="button" className="option-row danger" onClick={handleQuitApp}>Sair do Hades</button>
-        </div>
-      )}
 
       <div className={`unified-panel ${activePanel === 'command' ? 'hidden' : ''}`}>
         <div className={`unified-panel-view ${activePanel === 'chat' ? '' : 'hidden'}`}>
