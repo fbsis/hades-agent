@@ -1,10 +1,16 @@
 const crypto = require('node:crypto');
 const { GoogleGenAI } = require('@google/genai');
 const store = require('../store/jsonStore');
+const {
+  buildAudioTranscriptionConfig,
+  buildTranscriptionInstruction
+} = require('./geminiLiveTranscription');
 const logger = require('./logger');
 
 const MODEL = 'gemini-3.1-flash-live-preview';
-const TURN_IDLE_MS = 900;
+const FINAL_TRANSCRIPT_GRACE_MS = 900;
+const QUICK_FLUSH_TIMEOUT_MS = 1400;
+const QUICK_FLUSH_SETTLE_MS = 160;
 const MAX_PENDING_CHUNKS = 50;
 const MAX_RECONNECT_ATTEMPTS = 5;
 const RECONNECT_DELAYS = [500, 1000, 2000, 5000, 8000];
@@ -43,6 +49,10 @@ class GeminiLiveService {
       sessionId: options.sessionId,
       source: options.source,
       language: options.language || 'auto',
+      customVocabulary: (Array.isArray(options.customVocabulary) ? options.customVocabulary : [])
+        .map(value => String(value || '').trim())
+        .filter(Boolean)
+        .slice(0, 8),
       personaPrompt: options.personaPrompt || '',
       legacy: !!options.legacy,
       client: null,
@@ -58,12 +68,16 @@ class GeminiLiveService {
       chunkCount: 0,
       lastAudioLogAt: 0,
       lastChunkTime: 0,
-      audioStreamOpen: false,
+      streamHasAudio: false,
       currentTurnId: null,
       deltaSequence: 0,
       statusSequence: 0,
       turnStartTime: 0,
-      finalizeTimer: null
+      finalizeTimer: null,
+      finalizeRequested: false,
+      interimText: '',
+      finalInputText: '',
+      flushWaiters: []
     };
   }
 
@@ -86,15 +100,11 @@ class GeminiLiveService {
   }
 
   transcriptionInstruction(record) {
-    const language = record.language === 'auto'
-      ? 'Preserve the language being spoken.'
-      : `The expected language is ${record.language}.`;
-    return record.personaPrompt || [
-      'You are a high precision audio transcription engine.',
-      'Transcribe exactly what is spoken through input_audio_transcription.',
-      'Do not answer, comment, summarize or emit model text/audio.',
-      language
-    ].join(' ');
+    return buildTranscriptionInstruction(record);
+  }
+
+  transcriptionConfig(record) {
+    return buildAudioTranscriptionConfig(record);
   }
 
   async connectSource(record, reconnecting) {
@@ -112,10 +122,9 @@ class GeminiLiveService {
           systemInstruction: {
             parts: [{ text: this.transcriptionInstruction(record) }]
           },
-          inputAudioTranscription: {},
+          inputAudioTranscription: this.transcriptionConfig(record),
           thinkingConfig: { thinkingLevel: 'MINIMAL' },
           sessionResumption: {
-            transparent: true,
             ...(record.resumeHandle ? { handle: record.resumeHandle } : {})
           },
           contextWindowCompression: {
@@ -124,17 +133,21 @@ class GeminiLiveService {
           },
           realtimeInputConfig: {
             automaticActivityDetection: {
+              disabled: false,
               startOfSpeechSensitivity: 'START_SENSITIVITY_HIGH',
               endOfSpeechSensitivity: 'END_SENSITIVITY_HIGH',
-              prefixPaddingMs: 100,
+              prefixPaddingMs: 20,
               silenceDurationMs: 500
-            }
+            },
+            activityHandling: 'NO_INTERRUPTION',
+            turnCoverage: 'TURN_INCLUDES_ONLY_ACTIVITY'
           }
         },
         callbacks: {
           onopen: () => {
             if (!record.desired || version !== record.connectVersion) return;
             record.ready = true;
+            record.streamHasAudio = false;
             record.reconnectAttempt = 0;
             logger.info('GEMINI LIVE', `[${record.source}] session ready`);
             this.emitStatus(record, 'ready');
@@ -145,6 +158,8 @@ class GeminiLiveService {
             if (!record.desired || version !== record.connectVersion) return;
             logger.error('GEMINI LIVE', `[${record.source}] session error`, error);
             record.ready = false;
+            record.streamHasAudio = false;
+            this.resolveFlushWaiters(record, false);
             this.emitStatus(record, 'error', { error: error?.message || String(error) });
             this.scheduleReconnect(record);
           },
@@ -152,6 +167,8 @@ class GeminiLiveService {
             if (version !== record.connectVersion) return;
             record.ready = false;
             record.session = null;
+            record.streamHasAudio = false;
+            this.resolveFlushWaiters(record, false);
             this.finalizeTurn(record, 'connection_closed');
             logger.info(
               'GEMINI LIVE',
@@ -173,6 +190,7 @@ class GeminiLiveService {
     } catch (error) {
       if (!record.desired || version !== record.connectVersion) return false;
       record.ready = false;
+      record.streamHasAudio = false;
       logger.error('GEMINI LIVE', `[${record.source}] connection failed`, error);
       this.emitStatus(record, 'error', { error: error?.message || String(error) });
       this.scheduleReconnect(record);
@@ -216,10 +234,15 @@ class GeminiLiveService {
 
     const serverContent = message.serverContent;
     if (!serverContent) return;
+    if (serverContent.interimInputTranscription) {
+      this.processInterimInputTranscription(record, serverContent.interimInputTranscription);
+    }
     if (serverContent.inputTranscription) {
       this.processInputTranscription(record, serverContent.inputTranscription);
     }
-    if (serverContent.turnComplete) this.finalizeTurn(record, 'server_turn_complete');
+    if (serverContent.turnComplete && record.currentTurnId) {
+      this.finalizeTurn(record, 'server_turn_complete');
+    }
   }
 
   ensureTurn(record) {
@@ -230,7 +253,7 @@ class GeminiLiveService {
     return record.currentTurnId;
   }
 
-  emitDelta(record, text, isFinal) {
+  emitDelta(record, text, isFinal, replacePending = false) {
     const turnId = this.ensureTurn(record);
     record.deltaSequence += 1;
     const payload = {
@@ -240,6 +263,7 @@ class GeminiLiveService {
       sequence: record.deltaSequence,
       text: text || '',
       isFinal: !!isFinal,
+      replacePending,
       timestamp: new Date().toISOString()
     };
     this.sendToRenderer(record, 'interview-transcript-delta', payload);
@@ -257,17 +281,57 @@ class GeminiLiveService {
     if (!text && !transcription.finished) return;
     const latency = record.lastChunkTime ? Date.now() - record.lastChunkTime : 0;
     if (text) logger.info('GEMINI LIVE', `[${record.source}] "${text}" (${latency}ms)`);
-    this.clearFinalizeTimer(record);
-    this.emitDelta(record, text, !!transcription.finished);
-    if (!transcription.finished) this.scheduleTurnFinalize(record);
+    if (text) {
+      if (record.interimText) {
+        record.finalInputText += text;
+        this.emitDelta(record, record.finalInputText, false, true);
+      } else {
+        this.emitDelta(record, text, false);
+      }
+      this.scheduleFlushWaiterResolution(record);
+    }
+    if (transcription.finished) this.scheduleFlushWaiterResolution(record, 0);
+    if (transcription.finished && record.finalizeRequested) {
+      this.finalizeTurn(record, 'input_transcription_finished');
+    }
   }
 
-  scheduleTurnFinalize(record) {
+  processInterimInputTranscription(record, transcription) {
+    const text = String(transcription.text || '').replace(/\s+/g, ' ').trim();
+    if (!text || text === record.interimText) return;
+    record.interimText = text;
+    record.finalInputText = '';
+    const latency = record.lastChunkTime ? Date.now() - record.lastChunkTime : 0;
+    logger.info('GEMINI LIVE', `[${record.source}] [INTERIM] "${text}" (${latency}ms)`);
+    this.emitDelta(record, text, false, true);
+    this.scheduleFlushWaiterResolution(record);
+  }
+
+  resolveFlushWaiter(record, waiter, result) {
+    clearTimeout(waiter.timeout);
+    clearTimeout(waiter.settleTimer);
+    record.flushWaiters = record.flushWaiters.filter(item => item !== waiter);
+    waiter.resolve(result);
+  }
+
+  resolveFlushWaiters(record, result) {
+    [...record.flushWaiters].forEach(waiter => this.resolveFlushWaiter(record, waiter, result));
+  }
+
+  scheduleFlushWaiterResolution(record, delay = QUICK_FLUSH_SETTLE_MS) {
+    record.flushWaiters.forEach(waiter => {
+      clearTimeout(waiter.settleTimer);
+      waiter.settleTimer = setTimeout(() => this.resolveFlushWaiter(record, waiter, true), delay);
+    });
+  }
+
+  requestTurnFinalization(record, reason) {
+    record.finalizeRequested = true;
     this.clearFinalizeTimer(record);
     record.finalizeTimer = setTimeout(() => {
       record.finalizeTimer = null;
-      this.finalizeTurn(record, 'local_idle');
-    }, TURN_IDLE_MS);
+      this.finalizeTurn(record, `${reason}_grace_timeout`);
+    }, FINAL_TRANSCRIPT_GRACE_MS);
   }
 
   clearFinalizeTimer(record) {
@@ -278,6 +342,9 @@ class GeminiLiveService {
 
   finalizeTurn(record, reason) {
     this.clearFinalizeTimer(record);
+    record.finalizeRequested = false;
+    record.interimText = '';
+    record.finalInputText = '';
     if (!record.currentTurnId) return;
     logger.info('GEMINI LIVE', `[${record.source}] turn finalized (${reason})`);
     this.emitDelta(record, '', true);
@@ -299,6 +366,11 @@ class GeminiLiveService {
 
   sendChunkNow(record, payload) {
     try {
+      if (record.finalizeRequested) {
+        this.finalizeTurn(record, 'new_audio_after_pause');
+      }
+
+      const now = Date.now();
       record.session.sendRealtimeInput({
         audio: {
           data: payload.base64,
@@ -306,8 +378,8 @@ class GeminiLiveService {
         }
       });
       record.chunkCount += 1;
-      record.lastChunkTime = Date.now();
-      record.audioStreamOpen = true;
+      record.streamHasAudio = true;
+      record.lastChunkTime = now;
       if (record.chunkCount === 1 || record.lastChunkTime - record.lastAudioLogAt >= 10000) {
         logger.info('GEMINI LIVE', `[${record.source}] sending chunk #${record.chunkCount} (seq ${payload.sequence})`);
         record.lastAudioLogAt = record.lastChunkTime;
@@ -316,6 +388,7 @@ class GeminiLiveService {
     } catch (error) {
       logger.error('GEMINI LIVE', `[${record.source}] failed to send audio`, error);
       record.ready = false;
+      record.streamHasAudio = false;
       record.pendingChunks.push(payload);
       this.scheduleReconnect(record);
       return false;
@@ -328,15 +401,50 @@ class GeminiLiveService {
     pending.forEach(chunk => this.sendChunkNow(record, chunk));
   }
 
+  flushAudioWindow(record, reason = 'manual') {
+    if (!record?.session || !record.ready || !record.streamHasAudio) return false;
+    record.session.sendRealtimeInput({ audioStreamEnd: true });
+    record.streamHasAudio = false;
+    logger.info('GEMINI LIVE', `[${record.source}] audio stream flush (${reason})`);
+    return true;
+  }
+
+  flushForAnswer(sessionId, source) {
+    const record = this.sources.get(this.key(sessionId, source));
+    if (!record?.ready || !record.session) return Promise.resolve(false);
+    if (!record.streamHasAudio) return Promise.resolve(true);
+
+    return new Promise(resolve => {
+      const waiter = {
+        resolve,
+        settleTimer: null,
+        timeout: null
+      };
+      waiter.timeout = setTimeout(
+        () => this.resolveFlushWaiter(record, waiter, true),
+        QUICK_FLUSH_TIMEOUT_MS
+      );
+      record.flushWaiters.push(waiter);
+
+      try {
+        if (!this.flushAudioWindow(record, 'quick_answer')) {
+          this.resolveFlushWaiter(record, waiter, true);
+        }
+      } catch (error) {
+        logger.warn('GEMINI LIVE', `[${source}] quick answer flush failed: ${error.message}`);
+        this.resolveFlushWaiter(record, waiter, false);
+      }
+    });
+  }
+
   sendAudioStreamEnd(sessionId, source, reason = 'pause') {
     const record = this.sources.get(this.key(sessionId, source));
-    if (!record?.session || !record.ready || !record.audioStreamOpen) return;
+    if (!record) return;
     try {
-      record.session.sendRealtimeInput({ audioStreamEnd: true });
-      record.audioStreamOpen = false;
-      this.finalizeTurn(record, reason);
+      this.flushAudioWindow(record, reason);
+      this.requestTurnFinalization(record, reason);
     } catch (error) {
-      logger.error('GEMINI LIVE', `[${source}] audio stream end failed`, error);
+      logger.error('GEMINI LIVE', `[${source}] activity end failed`, error);
     }
   }
 
@@ -347,7 +455,12 @@ class GeminiLiveService {
     record.desired = false;
     record.connectVersion += 1;
     if (record.reconnectTimer) clearTimeout(record.reconnectTimer);
-    this.sendAudioStreamEnd(sessionId, source, 'stop');
+    this.resolveFlushWaiters(record, false);
+    try {
+      this.flushAudioWindow(record);
+    } catch (error) {
+      logger.warn('GEMINI LIVE', `[${source}] final audio flush failed: ${error.message}`);
+    }
     this.finalizeTurn(record, 'stop');
     record.ready = false;
     try {
