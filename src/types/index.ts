@@ -6,3 +6,4 @@
 export * from './chat';
 export * from './susurro';
 export * from './electron';
+export * from './interview';

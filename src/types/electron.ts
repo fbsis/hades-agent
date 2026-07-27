@@ -1,3 +1,15 @@
+import type {
+  InterviewAnswer,
+  InterviewAnswerEvent,
+  InterviewAnswerVariant,
+  InterviewConfig,
+  InterviewScreenAnalysis,
+  InterviewSession,
+  InterviewTranscriptDelta,
+  InterviewTranscriptionStatus,
+  TranscriptTurn
+} from './interview';
+
 /**
  * Standardized response from the Electron backend.
  */
@@ -63,6 +75,38 @@ export interface ElectronAPI {
   generateSuggestion: (data: { transcription: string, personaPrompt: string }) => Promise<IPCResponse<string>>;
   askSusurroTranscript: (data: { question: string; transcript: string; personaPrompt?: string }) => Promise<IPCResponse<{ text: string; provider: string }>>;
   saveSusurroMessage: (msg: any) => Promise<IPCResponse<void>>;
+
+  // Interview Copilot
+  createInterviewSession: (config: InterviewConfig) => Promise<IPCResponse<InterviewSession>>;
+  listInterviewSessions: () => Promise<IPCResponse<InterviewSession[]>>;
+  loadInterviewSession: (sessionId: string) => Promise<IPCResponse<InterviewSession | null>>;
+  updateInterviewSession: (sessionId: string, patch: Partial<InterviewSession>) => Promise<IPCResponse<InterviewSession>>;
+  finishInterviewSession: (sessionId: string) => Promise<IPCResponse<InterviewSession>>;
+  archiveInterviewSession: (sessionId: string) => Promise<IPCResponse<InterviewSession>>;
+  saveInterviewTurn: (sessionId: string, turn: TranscriptTurn) => Promise<IPCResponse<TranscriptTurn>>;
+  startInterviewSource: (options: { sessionId: string; source: 'interviewer' | 'candidate'; language: string }) => Promise<IPCResponse<boolean>>;
+  stopInterviewSource: (sessionId: string, source: 'interviewer' | 'candidate') => Promise<IPCResponse<boolean>>;
+  stopInterviewTranscription: (sessionId: string) => Promise<IPCResponse<boolean>>;
+  sendInterviewAudioChunk: (payload: { sessionId: string; source: 'interviewer' | 'candidate'; base64: string; sequence: number }) => void;
+  endInterviewAudioStream: (sessionId: string, source: 'interviewer' | 'candidate') => void;
+  onInterviewTranscriptDelta: (callback: (delta: InterviewTranscriptDelta) => void) => () => void;
+  onInterviewTranscriptionStatus: (callback: (status: InterviewTranscriptionStatus) => void) => () => void;
+  requestInterviewAnswer: (args: {
+    sessionId: string;
+    answerId: string;
+    turnId?: string;
+    question: string;
+    turns: TranscriptTurn[];
+    config: InterviewConfig;
+    visualContext?: string;
+    variant: InterviewAnswerVariant;
+  }) => Promise<IPCResponse<InterviewAnswer>>;
+  cancelInterviewAnswer: (answerId: string) => Promise<IPCResponse<boolean>>;
+  onInterviewAnswerEvent: (callback: (event: InterviewAnswerEvent) => void) => () => void;
+  analyzeInterviewScreen: (question?: string) => Promise<IPCResponse<InterviewScreenAnalysis>>;
+  startInterviewRecording: (sessionId: string, source: 'interviewer' | 'candidate') => Promise<IPCResponse<boolean>>;
+  sendInterviewRecordingChunk: (sessionId: string, source: 'interviewer' | 'candidate', base64: string) => void;
+  stopInterviewRecording: (sessionId: string, source: 'interviewer' | 'candidate') => Promise<IPCResponse<any>>;
   
   // Tools & IPC
   openFileDialog: () => Promise<string | null>;
@@ -200,6 +244,7 @@ export interface SettingsData {
   general: GeneralSettings;
   hermes: HermesSettings;
   assistant: AssistantSettings;
+  interview?: InterviewConfig;
   layout?: LayoutSettings;
   shortcuts?: ShortcutsSettings;
 }

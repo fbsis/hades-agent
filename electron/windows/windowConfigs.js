@@ -108,16 +108,16 @@ const windowConfigs = {
     }
   },
   susurro: {
-    width: 520,
-    height: 680,
+    width: 940,
+    height: 720,
     frame: false,
     transparent: true,
     hasShadow: false,
-    alwaysOnTop: false,
+    alwaysOnTop: true,
     show: false,
     resizable: true,
-    minWidth: 360,
-    minHeight: 400,
+    minWidth: 700,
+    minHeight: 520,
     backgroundColor: '#00000000',
     url: `${baseUrl}?window=susurro`,
     webPreferences: {

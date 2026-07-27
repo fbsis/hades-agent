@@ -1,5 +1,6 @@
 const fs = require('node:fs');
 const path = require('node:path');
+const { TextDecoder } = require('node:util');
 const { app } = require('electron');
 const store = require('../store/jsonStore');
 const logger = require('./logger');
@@ -55,9 +56,41 @@ function extractCompletionText(data) {
   return '';
 }
 
+function extractStreamDelta(data) {
+  const content = data?.choices?.[0]?.delta?.content
+    ?? data?.choices?.[0]?.text
+    ?? data?.delta
+    ?? data?.text;
+
+  if (typeof content === 'string') return content;
+  if (Array.isArray(content)) {
+    return content
+      .map(part => {
+        if (typeof part === 'string') return part;
+        if (typeof part?.text === 'string') return part.text;
+        return '';
+      })
+      .join('');
+  }
+  return '';
+}
+
+function extractToolProgress(data) {
+  if (!data || typeof data !== 'object') return '';
+  return data.message || data.name || data.tool || data.title || '';
+}
+
 class HermesService {
   constructor() {
     this.usagePath = null;
+    this.activeStreams = new Map();
+  }
+
+  cancelStream(streamId) {
+    const controller = this.activeStreams.get(streamId);
+    if (!controller) return false;
+    controller.abort('cancelled');
+    return true;
   }
 
   getUsagePath() {
@@ -224,17 +257,12 @@ class HermesService {
     ].join('\n');
   }
 
-  async ask(args = {}) {
-    const config = this.getConfig();
-    if (!config.enabled) {
-      return { success: false, error: 'Hermes esta desativado nas configuracoes.' };
-    }
-
-    const start = Date.now();
+  buildAskRequest(args = {}, config) {
+    const effectiveConfig = config || this.getConfig();
     const includeLocalContext = args.includeLocalContext !== false;
-    const localContext = includeLocalContext ? this.buildLocalContext(config.maxContextChars) : '';
-    const context = clip(args.context || '', config.maxContextChars);
-    const prompt = clip(args.prompt || args.task || '', config.maxContextChars);
+    const localContext = includeLocalContext ? this.buildLocalContext(effectiveConfig.maxContextChars) : '';
+    const context = clip(args.context || '', effectiveConfig.maxContextChars);
+    const prompt = clip(args.prompt || args.task || '', effectiveConfig.maxContextChars);
     const instruction = clip(args.instruction || 'Resolva a tarefa abaixo e retorne apenas o resultado util para o Hades.', 1200);
 
     const userContent = [
@@ -251,19 +279,36 @@ class HermesService {
     ].filter(Boolean).join('\n');
 
     const messages = [
-      { role: 'system', content: this.buildSystemPrompt(args, config) },
+      { role: 'system', content: this.buildSystemPrompt(args, effectiveConfig) },
       { role: 'user', content: userContent }
     ];
+
+    return {
+      messages,
+      prompt,
+      context,
+      body: {
+        model: effectiveConfig.model,
+        messages,
+        temperature: 0.2,
+        max_tokens: clampNumber(args.maxOutputTokens, 900, 64, 4096)
+      }
+    };
+  }
+
+  async ask(args = {}) {
+    const config = this.getConfig();
+    if (!config.enabled) {
+      return { success: false, error: 'Hermes esta desativado nas configuracoes.' };
+    }
+
+    const start = Date.now();
+    const { messages, body } = this.buildAskRequest(args, config);
 
     try {
       const data = await this.request('/chat/completions', {
         method: 'POST',
-        body: {
-          model: config.model,
-          messages,
-          temperature: 0.2,
-          max_tokens: clampNumber(args.maxOutputTokens, 900, 64, 4096)
-        },
+        body,
         timeoutMs: args.timeoutMs || config.timeoutMs
       });
 
@@ -300,6 +345,161 @@ class HermesService {
       });
       logger.error('HERMES', 'ask failed', error);
       return { success: false, error: error.message, durationMs };
+    }
+  }
+
+  async askStream(args = {}, onEvent = () => {}) {
+    const config = this.getConfig();
+    if (!config.enabled) {
+      return { success: false, error: 'Hermes esta desativado nas configuracoes.' };
+    }
+    if (typeof fetch !== 'function') {
+      return { success: false, error: 'fetch nao esta disponivel no processo Electron.' };
+    }
+
+    const start = Date.now();
+    const { messages, body } = this.buildAskRequest(args, config);
+    const controller = new AbortController();
+    const streamId = args.streamId || `hermes_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    this.cancelStream(streamId);
+    this.activeStreams.set(streamId, controller);
+    const timeout = setTimeout(() => controller.abort(), args.timeoutMs || config.timeoutMs);
+    const url = `${config.apiBaseUrl}/chat/completions`;
+    let text = '';
+    let usage = null;
+    let model = config.model;
+
+    const emit = (payload) => {
+      try {
+        onEvent(payload);
+      } catch (error) {
+        logger.warn('HERMES', `stream event callback failed: ${error.message}`);
+      }
+    };
+
+    const handleSseBlock = (block) => {
+      const lines = block.split(/\r?\n/);
+      let eventType = 'message';
+      const dataLines = [];
+
+      for (const line of lines) {
+        if (line.startsWith('event:')) {
+          eventType = line.slice(6).trim() || 'message';
+        } else if (line.startsWith('data:')) {
+          dataLines.push(line.slice(5).trimStart());
+        }
+      }
+
+      const rawData = dataLines.join('\n').trim();
+      if (!rawData || rawData === '[DONE]') return;
+
+      let data = null;
+      try {
+        data = JSON.parse(rawData);
+      } catch {
+        data = { text: rawData };
+      }
+
+      if (eventType === 'hermes.tool.progress') {
+        emit({ type: 'tool', text: extractToolProgress(data), data });
+        return;
+      }
+
+      const delta = extractStreamDelta(data);
+      if (delta) {
+        text += delta;
+        emit({ type: 'delta', text: delta });
+      }
+      if (data?.usage) usage = data.usage;
+      if (data?.model) model = data.model;
+    };
+
+    try {
+      emit({ type: 'start' });
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: this.getHeaders(config),
+        body: JSON.stringify({ ...body, stream: true }),
+        signal: controller.signal
+      });
+
+      if (!response.ok) {
+        const rawText = await response.text();
+        let data = null;
+        try {
+          data = rawText ? JSON.parse(rawText) : null;
+        } catch {
+          data = { text: rawText };
+        }
+        const message = data?.error?.message || data?.message || rawText || response.statusText;
+        throw new Error(`Hermes HTTP ${response.status}: ${message}`);
+      }
+
+      if (!response.body || typeof response.body.getReader !== 'function') {
+        throw new Error('Hermes nao retornou um stream SSE legivel.');
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let done = false;
+
+      while (!done) {
+        const chunk = await reader.read();
+        done = chunk.done;
+        buffer += decoder.decode(chunk.value || new Uint8Array(), { stream: !done });
+        const blocks = buffer.split(/\r?\n\r?\n/);
+        buffer = blocks.pop() || '';
+        blocks.forEach(handleSseBlock);
+      }
+
+      if (buffer.trim()) {
+        handleSseBlock(buffer);
+      }
+
+      const finalText = text.trim() || 'Hermes nao retornou texto.';
+      const durationMs = Date.now() - start;
+      this.appendUsage({
+        type: args.logType || 'ask_stream',
+        success: true,
+        durationMs,
+        promptChars: JSON.stringify(messages).length,
+        responseChars: finalText.length,
+        model,
+        usage
+      });
+
+      const result = {
+        success: true,
+        text: finalText,
+        model,
+        usage,
+        sessionKey: config.sessionKey,
+        durationMs
+      };
+      emit({ type: 'end', result });
+      return result;
+    } catch (error) {
+      const durationMs = Date.now() - start;
+      this.appendUsage({
+        type: args.logType || 'ask_stream',
+        success: false,
+        durationMs,
+        promptChars: JSON.stringify(messages).length,
+        responseChars: text.length,
+        error: error.message,
+        model: config.model
+      });
+      const wasCancelled = controller.signal.aborted && controller.signal.reason === 'cancelled';
+      const message = wasCancelled ? 'cancelled' : error.message;
+      if (!wasCancelled) logger.error('HERMES', 'ask stream failed', error);
+      emit({ type: wasCancelled ? 'cancelled' : 'error', error: message });
+      return { success: false, cancelled: wasCancelled, error: message, text, durationMs };
+    } finally {
+      clearTimeout(timeout);
+      if (this.activeStreams.get(streamId) === controller) {
+        this.activeStreams.delete(streamId);
+      }
     }
   }
 

@@ -408,7 +408,6 @@ const CommandBar: React.FC = () => {
         {activePanel === 'transcription' && (
           <Susurro
             embedded
-            autoStart
             onClosePanel={() => setActivePanel('command')}
           />
         )}

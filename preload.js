@@ -112,6 +112,41 @@ contextBridge.exposeInMainWorld('electron', {
   },
   askSusurroTranscript: (data) => ipcRenderer.invoke('ask-susurro-transcript', data),
 
+  // --- Interview Copilot ---
+  createInterviewSession: (config) => ipcRenderer.invoke('interview-create-session', config),
+  listInterviewSessions: () => ipcRenderer.invoke('interview-list-sessions'),
+  loadInterviewSession: (sessionId) => ipcRenderer.invoke('interview-load-session', sessionId),
+  updateInterviewSession: (sessionId, patch) => ipcRenderer.invoke('interview-update-session', sessionId, patch),
+  finishInterviewSession: (sessionId) => ipcRenderer.invoke('interview-finish-session', sessionId),
+  archiveInterviewSession: (sessionId) => ipcRenderer.invoke('interview-archive-session', sessionId),
+  saveInterviewTurn: (sessionId, turn) => ipcRenderer.invoke('interview-save-turn', sessionId, turn),
+  startInterviewSource: (options) => ipcRenderer.invoke('interview-start-source', options),
+  stopInterviewSource: (sessionId, source) => ipcRenderer.invoke('interview-stop-source', sessionId, source),
+  stopInterviewTranscription: (sessionId) => ipcRenderer.invoke('interview-stop-transcription', sessionId),
+  sendInterviewAudioChunk: (payload) => ipcRenderer.send('interview-send-audio-chunk', payload),
+  endInterviewAudioStream: (sessionId, source) => ipcRenderer.send('interview-audio-stream-end', sessionId, source),
+  onInterviewTranscriptDelta: (callback) => {
+    const sub = (_event, payload) => callback(payload);
+    ipcRenderer.on('interview-transcript-delta', sub);
+    return () => ipcRenderer.removeListener('interview-transcript-delta', sub);
+  },
+  onInterviewTranscriptionStatus: (callback) => {
+    const sub = (_event, payload) => callback(payload);
+    ipcRenderer.on('interview-transcription-status', sub);
+    return () => ipcRenderer.removeListener('interview-transcription-status', sub);
+  },
+  requestInterviewAnswer: (args) => ipcRenderer.invoke('interview-request-answer', args),
+  cancelInterviewAnswer: (answerId) => ipcRenderer.invoke('interview-cancel-answer', answerId),
+  onInterviewAnswerEvent: (callback) => {
+    const sub = (_event, payload) => callback(payload);
+    ipcRenderer.on('interview-answer-event', sub);
+    return () => ipcRenderer.removeListener('interview-answer-event', sub);
+  },
+  analyzeInterviewScreen: (question) => ipcRenderer.invoke('interview-analyze-screen', question),
+  startInterviewRecording: (sessionId, source) => ipcRenderer.invoke('interview-recording-start', sessionId, source),
+  sendInterviewRecordingChunk: (sessionId, source, base64) => ipcRenderer.send('interview-recording-chunk', sessionId, source, base64),
+  stopInterviewRecording: (sessionId, source) => ipcRenderer.invoke('interview-recording-stop', sessionId, source),
+
   // --- Screen Capture ---
   getSources: () => ipcRenderer.invoke('get-sources'),
   captureSource: (sourceId) => ipcRenderer.invoke('capture-source', sourceId),

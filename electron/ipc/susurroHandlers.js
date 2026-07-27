@@ -94,11 +94,11 @@ function registerSusurroHandlers() {
   });
 
   ipcMain.on('susurro-send-chunk', (event, chunk, seq) => {
-    geminiLiveService.sendChunk(chunk, seq);
+    geminiLiveService.sendLegacyChunk(chunk, seq);
   });
 
   ipcMain.on('susurro-audio-stream-end', () => {
-    geminiLiveService.sendAudioStreamEnd('renderer_pause');
+    geminiLiveService.sendLegacyAudioStreamEnd('renderer_pause');
   });
 
   ipcMain.handle('susurro-start-live', async (event, personaPrompt) => {

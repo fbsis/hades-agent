@@ -6,6 +6,15 @@ import {
   IPCResponse,
   SettingsData
 } from '../types/electron';
+import type {
+  InterviewAnswerEvent,
+  InterviewAnswerVariant,
+  InterviewConfig,
+  InterviewSession,
+  InterviewTranscriptDelta,
+  InterviewTranscriptionStatus,
+  TranscriptTurn
+} from '../types/interview';
 
 /**
  * Service to interact with the Electron IPC layer.
@@ -133,6 +142,80 @@ class ElectronService {
   }
   async saveSusurroMessage(msg: any) {
     return await this.handleResponse(this.electron?.saveSusurroMessage(msg), undefined, 'saveSusurroMessage');
+  }
+
+  // --- Interview Copilot ---
+  async createInterviewSession(config: InterviewConfig) {
+    return await this.handleResponse(this.electron?.createInterviewSession(config), null, 'createInterviewSession');
+  }
+  async listInterviewSessions() {
+    return await this.handleResponse(this.electron?.listInterviewSessions(), [], 'listInterviewSessions');
+  }
+  async loadInterviewSession(sessionId: string) {
+    return await this.handleResponse(this.electron?.loadInterviewSession(sessionId), null, 'loadInterviewSession');
+  }
+  async updateInterviewSession(sessionId: string, patch: Partial<InterviewSession>) {
+    return await this.handleResponse(this.electron?.updateInterviewSession(sessionId, patch), null, 'updateInterviewSession');
+  }
+  async finishInterviewSession(sessionId: string) {
+    return await this.handleResponse(this.electron?.finishInterviewSession(sessionId), null, 'finishInterviewSession');
+  }
+  async archiveInterviewSession(sessionId: string) {
+    return await this.handleResponse(this.electron?.archiveInterviewSession(sessionId), null, 'archiveInterviewSession');
+  }
+  async saveInterviewTurn(sessionId: string, turn: TranscriptTurn) {
+    return await this.handleResponse(this.electron?.saveInterviewTurn(sessionId, turn), null, 'saveInterviewTurn');
+  }
+  async startInterviewSource(options: { sessionId: string; source: 'interviewer' | 'candidate'; language: string }) {
+    return await this.handleResponse(this.electron?.startInterviewSource(options), false, 'startInterviewSource');
+  }
+  async stopInterviewSource(sessionId: string, source: 'interviewer' | 'candidate') {
+    return await this.handleResponse(this.electron?.stopInterviewSource(sessionId, source), false, 'stopInterviewSource');
+  }
+  async stopInterviewTranscription(sessionId: string) {
+    return await this.handleResponse(this.electron?.stopInterviewTranscription(sessionId), false, 'stopInterviewTranscription');
+  }
+  sendInterviewAudioChunk(payload: { sessionId: string; source: 'interviewer' | 'candidate'; base64: string; sequence: number }) {
+    this.electron?.sendInterviewAudioChunk(payload);
+  }
+  endInterviewAudioStream(sessionId: string, source: 'interviewer' | 'candidate') {
+    this.electron?.endInterviewAudioStream(sessionId, source);
+  }
+  onInterviewTranscriptDelta(callback: (delta: InterviewTranscriptDelta) => void) {
+    return this.electron?.onInterviewTranscriptDelta(callback) || (() => {});
+  }
+  onInterviewTranscriptionStatus(callback: (status: InterviewTranscriptionStatus) => void) {
+    return this.electron?.onInterviewTranscriptionStatus(callback) || (() => {});
+  }
+  async requestInterviewAnswer(args: {
+    sessionId: string;
+    answerId: string;
+    turnId?: string;
+    question: string;
+    turns: TranscriptTurn[];
+    config: InterviewConfig;
+    visualContext?: string;
+    variant: InterviewAnswerVariant;
+  }) {
+    return await this.handleResponse(this.electron?.requestInterviewAnswer(args), null, 'requestInterviewAnswer');
+  }
+  async cancelInterviewAnswer(answerId: string) {
+    return await this.handleResponse(this.electron?.cancelInterviewAnswer(answerId), false, 'cancelInterviewAnswer');
+  }
+  onInterviewAnswerEvent(callback: (event: InterviewAnswerEvent) => void) {
+    return this.electron?.onInterviewAnswerEvent(callback) || (() => {});
+  }
+  async analyzeInterviewScreen(question?: string) {
+    return await this.handleResponse(this.electron?.analyzeInterviewScreen(question), null, 'analyzeInterviewScreen');
+  }
+  async startInterviewRecording(sessionId: string, source: 'interviewer' | 'candidate') {
+    return await this.handleResponse(this.electron?.startInterviewRecording(sessionId, source), false, 'startInterviewRecording');
+  }
+  sendInterviewRecordingChunk(sessionId: string, source: 'interviewer' | 'candidate', base64: string) {
+    this.electron?.sendInterviewRecordingChunk(sessionId, source, base64);
+  }
+  async stopInterviewRecording(sessionId: string, source: 'interviewer' | 'candidate') {
+    return await this.handleResponse(this.electron?.stopInterviewRecording(sessionId, source), null, 'stopInterviewRecording');
   }
 
   // --- Tools (IPC wrappers) ---

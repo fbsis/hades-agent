@@ -6,6 +6,7 @@ const registerSusurroHandlers = require('./susurroHandlers');
 const registerToolHandlers = require('./toolHandlers');
 const registerVoiceHandlers = require('./voiceHandlers');
 const registerHermesHandlers = require('./hermesHandlers');
+const registerInterviewHandlers = require('./interviewHandlers');
 const { registerSettingsHandlers } = require('./settingsHandlers');
 
 /**
@@ -20,6 +21,7 @@ function initIPC() {
   registerSusurroHandlers();
   registerToolHandlers();
   registerHermesHandlers();
+  registerInterviewHandlers();
   registerVoiceHandlers();
   registerSettingsHandlers();
 }

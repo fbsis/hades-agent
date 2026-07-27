@@ -20,7 +20,8 @@ class JsonStore {
       susurro: path.join(this.userDataPath, 'susurro_history.json'),
       personas: path.join(this.userDataPath, 'personas.json'),
       settings: path.join(this.userDataPath, 'settings.json'),
-      sessions: path.join(this.userDataPath, 'sessions.json')
+      sessions: path.join(this.userDataPath, 'sessions.json'),
+      interviewSessions: path.join(this.userDataPath, 'interview_sessions.json')
     };
 
     /** Default settings schema */
@@ -65,6 +66,16 @@ class JsonStore {
         compactContext: true,
         preferredAnswerStyle: 'auto'
       },
+      interview: {
+        role: '',
+        company: '',
+        jobDescription: '',
+        language: 'auto',
+        answerStyle: 'natural',
+        extraInstructions: '',
+        transcribeMicrophone: false,
+        retainAudio: false
+      },
       layout: {
         commandBounds: null,
         floatingHeadBounds: null
@@ -84,6 +95,7 @@ class JsonStore {
       personas: [],
       susurroHistory: [],
       sessions: [],
+      interviewSessions: [],
       totalTokens: 0,
       settings: defaultSettings
     };
@@ -185,6 +197,7 @@ class JsonStore {
     this.cache.personas = this.safeLoad(this.paths.personas, []);
     this.cache.susurroHistory = this.safeLoad(this.paths.susurro, []);
     this.cache.sessions = this.safeLoad(this.paths.sessions, []);
+    this.cache.interviewSessions = this.safeLoad(this.paths.interviewSessions, []);
     this.cache.totalTokens = this.safeLoad(this.paths.tokens, { total: 0 }).total || 0;
     // Deep merge so new keys from defaultSettings survive missing fields in saved file
     const saved = this.safeLoadSettings();
@@ -193,6 +206,7 @@ class JsonStore {
       general: { ...this._defaultSettings.general, ...(saved.general || {}) },
       hermes: { ...this._defaultSettings.hermes, ...(saved.hermes || {}) },
       assistant: { ...this._defaultSettings.assistant, ...(saved.assistant || {}) },
+      interview: { ...this._defaultSettings.interview, ...(saved.interview || {}) },
       layout: { ...this._defaultSettings.layout, ...(saved.layout || {}) },
       shortcuts: { ...this._defaultSettings.shortcuts, ...(saved.shortcuts || {}) }
     };
@@ -261,6 +275,12 @@ class JsonStore {
     this.safeSave(this.paths.sessions, sessions);
   }
 
+  getInterviewSessions() { return this.cache.interviewSessions; }
+  saveInterviewSessions(sessions) {
+    this.cache.interviewSessions = sessions;
+    this.safeSave(this.paths.interviewSessions, sessions);
+  }
+
   getTotalTokens() { return this.cache.totalTokens; }
   saveTokens(total) {
     this.cache.totalTokens = total;
@@ -274,6 +294,11 @@ class JsonStore {
       general: { ...this._defaultSettings.general, ...(settings.general || {}) },
       hermes: { ...this._defaultSettings.hermes, ...(settings.hermes || {}) },
       assistant: { ...this._defaultSettings.assistant, ...(settings.assistant || {}) },
+      interview: {
+        ...this._defaultSettings.interview,
+        ...(this.cache.settings.interview || {}),
+        ...(settings.interview || {})
+      },
       layout: {
         ...this._defaultSettings.layout,
         ...(this.cache.settings.layout || {}),
