@@ -4,7 +4,11 @@ import { calculateRMS, floatTo16BitPCM, arrayBufferToBase64 } from '../utils/aud
 import { electronService } from '../services/electron';
 
 const LIVE_TRANSCRIPTION_CHUNK_MS = 40;
+const SPEECH_PRE_ROLL_MS = 240;
 const SILENCE_HANGOVER_MS = 500;
+const MIN_ACTIVITY_THRESHOLD = 0.006;
+const MAX_ACTIVITY_THRESHOLD = 0.03;
+const NOISE_FLOOR_MULTIPLIER = 3;
 const ACTIVITY_LOG_INTERVAL_MS = 5000;
 const SEND_LOG_INTERVAL_MS = 10000;
 
@@ -174,11 +178,36 @@ export const useAudioRecorder = () => {
       const silenceCountRef = { current: 0 };
       const chunkDurationMs = (workletBufferSize / sampleRate) * 1000;
       const HANGOVER_CHUNKS = Math.max(1, Math.ceil(SILENCE_HANGOVER_MS / chunkDurationMs));
+      const PRE_ROLL_SAMPLES = Math.round(sampleRate * (SPEECH_PRE_ROLL_MS / 1000));
       let hasOpenAudioStream = false;
+      let speechActive = false;
+      let noiseFloor = AUDIO_CONFIG.NOISE_THRESHOLD / NOISE_FLOOR_MULTIPLIER;
       let lastActivityLogAt = 0;
       let lastSendLogAt = 0;
       let liveChunks: Float32Array[] = [];
       let liveChunkSampleCount = 0;
+      let preRollChunks: Float32Array[] = [];
+      let preRollSampleCount = 0;
+
+      const pushPreRoll = (samples: Float32Array) => {
+        preRollChunks.push(samples);
+        preRollSampleCount += samples.length;
+        while (
+          preRollSampleCount > PRE_ROLL_SAMPLES
+          && preRollChunks.length > 1
+        ) {
+          preRollSampleCount -= preRollChunks[0].length;
+          preRollChunks.shift();
+        }
+      };
+
+      const consumePreRoll = () => {
+        if (!preRollChunks.length) return;
+        liveChunks.push(...preRollChunks);
+        liveChunkSampleCount += preRollSampleCount;
+        preRollChunks = [];
+        preRollSampleCount = 0;
+      };
 
       const flushLiveAudio = (force = false) => {
         if (!onChunk || liveChunkSampleCount === 0) return;
@@ -220,35 +249,56 @@ export const useAudioRecorder = () => {
         if (onVolumeChange) onVolumeChange(rms);
         if (onRawChunk) onRawChunk(samples);
 
-        const threshold = AUDIO_CONFIG.NOISE_THRESHOLD || 0.01;
+        const threshold = Math.min(
+          MAX_ACTIVITY_THRESHOLD,
+          Math.max(MIN_ACTIVITY_THRESHOLD, noiseFloor * NOISE_FLOOR_MULTIPLIER)
+        );
         const isSilent = rms <= threshold;
 
-        if (isSilent) {
-          silenceCountRef.current++;
-        } else {
-          silenceCountRef.current = 0;
+        if (!speechActive && isSilent) {
+          noiseFloor = (noiseFloor * 0.97) + (rms * 0.03);
         }
 
-        // Send chunk if it's active OR if we are in the hangover period
-        const shouldSend = !isSilent || silenceCountRef.current <= HANGOVER_CHUNKS;
+        if (!isSilent) {
+          if (!speechActive) {
+            speechActive = true;
+            consumePreRoll();
+          }
+          silenceCountRef.current = 0;
+          if (onChunk) {
+            liveChunks.push(samples);
+            liveChunkSampleCount += samples.length;
+            flushLiveAudio(false);
+          }
+        } else if (speechActive) {
+          silenceCountRef.current++;
+          if (silenceCountRef.current <= HANGOVER_CHUNKS) {
+            if (onChunk) {
+              liveChunks.push(samples);
+              liveChunkSampleCount += samples.length;
+              flushLiveAudio(false);
+            }
+          } else {
+            flushLiveAudio(true);
+            if (hasOpenAudioStream) {
+              onAudioStreamEnd?.();
+              hasOpenAudioStream = false;
+            }
+            speechActive = false;
+            silenceCountRef.current = 0;
+            preRollChunks = [];
+            preRollSampleCount = 0;
+            pushPreRoll(samples);
+          }
+        } else {
+          pushPreRoll(samples);
+        }
         
         // Keep a low-frequency activity log so long sessions do not flood the terminal.
         const now = Date.now();
         if (now - lastActivityLogAt >= ACTIVITY_LOG_INTERVAL_MS) {
-          console.log(`[AUDIO_RECORDER] Activity Check - RMS: ${rms.toFixed(4)}, Threshold: ${threshold}, Silent: ${isSilent}, Hangover: ${silenceCountRef.current}/${HANGOVER_CHUNKS}`);
+          console.log(`[AUDIO_RECORDER] Activity Check - RMS: ${rms.toFixed(4)}, Noise floor: ${noiseFloor.toFixed(4)}, Threshold: ${threshold.toFixed(4)}, Silent: ${isSilent}, Active: ${speechActive}, Hangover: ${silenceCountRef.current}/${HANGOVER_CHUNKS}`);
           lastActivityLogAt = now;
-        }
-
-        if (onChunk && shouldSend) {
-          liveChunks.push(samples);
-          liveChunkSampleCount += samples.length;
-          flushLiveAudio(false);
-        } else {
-          flushLiveAudio(true);
-          if (hasOpenAudioStream) {
-            onAudioStreamEnd?.();
-            hasOpenAudioStream = false;
-          }
         }
       };
 

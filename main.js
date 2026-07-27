@@ -103,6 +103,7 @@ const markAppAsQuitting = () => {
   appState.isQuitting = true;
   app.isQuitting = true;
   taskService.stop();
+  require('./electron/services/interviewTranscriptionService').shutdown();
 };
 
 const quitFromSignal = (signal) => {

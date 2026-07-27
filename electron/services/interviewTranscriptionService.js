@@ -1,5 +1,6 @@
 const cloudSpeechService = require('./cloudSpeechService');
 const geminiLiveService = require('./geminiLiveService');
+const whisperLocalService = require('./whisperLocalService');
 const { resolveInterviewTranscriptionProvider } = require('./interviewTranscriptionProvider');
 const logger = require('./logger');
 
@@ -10,6 +11,7 @@ class InterviewTranscriptionService {
     this.sources = new Map();
     this.cloudSpeechService = options.cloudSpeechService || cloudSpeechService;
     this.geminiLiveService = options.geminiLiveService || geminiLiveService;
+    this.whisperLocalService = options.whisperLocalService || whisperLocalService;
   }
 
   key(sessionId, source) {
@@ -31,8 +33,25 @@ class InterviewTranscriptionService {
     };
     this.sources.set(key, state);
 
-    if (resolveInterviewTranscriptionProvider(state.options.provider) === 'gemini-live') {
+    const provider = resolveInterviewTranscriptionProvider(state.options.provider);
+    if (provider === 'gemini-live') {
       return this.startGeminiFallback(state);
+    }
+    if (provider === 'whisper-local') {
+      try {
+        const started = await this.whisperLocalService.startSource(event, {
+          ...state.options,
+          onUnavailable: error => this.switchToGemini(state, error)
+        });
+        state.provider = 'whisper-local';
+        return started;
+      } catch (error) {
+        logger.warn(
+          'INTERVIEW STT',
+          `Local Whisper unavailable during startup; using Gemini Live: ${error.message}`
+        );
+        return this.startGeminiFallback(state);
+      }
     }
 
     try {
@@ -67,7 +86,11 @@ class InterviewTranscriptionService {
     );
 
     try {
-      await this.cloudSpeechService.stopSource(state.options.sessionId, state.options.source);
+      if (state.provider === 'whisper-local') {
+        await this.whisperLocalService.stopSource(state.options.sessionId, state.options.source);
+      } else {
+        await this.cloudSpeechService.stopSource(state.options.sessionId, state.options.source);
+      }
       await this.startGeminiFallback(state);
       const replay = state.recentChunks.splice(0);
       replay.forEach(chunk => this.geminiLiveService.sendChunk(chunk));
@@ -88,6 +111,9 @@ class InterviewTranscriptionService {
     if (state.provider === 'gemini-live') {
       return this.geminiLiveService.sendChunk(payload);
     }
+    if (state.provider === 'whisper-local') {
+      return this.whisperLocalService.sendChunk(payload);
+    }
     return this.cloudSpeechService.sendChunk(payload);
   }
 
@@ -98,6 +124,10 @@ class InterviewTranscriptionService {
       this.geminiLiveService.sendAudioStreamEnd(sessionId, source, reason);
       return;
     }
+    if (state.provider === 'whisper-local') {
+      this.whisperLocalService.sendAudioStreamEnd(sessionId, source, reason);
+      return;
+    }
     this.cloudSpeechService.sendAudioStreamEnd(sessionId, source, reason);
   }
 
@@ -106,6 +136,9 @@ class InterviewTranscriptionService {
     if (!state || state.switching) return false;
     if (state.provider === 'gemini-live') {
       return this.geminiLiveService.flushForAnswer(sessionId, source);
+    }
+    if (state.provider === 'whisper-local') {
+      return this.whisperLocalService.flushForAnswer(sessionId, source);
     }
     return true;
   }
@@ -118,6 +151,9 @@ class InterviewTranscriptionService {
     if (state.provider === 'gemini-live') {
       return this.geminiLiveService.stopSource(sessionId, source);
     }
+    if (state.provider === 'whisper-local') {
+      return this.whisperLocalService.stopSource(sessionId, source);
+    }
     return this.cloudSpeechService.stopSource(sessionId, source);
   }
 
@@ -128,6 +164,10 @@ class InterviewTranscriptionService {
       this.stopSource(state.options.sessionId, state.options.source)
     )));
     return true;
+  }
+
+  shutdown() {
+    this.whisperLocalService.shutdown();
   }
 }
 

@@ -1,5 +1,7 @@
 function resolveInterviewTranscriptionProvider(provider) {
-  return provider === 'google-cloud' ? 'google-cloud' : 'gemini-live';
+  if (provider === 'google-cloud') return 'google-cloud';
+  if (provider === 'gemini-live') return 'gemini-live';
+  return 'whisper-local';
 }
 
 module.exports = { resolveInterviewTranscriptionProvider };

@@ -35,3 +35,6 @@ UI Design references/
 opencode.json
 
 release/
+
+# Downloaded/built local Whisper runtime and model
+resources/whisper/

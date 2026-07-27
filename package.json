@@ -7,17 +7,18 @@
     "dev:react": "vite",
     "dev:electron": "wait-on http://localhost:3000 && electron .",
     "dev:clean": "node scripts/kill-stale-electron.js",
-    "dev": "npm run dev:clean && npx kill-port 3000 && concurrently \"npm run dev:react\" \"npm run dev:electron\"",
+    "whisper:prepare": "node scripts/prepare-whisper.js",
+    "dev": "npm run dev:clean && npm run whisper:prepare && npx kill-port 3000 && concurrently \"npm run dev:react\" \"npm run dev:electron\"",
     "build": "vite build",
     "preview": "vite preview",
     "test": "vitest",
     "build:app": "vite build",
-    "package": "electron-builder",
-    "package:win": "electron-builder --win",
-    "package:mac": "electron-builder --mac",
-    "dist": "vite build && electron-builder",
-    "dist:win": "vite build && electron-builder --win",
-    "dist:mac": "vite build && electron-builder --mac"
+    "package": "npm run whisper:prepare && electron-builder",
+    "package:win": "node scripts/prepare-whisper.js --platform win32 --arch x64 && electron-builder --win --x64",
+    "package:mac": "node scripts/prepare-whisper.js --platform darwin && electron-builder --mac",
+    "dist": "vite build && npm run package",
+    "dist:win": "vite build && npm run package:win",
+    "dist:mac": "vite build && npm run package:mac"
   },
   "build": {
     "appId": "com.victorl.hades",
@@ -33,7 +34,14 @@
       "main.js",
       "preload.js",
       "translation-worker.js",
+      "THIRD_PARTY_NOTICES.md",
       "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "resources/whisper",
+        "to": "whisper"
+      }
     ],
     "win": {
       "target": [
