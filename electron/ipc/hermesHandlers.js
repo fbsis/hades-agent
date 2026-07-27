@@ -27,6 +27,14 @@ function registerHermesHandlers() {
     return hermesService.ask(args || {});
   }));
 
+  ipcMain.handle('hermes-ask-stream', wrap((event, args = {}) => {
+    const streamId = args.streamId || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    return hermesService.askStream({ ...args, streamId }, (payload) => {
+      if (event.sender.isDestroyed()) return;
+      event.sender.send('hermes-stream-event', { streamId, ...payload });
+    });
+  }));
+
   ipcMain.handle('hermes-remember', wrap((event, args) => {
     return hermesService.remember(args || {});
   }));

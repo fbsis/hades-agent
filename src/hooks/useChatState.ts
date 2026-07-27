@@ -63,14 +63,20 @@ export const useChatState = () => {
    * Adds a new message to the history.
    * Persistence is handled by the useEffect hook.
    */
-  const addMessage = useCallback((text: string, sender: 'user' | 'ia', image?: string) => {
-    if (!text?.trim() && !image) return messagesRef.current;
+  const addMessage = useCallback((
+    text: string,
+    sender: 'user' | 'ia',
+    image?: string,
+    options: { id?: string; status?: ChatMessage['status']; allowEmpty?: boolean } = {}
+  ) => {
+    if (!text?.trim() && !image && !options.allowEmpty) return messagesRef.current;
     
     const newMsg: ChatMessage = {
-      id: `${sender}_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`,
+      id: options.id || `${sender}_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`,
       text: text.trim(),
       sender,
       timestamp: new Date(),
+      status: options.status,
       image
     };
     
@@ -78,6 +84,30 @@ export const useChatState = () => {
     setMessages(updatedHistory);
     messagesRef.current = updatedHistory;
     
+    return updatedHistory;
+  }, []);
+
+  const updateMessage = useCallback((id: string, updater: (message: ChatMessage) => ChatMessage) => {
+    const updatedHistory = messagesRef.current.map(message => (
+      message.id === id ? updater(message) : message
+    ));
+    setMessages(updatedHistory);
+    messagesRef.current = updatedHistory;
+    return updatedHistory;
+  }, []);
+
+  const appendMessageText = useCallback((id: string, delta: string) => {
+    if (!delta) return messagesRef.current;
+    return updateMessage(id, message => ({
+      ...message,
+      text: `${message.text || ''}${delta}`
+    }));
+  }, [updateMessage]);
+
+  const removeMessage = useCallback((id: string) => {
+    const updatedHistory = messagesRef.current.filter(message => message.id !== id);
+    setMessages(updatedHistory);
+    messagesRef.current = updatedHistory;
     return updatedHistory;
   }, []);
 
@@ -109,6 +139,9 @@ export const useChatState = () => {
     isBusy,
     setIsBusy,
     addMessage,
+    updateMessage,
+    appendMessageText,
+    removeMessage,
     clearHistory
   };
 };

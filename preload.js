@@ -195,6 +195,12 @@ contextBridge.exposeInMainWorld('electron', {
   getHermesDashboard: () => ipcRenderer.invoke('hermes-dashboard'),
   testHermesConnection: () => ipcRenderer.invoke('hermes-test-connection'),
   askHermes: (args) => ipcRenderer.invoke('hermes-ask', args),
+  askHermesStream: (args) => ipcRenderer.invoke('hermes-ask-stream', args),
+  onHermesStreamEvent: (callback) => {
+    const sub = (_event, payload) => callback(payload);
+    ipcRenderer.on('hermes-stream-event', sub);
+    return () => ipcRenderer.removeListener('hermes-stream-event', sub);
+  },
   rememberWithHermes: (args) => ipcRenderer.invoke('hermes-remember', args),
   ingestHermesDocument: (document) => ipcRenderer.invoke('hermes-ingest-document', document),
   syncHermesContext: () => ipcRenderer.invoke('hermes-sync-context'),

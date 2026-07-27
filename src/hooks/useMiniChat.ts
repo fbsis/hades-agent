@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { useChatState } from './useChatState';
 import { useGemini } from './useGemini';
 import { useWindowControl } from './useWindowControl';
@@ -19,11 +19,20 @@ export const useMiniChat = (options: { embedded?: boolean; isActive?: boolean; o
     isBusy,
     setIsBusy,
     addMessage,
+    updateMessage,
+    appendMessageText,
+    removeMessage,
     clearHistory
   } = useChatState();
 
   const [currentModel, setCurrentModel] = useState<string>(DEFAULT_MODEL);
-  const { isThinking, activeTool, handleAIResponse } = useGemini(currentModel, addMessage);
+  const { isThinking, activeTool, handleAIResponse } = useGemini(
+    currentModel,
+    addMessage,
+    updateMessage,
+    appendMessageText,
+    removeMessage
+  );
   const { isPinned, isResizing, togglePin, handleMinimize, startResizing } = useWindowControl();
   const { copiedId, copyToClipboard } = useClipboard();
 
@@ -79,10 +88,26 @@ export const useMiniChat = (options: { embedded?: boolean; isActive?: boolean; o
     };
   }, []);
 
-  // Auto-scroll to the latest message
-  useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, isThinking]);
+  // Keep Conversation anchored to the latest message, including live streaming deltas.
+  useLayoutEffect(() => {
+    if (options.embedded && !options.isActive) return;
+
+    const scrollToLatest = () => {
+      chatEndRef.current?.scrollIntoView({
+        block: 'end',
+        behavior: 'auto'
+      });
+    };
+
+    scrollToLatest();
+    const frame = requestAnimationFrame(scrollToLatest);
+    const timeout = setTimeout(scrollToLatest, 50);
+
+    return () => {
+      cancelAnimationFrame(frame);
+      clearTimeout(timeout);
+    };
+  }, [messages, pendingMessages, isThinking, activeTool, options.embedded, options.isActive]);
 
   // Process queued messages when not busy
   const processNextPending = async () => {

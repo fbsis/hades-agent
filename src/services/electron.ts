@@ -3,6 +3,7 @@ import {
   HermesAskInput,
   HermesDocumentInput,
   HermesMemoryInput,
+  HermesStreamEvent,
   IPCResponse,
   SettingsData
 } from '../types/electron';
@@ -239,6 +240,32 @@ class ElectronService {
   }
   async askHermes(args: HermesAskInput) {
     return await this.handleResponse(this.electron?.askHermes(args), null, 'askHermes');
+  }
+  async askHermesStream(args: HermesAskInput, onEvent: (event: HermesStreamEvent) => void) {
+    const canStream = typeof this.electron?.askHermesStream === 'function'
+      && typeof this.electron?.onHermesStreamEvent === 'function';
+
+    if (!canStream) {
+      console.warn('[ElectronService] Hermes streaming bridge unavailable; falling back to non-streaming Hermes call.');
+      return await this.askHermes(args);
+    }
+
+    const streamId = args.streamId || `hermes_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    const unsubscribe = this.electron.onHermesStreamEvent((event) => {
+      if (event.streamId === streamId) {
+        onEvent(event);
+      }
+    });
+
+    try {
+      return await this.handleResponse(
+        this.electron.askHermesStream({ ...args, streamId }),
+        null,
+        'askHermesStream'
+      );
+    } finally {
+      if (unsubscribe) unsubscribe();
+    }
   }
   async rememberWithHermes(memory: HermesMemoryInput) {
     return await this.handleResponse(this.electron?.rememberWithHermes(memory), null, 'rememberWithHermes');

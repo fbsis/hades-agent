@@ -124,6 +124,8 @@ export interface ElectronAPI {
   getHermesDashboard: () => Promise<IPCResponse<HermesDashboard>>;
   testHermesConnection: () => Promise<IPCResponse<any>>;
   askHermes: (args: HermesAskInput) => Promise<IPCResponse<HermesAskResult>>;
+  askHermesStream: (args: HermesAskInput & { streamId: string }) => Promise<IPCResponse<HermesAskResult>>;
+  onHermesStreamEvent: (callback: (event: HermesStreamEvent) => void) => () => void;
   rememberWithHermes: (args: HermesMemoryInput) => Promise<IPCResponse<HermesAskResult>>;
   ingestHermesDocument: (document: HermesDocumentInput) => Promise<IPCResponse<HermesAskResult>>;
   syncHermesContext: () => Promise<IPCResponse<HermesAskResult>>;
@@ -260,6 +262,7 @@ export interface HermesAskInput {
   timeoutMs?: number;
   logType?: string;
   primaryAgent?: boolean;
+  streamId?: string;
 }
 
 export interface HermesAskResult {
@@ -270,6 +273,15 @@ export interface HermesAskResult {
   sessionKey?: string;
   durationMs?: number;
   error?: string;
+}
+
+export interface HermesStreamEvent {
+  streamId: string;
+  type: 'start' | 'delta' | 'tool' | 'end' | 'error' | 'cancelled';
+  text?: string;
+  error?: string;
+  data?: Record<string, any>;
+  result?: HermesAskResult;
 }
 
 export interface HermesDocumentInput {

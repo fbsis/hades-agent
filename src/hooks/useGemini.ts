@@ -17,10 +17,62 @@ import { mapModelIdToApiName } from '../constants/models';
  */
 export const useGemini = (
   currentModel: string,
-  addMessage: (text: string, sender: 'user' | 'ia', image?: string) => ChatMessage[]
+  addMessage: (
+    text: string,
+    sender: 'user' | 'ia',
+    image?: string,
+    options?: { id?: string; status?: ChatMessage['status']; allowEmpty?: boolean }
+  ) => ChatMessage[],
+  updateMessage: (id: string, updater: (message: ChatMessage) => ChatMessage) => ChatMessage[],
+  appendMessageText: (id: string, delta: string) => ChatMessage[],
+  removeMessage: (id: string) => ChatMessage[]
 ) => {
   const [isThinking, setIsThinking] = useState(false);
   const [activeTool, setActiveTool] = useState<string | null>(null);
+
+  const streamHermesAnswer = useCallback(async (args: any) => {
+    const messageId = `ia_stream_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+    let streamedText = '';
+
+    addMessage('', 'ia', undefined, {
+      id: messageId,
+      status: 'pending',
+      allowEmpty: true
+    });
+
+    const result = await electronService.askHermesStream(args, (event) => {
+      if (event.type === 'delta' && event.text) {
+        streamedText += event.text;
+        appendMessageText(messageId, event.text);
+      }
+      if (event.type === 'tool') {
+        setActiveTool(event.text ? `hermes: ${event.text}` : 'hermes usando ferramenta');
+      }
+    });
+
+    const finalText = (result?.text || streamedText).trim();
+    if (result?.success !== false && finalText) {
+      updateMessage(messageId, message => ({
+        ...message,
+        text: finalText,
+        status: 'sent'
+      }));
+      return { ...result, text: finalText };
+    }
+
+    if (streamedText.trim()) {
+      const partialText = streamedText.trim();
+      updateMessage(messageId, message => ({
+        ...message,
+        text: partialText,
+        status: 'sent'
+      }));
+      return { ...result, success: true, text: partialText };
+    }
+
+    removeMessage(messageId);
+    return result;
+  }, [addMessage, appendMessageText, removeMessage, updateMessage]);
 
   const buildCompactHermesContext = (contents: any[]) => {
     const lines = contents.slice(-6).map((content) => {
@@ -550,7 +602,7 @@ export const useGemini = (
           ? settings?.hermes?.maxContextChars || 8000
           : Math.min(settings?.hermes?.maxContextChars || 3200, 3600);
         const context = appendContext(buildHermesChatContext(currentHistory, maxContextChars), visualContext, maxContextChars);
-        const result = await electronService.askHermes({
+        const result = await streamHermesAnswer({
           prompt: effectiveUserPrompt,
           context,
           instruction: [
@@ -625,7 +677,7 @@ export const useGemini = (
           ? settings?.hermes?.maxContextChars || 8000
           : Math.min(settings?.hermes?.maxContextChars || 3200, 3600);
         const context = appendContext(buildHermesChatContext(currentHistory, maxContextChars), visualContext, maxContextChars);
-        const result = await electronService.askHermes({
+        const result = await streamHermesAnswer({
           prompt: effectiveUserPrompt,
           context,
           instruction: [
@@ -774,7 +826,7 @@ export const useGemini = (
       setIsThinking(false);
       setActiveTool(null);
     }
-  }, [currentModel, addMessage, executeTool]);
+  }, [currentModel, addMessage, executeTool, streamHermesAnswer]);
 
   return {
     isThinking,
