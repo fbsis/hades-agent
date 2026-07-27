@@ -3,6 +3,7 @@ import type {
   InterviewAnswerEvent,
   InterviewAnswerVariant,
   InterviewConfig,
+  GoogleCloudAuthStatus,
   InterviewScreenAnalysis,
   InterviewSession,
   InterviewTranscriptDelta,
@@ -78,6 +79,8 @@ export interface ElectronAPI {
   saveSusurroMessage: (msg: any) => Promise<IPCResponse<void>>;
 
   // Interview Copilot
+  getGoogleCloudAuthStatus: () => Promise<IPCResponse<GoogleCloudAuthStatus>>;
+  loginGoogleCloud: (projectId: string) => Promise<IPCResponse<GoogleCloudAuthStatus>>;
   createInterviewSession: (config: InterviewConfig) => Promise<IPCResponse<InterviewSession>>;
   listInterviewSessions: () => Promise<IPCResponse<InterviewSession[]>>;
   loadInterviewSession: (sessionId: string) => Promise<IPCResponse<InterviewSession | null>>;
@@ -85,11 +88,18 @@ export interface ElectronAPI {
   finishInterviewSession: (sessionId: string) => Promise<IPCResponse<InterviewSession>>;
   archiveInterviewSession: (sessionId: string) => Promise<IPCResponse<InterviewSession>>;
   saveInterviewTurn: (sessionId: string, turn: TranscriptTurn) => Promise<IPCResponse<TranscriptTurn>>;
-  startInterviewSource: (options: { sessionId: string; source: 'interviewer' | 'candidate'; language: string }) => Promise<IPCResponse<boolean>>;
+  startInterviewSource: (options: {
+    sessionId: string;
+    source: 'interviewer' | 'candidate';
+    language: string;
+    provider: 'gemini-live' | 'google-cloud';
+    customVocabulary?: string[];
+  }) => Promise<IPCResponse<boolean>>;
   stopInterviewSource: (sessionId: string, source: 'interviewer' | 'candidate') => Promise<IPCResponse<boolean>>;
   stopInterviewTranscription: (sessionId: string) => Promise<IPCResponse<boolean>>;
   sendInterviewAudioChunk: (payload: { sessionId: string; source: 'interviewer' | 'candidate'; base64: string; sequence: number }) => void;
   endInterviewAudioStream: (sessionId: string, source: 'interviewer' | 'candidate') => void;
+  flushInterviewTranscription: (sessionId: string, source: 'interviewer' | 'candidate') => Promise<IPCResponse<boolean>>;
   onInterviewTranscriptDelta: (callback: (delta: InterviewTranscriptDelta) => void) => () => void;
   onInterviewTranscriptionStatus: (callback: (status: InterviewTranscriptionStatus) => void) => () => void;
   requestInterviewAnswer: (args: {
@@ -100,7 +110,9 @@ export interface ElectronAPI {
     turns: TranscriptTurn[];
     config: InterviewConfig;
     visualContext?: string;
+    quickFragments?: string[];
     variant: InterviewAnswerVariant;
+    provider?: 'hermes' | 'gemini';
   }) => Promise<IPCResponse<InterviewAnswer>>;
   cancelInterviewAnswer: (answerId: string) => Promise<IPCResponse<boolean>>;
   onInterviewAnswerEvent: (callback: (event: InterviewAnswerEvent) => void) => () => void;

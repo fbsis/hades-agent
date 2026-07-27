@@ -1,7 +1,8 @@
 const { desktopCapturer, ipcMain } = require('electron');
-const geminiLiveService = require('../services/geminiLiveService');
+const googleCloudAuthService = require('../services/googleCloudAuthService');
 const interviewRecordingService = require('../services/interviewRecordingService');
 const interviewService = require('../services/interviewService');
+const interviewTranscriptionService = require('../services/interviewTranscriptionService');
 const logger = require('../services/logger');
 
 function wrap(handler) {
@@ -17,6 +18,14 @@ function wrap(handler) {
 }
 
 function registerInterviewHandlers() {
+  ipcMain.handle('google-cloud-auth-status', wrap(() => (
+    googleCloudAuthService.getStatus()
+  )));
+
+  ipcMain.handle('google-cloud-auth-login', wrap((event, projectId) => (
+    googleCloudAuthService.login(projectId)
+  )));
+
   ipcMain.handle('interview-create-session', wrap((event, config) => (
     interviewService.createSession(config || {})
   )));
@@ -32,7 +41,7 @@ function registerInterviewHandlers() {
   )));
 
   ipcMain.handle('interview-finish-session', wrap(async (event, sessionId) => {
-    await geminiLiveService.stopSession(sessionId);
+    await interviewTranscriptionService.stopSession(sessionId);
     await interviewRecordingService.stopSession(sessionId);
     return interviewService.finishSession(sessionId);
   }));
@@ -46,24 +55,28 @@ function registerInterviewHandlers() {
   )));
 
   ipcMain.handle('interview-start-source', wrap((event, options) => (
-    geminiLiveService.startSource(event, options || {})
+    interviewTranscriptionService.startSource(event, options || {})
   )));
 
   ipcMain.handle('interview-stop-source', wrap((event, sessionId, source) => (
-    geminiLiveService.stopSource(sessionId, source)
+    interviewTranscriptionService.stopSource(sessionId, source)
   )));
 
   ipcMain.handle('interview-stop-transcription', wrap((event, sessionId) => (
-    geminiLiveService.stopSession(sessionId)
+    interviewTranscriptionService.stopSession(sessionId)
   )));
 
   ipcMain.on('interview-send-audio-chunk', (event, payload) => {
-    geminiLiveService.sendChunk(payload || {});
+    interviewTranscriptionService.sendChunk(payload || {});
   });
 
   ipcMain.on('interview-audio-stream-end', (event, sessionId, source) => {
-    geminiLiveService.sendAudioStreamEnd(sessionId, source, 'renderer_pause');
+    interviewTranscriptionService.sendAudioStreamEnd(sessionId, source, 'renderer_pause');
   });
+
+  ipcMain.handle('interview-flush-transcription', wrap((event, sessionId, source) => (
+    interviewTranscriptionService.flushForAnswer(sessionId, source)
+  )));
 
   ipcMain.handle('interview-request-answer', wrap((event, args) => (
     interviewService.streamAnswer(args || {}, payload => {

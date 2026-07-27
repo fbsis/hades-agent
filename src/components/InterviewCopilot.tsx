@@ -5,13 +5,15 @@ import {
   ChevronLeft,
   CircleStop,
   Headphones,
+  MessageSquareReply,
   Mic,
   Minus,
   Pin,
   PinOff,
   Plus,
   Radio,
-  SlidersHorizontal
+  SlidersHorizontal,
+  Zap
 } from 'lucide-react';
 import { useInterviewCopilot } from '../hooks/useInterviewCopilot';
 import { formatTime } from '../utils/formatters';
@@ -42,7 +44,12 @@ const InterviewCopilot: React.FC<InterviewCopilotProps> = ({ embedded = false, o
 
         {copilot.session && (
           <div className="interview-source-statuses">
-            <span className={`source-status status-${copilot.sourceStatuses.interviewer?.status || 'idle'}`}>
+            <span
+              className={`source-status status-${copilot.sourceStatuses.interviewer?.status || 'idle'}`}
+              title={copilot.sourceStatuses.interviewer?.provider === 'google-cloud'
+                ? 'Google Cloud Speech-to-Text com resultados intermediarios'
+                : 'Gemini Live'}
+            >
               <Headphones size={12} /> Sistema
             </span>
             {copilot.session.config.transcribeMicrophone && (
@@ -72,6 +79,26 @@ const InterviewCopilot: React.FC<InterviewCopilotProps> = ({ embedded = false, o
                 title="Contexto da entrevista"
               >
                 <SlidersHorizontal size={15} />
+              </button>
+              <button
+                type="button"
+                className="interview-answer-now-button"
+                onClick={copilot.answerLatestQuestion}
+                disabled={!copilot.canAnswerLatestQuestion}
+                title="Responder automaticamente a pergunta mais recente com Gemini"
+              >
+                <MessageSquareReply size={14} />
+                Responder pergunta
+              </button>
+              <button
+                type="button"
+                className="interview-quick-answer-button"
+                onClick={copilot.quickAnswer}
+                disabled={copilot.isPreparingQuickAnswer}
+                title="Atualizar a transcricao e gerar um resumo com ate cinco topicos"
+              >
+                <Zap size={14} />
+                {copilot.isPreparingQuickAnswer ? 'Preparando' : 'Resposta rapida'}
               </button>
               <button
                 type="button"
@@ -111,7 +138,11 @@ const InterviewCopilot: React.FC<InterviewCopilotProps> = ({ embedded = false, o
           config={copilot.config}
           recentSessions={copilot.recentSessions}
           error={copilot.error}
+          cloudAuthStatus={copilot.cloudAuthStatus}
+          isAuthenticatingCloud={copilot.isAuthenticatingCloud}
           onConfigChange={copilot.setConfig}
+          onAuthenticateCloud={copilot.authenticateGoogleCloud}
+          onOpenCloudDataLogging={copilot.openCloudDataLogging}
           onStart={copilot.startListening}
           onLoadSession={copilot.loadSession}
           onArchiveSession={copilot.archiveSession}

@@ -1,12 +1,26 @@
 import React from 'react';
-import { Archive, Clock3, Play, Radio } from 'lucide-react';
-import { InterviewConfig, InterviewSession } from '../../types/interview';
+import {
+  Archive,
+  BadgeDollarSign,
+  CheckCircle2,
+  Clock3,
+  Cloud,
+  LoaderCircle,
+  LogIn,
+  Play,
+  Radio
+} from 'lucide-react';
+import { GoogleCloudAuthStatus, InterviewConfig, InterviewSession } from '../../types/interview';
 
 interface InterviewSetupProps {
   config: InterviewConfig;
   recentSessions: InterviewSession[];
   error: string;
+  cloudAuthStatus: GoogleCloudAuthStatus | null;
+  isAuthenticatingCloud: boolean;
   onConfigChange: (config: InterviewConfig) => void;
+  onAuthenticateCloud: () => void;
+  onOpenCloudDataLogging: () => void;
   onStart: () => void;
   onLoadSession: (session: InterviewSession) => void;
   onArchiveSession: (sessionId: string) => void;
@@ -16,7 +30,11 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({
   config,
   recentSessions,
   error,
+  cloudAuthStatus,
+  isAuthenticatingCloud,
   onConfigChange,
+  onAuthenticateCloud,
+  onOpenCloudDataLogging,
   onStart,
   onLoadSession,
   onArchiveSession
@@ -55,8 +73,30 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({
               <option value="technical">Tecnica</option>
             </select>
           </label>
+          <label className="interview-transcription-provider-field">
+            <span>Transcricao</span>
+            <select
+              value={config.transcriptionProvider}
+              onChange={event => update(
+                'transcriptionProvider',
+                event.target.value as InterviewConfig['transcriptionProvider']
+              )}
+            >
+              <option value="gemini-live">Gemini Live (apos pausas)</option>
+              <option value="google-cloud">Google Cloud (transcricao continua)</option>
+            </select>
+          </label>
         </div>
 
+        <label className="interview-wide-field">
+          <span>Curriculo</span>
+          <textarea
+            value={config.resume}
+            onChange={event => update('resume', event.target.value)}
+            rows={4}
+            placeholder="Cole aqui o curriculo que o Gemini deve usar nas respostas."
+          />
+        </label>
         <label className="interview-wide-field">
           <span>Descricao da vaga</span>
           <textarea value={config.jobDescription} onChange={event => update('jobDescription', event.target.value)} rows={3} />
@@ -65,6 +105,60 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({
           <span>Instrucoes adicionais</span>
           <textarea value={config.extraInstructions} onChange={event => update('extraInstructions', event.target.value)} rows={2} />
         </label>
+
+        {config.transcriptionProvider === 'google-cloud' && (
+        <>
+        <label className="interview-wide-field">
+          <span>Google Cloud Project ID</span>
+          <input
+            value={config.googleCloudProjectId}
+            onChange={event => update('googleCloudProjectId', event.target.value)}
+            placeholder="meu-projeto-google-cloud"
+          />
+        </label>
+        <div className={`interview-cloud-auth ${cloudAuthStatus?.authenticated ? 'connected' : ''}`}>
+          <div className="interview-cloud-auth-state">
+            {cloudAuthStatus?.authenticated ? <CheckCircle2 size={16} /> : <Cloud size={16} />}
+            <span>
+              <strong>Google Cloud Speech-to-Text</strong>
+              <small>
+                {cloudAuthStatus === null
+                  ? 'Verificando'
+                  : cloudAuthStatus.authenticated
+                    ? cloudAuthStatus.projectId || 'Conectado'
+                    : cloudAuthStatus.error || 'Nao conectado'}
+              </small>
+            </span>
+          </div>
+          <div className="interview-cloud-auth-actions">
+            <button
+              type="button"
+              className="interview-cloud-auth-button discount"
+              onClick={onOpenCloudDataLogging}
+              title="Abrir configuracao de data logging e desconto"
+            >
+              <BadgeDollarSign size={14} />
+              Menor custo
+            </button>
+            <button
+              type="button"
+              className="interview-cloud-auth-button"
+              onClick={onAuthenticateCloud}
+              disabled={isAuthenticatingCloud}
+            >
+              {isAuthenticatingCloud
+                ? <LoaderCircle className="spin" size={14} />
+                : <LogIn size={14} />}
+              {isAuthenticatingCloud
+                ? 'Aguardando login'
+                : cloudAuthStatus?.authenticated
+                  ? 'Reconectar'
+                  : 'Conectar'}
+            </button>
+          </div>
+        </div>
+        </>
+        )}
 
         <div className="interview-toggle-row">
           <label className="interview-toggle">

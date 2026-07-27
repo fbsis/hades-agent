@@ -73,6 +73,76 @@ describe('applyInterviewTranscriptDelta', () => {
     turns = applyInterviewTranscriptDelta(turns, delta(2, 'duplicado'));
     expect(turns[0].pendingText).toBe('primeiro');
   });
+
+  it('compoe blocos periodicos no mesmo turno ate a pausa real', () => {
+    let turns: TranscriptTurn[] = [];
+    turns = applyInterviewTranscriptDelta(turns, delta(1, 'Esta e uma '));
+    turns = applyInterviewTranscriptDelta(turns, delta(2, 'pergunta longa que '));
+    turns = applyInterviewTranscriptDelta(turns, delta(3, 'continua sendo falada'));
+
+    expect(turns).toHaveLength(1);
+    expect(turns[0]).toMatchObject({
+      text: '',
+      pendingText: 'Esta e uma pergunta longa que continua sendo falada',
+      isFinal: false,
+      fragments: ['Esta e uma', 'pergunta longa que', 'continua sendo falada']
+    });
+
+    turns = applyInterviewTranscriptDelta(turns, delta(4, '', true));
+    expect(turns[0]).toMatchObject({
+      text: 'Esta e uma pergunta longa que continua sendo falada',
+      pendingText: '',
+      isFinal: true
+    });
+  });
+
+  it('mantem somente os cinco fragmentos mais recentes para resposta rapida', () => {
+    let turns: TranscriptTurn[] = [];
+    for (let sequence = 1; sequence <= 7; sequence += 1) {
+      turns = applyInterviewTranscriptDelta(turns, delta(sequence, `fragmento ${sequence} `));
+    }
+
+    expect(turns[0].fragments).toEqual([
+      'fragmento 3',
+      'fragmento 4',
+      'fragmento 5',
+      'fragmento 6',
+      'fragmento 7'
+    ]);
+
+    turns = applyInterviewTranscriptDelta(turns, delta(8, '', true));
+    expect(turns[0].fragments).toHaveLength(5);
+  });
+
+  it('substitui a hipotese intermediaria sem duplicar palavras', () => {
+    let turns: TranscriptTurn[] = [];
+    turns = applyInterviewTranscriptDelta(turns, {
+      ...delta(1, 'como voce'),
+      replacePending: true
+    });
+    turns = applyInterviewTranscriptDelta(turns, {
+      ...delta(2, 'como voce resolveu esse problema'),
+      replacePending: true
+    });
+
+    expect(turns[0].pendingText).toBe('como voce resolveu esse problema');
+    expect(turns[0].fragments).toEqual([
+      'como voce',
+      'como voce resolveu esse problema'
+    ]);
+
+    turns = applyInterviewTranscriptDelta(turns, {
+      ...delta(3, 'Como voce resolveu esse problema?'),
+      replacePending: true,
+      isFinal: true
+    });
+    expect(turns[0]).toMatchObject({
+      text: 'Como voce resolveu esse problema?',
+      pendingText: '',
+      isFinal: true,
+      isQuestion: true
+    });
+  });
 });
 
 describe('compact interview context', () => {

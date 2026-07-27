@@ -34,7 +34,7 @@
 </tr>
 <tr>
   <td><b>🎙️ Interview Copilot (Alt+B)</b></td>
-  <td>Capture system audio with <strong>Gemini Live</strong>, optionally transcribe the microphone in a separate session, detect interview questions locally, and stream a natural answer from <strong>Hermes</strong> when you click <strong>Answer</strong> or press <code>Space</code>.</td>
+  <td>Capture system audio with <strong>Gemini Live</strong> by default, optionally switch to Google Cloud Speech-to-Text interim results, and stream an interview answer from <strong>Gemini</strong> when you click <strong>Answer question</strong> or press <code>Space</code>.</td>
 </tr>
 <tr>
   <td><b>⚡ Spotlight Command Bar</b></td>
@@ -50,7 +50,7 @@
 </tr>
 <tr>
   <td><b>🤖 Hermes Primary Agent</b></td>
-  <td>Hades can use a local <strong>Hermes Agent</strong> server as the main brain for MiniChat, memory, web/API/CLI, interview, research, suggestions, and multi-step work while keeping Gemini on the fast transcription path.</td>
+  <td>Hades can use a local <strong>Hermes Agent</strong> server as the main brain for MiniChat, memory, web/API/CLI, research, suggestions, and multi-step work while keeping latency-sensitive interview responses and fallback on Gemini.</td>
 </tr>
 <tr>
   <td><b>👁️ Gemini Visual Context</b></td>
@@ -146,14 +146,20 @@ See [docs/hermes-agent.md](docs/hermes-agent.md) for memory behavior, low-token 
 
 ### Interview Copilot
 
-Open **Options > Interview** or press `Alt+B`. Before listening, set the target role, company, job description, language, answer style, and optional instructions.
+Open **Options > Interview** or press `Alt+B`. Before listening, set the target role, company, resume, job description, language, answer style, and optional instructions.
 
-- System audio is transcribed by default. Microphone transcription is optional and uses a second Gemini Live session so speakers remain separated.
+- Gemini Live is the default transcription provider and uses the Google AI Studio API key already configured in Hades. Gemini 3.1 normally publishes input transcription after a speech boundary; Hades still consumes interim hypotheses when the API provides them, and applies Portuguese/English language hints plus interview vocabulary from the configured role, company, and resume.
+- To use Google Cloud instead, select **Google Cloud (continuous transcription)**, enter a project ID, and click **Connect** before the meeting. Hades starts `gcloud auth application-default login`, opens the Google authorization page, sets that project as the ADC quota project, and validates both the token and quota configuration.
+- Hades uses Speech-to-Text V1 for the free monthly allowance and lowest discounted streaming price. **Lower cost** opens the project page where data logging can be enabled after accepting Google's terms. Data logging allows Google to use and retain submitted audio/transcripts for model improvement; enable it only when you have permission from every data originator.
+- The Google Cloud CLI must be installed, billing must be linked to the selected project, `speech.googleapis.com` must be enabled, and the signed-in account must have `serviceusage.services.use` (normally through **Service Usage Consumer**) on that project. See the official [Cloud STT setup](https://cloud.google.com/speech-to-text/docs/setup), [authentication](https://cloud.google.com/speech-to-text/docs/authentication), and [pricing](https://cloud.google.com/speech-to-text/pricing) pages.
+- System audio is transcribed by Gemini Live by default. Microphone transcription is optional and uses a separate session so speakers remain separated.
+- If ADC is unavailable, expired, or rejected, Hades automatically falls back to Gemini Live. Gemini Live remains functional but does not guarantee continuous interim transcript updates.
 - The latest likely interviewer question is highlighted locally without an LLM request. Every finalized interviewer turn still has an explicit **Answer** action.
-- Click **Answer** or press `Space` outside an input to stream one Hermes response into the answer pane. The transcript continues while Hermes responds.
+- Click **Answer question** or press `Space` outside an input to send the latest five conversation texts, resume, job description, and interview instructions to a separate Gemini stream. The transcript continues while Gemini responds.
+- Click **Quick answer** to flush the current Gemini Live audio stream, infer the question from the latest five transcription fragments, and stream a short summary followed by at most five speaking points.
 - Use the answer toolbar to stop, copy, shorten, expand, rewrite as STAR, generate code, or retry.
-- Screen capture is manual. Gemini extracts the visible question, code, and terminal context, then sends compact visual context to Hermes.
-- Each answer sends only the selected question, up to six prior finalized turns, session metadata, and optional screen context. Resume and document knowledge stays in Hermes memory.
+- Screen capture is manual. Gemini extracts the visible question, code, and terminal context and keeps only compact visual context for the next interview answer.
+- Each Gemini interview answer sends only the latest five conversation texts, session metadata, the configured resume and job description, and optional screen context.
 - Transcripts and answers are stored in `interview_sessions.json`. Audio recording is off by default; when enabled, WAV artifacts are stored under the app's local `interview-audio` directory.
 
 ---
@@ -206,6 +212,7 @@ graph TD
     
     subgraph Cloud_APIs [Cloud Intelligence Services]
         Gemini[Gemini Live API]:::external
+        Speech[Google Cloud Speech-to-Text]:::external
         Tavily[Tavily Search API]:::external
     end
 
@@ -218,7 +225,8 @@ graph TD
     Dream -->|Persists Insights| Store
     Main -->|Delegates memory, web/API/CLI and multi-step tasks| Hermes
     
-    Main <-->|16kHz Raw PCM Audio Stream| Gemini
+    Main -->|16kHz Raw PCM Streaming| Speech
+    Main <-->|Answers and transcription fallback| Gemini
     Main <-->|Asynchronous Web Queries| Tavily
 ```
 

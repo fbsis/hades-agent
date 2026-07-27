@@ -48,7 +48,7 @@ export const InterviewAnswerPane: React.FC<InterviewAnswerPaneProps> = ({
         title="Responder pergunta"
       >
         <Send size={15} />
-        Responder
+        Responder pergunta
       </button>
     </div>
 

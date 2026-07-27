@@ -55,7 +55,13 @@ export const applyInterviewTranscriptDelta = (
   if (current && (current.lastSequence || 0) >= delta.sequence) return turns;
 
   const source: InterviewSource = delta.source;
-  const pendingText = `${current?.pendingText || ''}${delta.text || ''}`;
+  const incomingFragment = String(delta.text || '').trim();
+  const fragments = incomingFragment
+    ? [...(current?.fragments || []), incomingFragment].slice(-5)
+    : current?.fragments || [];
+  const pendingText = delta.replacePending
+    ? delta.text || ''
+    : `${current?.pendingText || ''}${delta.text || ''}`;
   const finalizedText = delta.isFinal
     ? `${current?.text || ''}${pendingText}`.replace(/\s+/g, ' ').trim()
     : current?.text || '';
@@ -73,7 +79,8 @@ export const applyInterviewTranscriptDelta = (
       ? isLikelyInterviewQuestion(finalizedText)
       : current?.isQuestion || false,
     answerId: current?.answerId,
-    lastSequence: delta.sequence
+    lastSequence: delta.sequence,
+    fragments
   };
 
   if (index < 0) return [...turns, nextTurn];

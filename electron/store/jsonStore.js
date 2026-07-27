@@ -69,9 +69,12 @@ class JsonStore {
       interview: {
         role: '',
         company: '',
+        resume: '',
         jobDescription: '',
         language: 'auto',
         answerStyle: 'natural',
+        transcriptionProvider: 'gemini-live',
+        googleCloudProjectId: '',
         extraInstructions: '',
         transcribeMicrophone: false,
         retainAudio: false

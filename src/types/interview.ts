@@ -3,14 +3,24 @@ export type InterviewFlowStatus = 'idle' | 'starting' | 'listening' | 'answering
 export type InterviewSessionStatus = 'active' | 'completed' | 'archived';
 export type InterviewLanguage = 'auto' | 'pt-BR' | 'en-US';
 export type InterviewAnswerStyle = 'natural' | 'concise' | 'star' | 'technical';
-export type InterviewAnswerVariant = 'answer' | 'shorter' | 'detail' | 'star' | 'code' | 'retry';
+export type InterviewTranscriptionProvider = 'gemini-live' | 'google-cloud';
+export type InterviewAnswerVariant = 'answer' | 'quick' | 'shorter' | 'detail' | 'star' | 'code' | 'retry';
+
+export interface GoogleCloudAuthStatus {
+  authenticated: boolean;
+  projectId?: string;
+  error?: string;
+}
 
 export interface InterviewConfig {
   role: string;
   company: string;
+  resume: string;
   jobDescription: string;
   language: InterviewLanguage;
   answerStyle: InterviewAnswerStyle;
+  transcriptionProvider: InterviewTranscriptionProvider;
+  googleCloudProjectId: string;
   extraInstructions: string;
   transcribeMicrophone: boolean;
   retainAudio: boolean;
@@ -29,6 +39,7 @@ export interface TranscriptTurn {
   answerId?: string;
   visualContext?: string;
   lastSequence?: number;
+  fragments?: string[];
 }
 
 export interface InterviewAnswer {
@@ -73,6 +84,7 @@ export interface InterviewTranscriptDelta {
   sequence: number;
   text: string;
   isFinal: boolean;
+  replacePending?: boolean;
   timestamp: string;
 }
 
@@ -82,6 +94,7 @@ export interface InterviewTranscriptionStatus {
   turnId?: string;
   sequence?: number;
   status: 'connecting' | 'ready' | 'reconnecting' | 'closed' | 'error';
+  provider?: 'google-cloud' | 'gemini-live';
   attempt?: number;
   error?: string;
 }
@@ -111,9 +124,12 @@ export interface InterviewScreenAnalysis {
 export const DEFAULT_INTERVIEW_CONFIG: InterviewConfig = {
   role: '',
   company: '',
+  resume: '',
   jobDescription: '',
   language: 'auto',
   answerStyle: 'natural',
+  transcriptionProvider: 'gemini-live',
+  googleCloudProjectId: '',
   extraInstructions: '',
   transcribeMicrophone: false,
   retainAudio: false

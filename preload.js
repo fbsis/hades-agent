@@ -114,6 +114,8 @@ contextBridge.exposeInMainWorld('electron', {
   askSusurroTranscript: (data) => ipcRenderer.invoke('ask-susurro-transcript', data),
 
   // --- Interview Copilot ---
+  getGoogleCloudAuthStatus: () => ipcRenderer.invoke('google-cloud-auth-status'),
+  loginGoogleCloud: (projectId) => ipcRenderer.invoke('google-cloud-auth-login', projectId),
   createInterviewSession: (config) => ipcRenderer.invoke('interview-create-session', config),
   listInterviewSessions: () => ipcRenderer.invoke('interview-list-sessions'),
   loadInterviewSession: (sessionId) => ipcRenderer.invoke('interview-load-session', sessionId),
@@ -126,6 +128,7 @@ contextBridge.exposeInMainWorld('electron', {
   stopInterviewTranscription: (sessionId) => ipcRenderer.invoke('interview-stop-transcription', sessionId),
   sendInterviewAudioChunk: (payload) => ipcRenderer.send('interview-send-audio-chunk', payload),
   endInterviewAudioStream: (sessionId, source) => ipcRenderer.send('interview-audio-stream-end', sessionId, source),
+  flushInterviewTranscription: (sessionId, source) => ipcRenderer.invoke('interview-flush-transcription', sessionId, source),
   onInterviewTranscriptDelta: (callback) => {
     const sub = (_event, payload) => callback(payload);
     ipcRenderer.on('interview-transcript-delta', sub);

@@ -11,6 +11,7 @@ import type {
   InterviewAnswerEvent,
   InterviewAnswerVariant,
   InterviewConfig,
+  GoogleCloudAuthStatus,
   InterviewSession,
   InterviewTranscriptDelta,
   InterviewTranscriptionStatus,
@@ -147,6 +148,20 @@ class ElectronService {
   }
 
   // --- Interview Copilot ---
+  async getGoogleCloudAuthStatus() {
+    return await this.handleResponse<GoogleCloudAuthStatus>(
+      this.electron?.getGoogleCloudAuthStatus(),
+      { authenticated: false, error: 'Google Cloud ainda nao esta conectado.' },
+      'getGoogleCloudAuthStatus'
+    );
+  }
+  async loginGoogleCloud(projectId: string) {
+    return await this.handleResponse<GoogleCloudAuthStatus>(
+      this.electron?.loginGoogleCloud(projectId),
+      { authenticated: false, error: 'Nao foi possivel abrir o login do Google Cloud.' },
+      'loginGoogleCloud'
+    );
+  }
   async createInterviewSession(config: InterviewConfig) {
     return await this.handleResponse(this.electron?.createInterviewSession(config), null, 'createInterviewSession');
   }
@@ -168,7 +183,13 @@ class ElectronService {
   async saveInterviewTurn(sessionId: string, turn: TranscriptTurn) {
     return await this.handleResponse(this.electron?.saveInterviewTurn(sessionId, turn), null, 'saveInterviewTurn');
   }
-  async startInterviewSource(options: { sessionId: string; source: 'interviewer' | 'candidate'; language: string }) {
+  async startInterviewSource(options: {
+    sessionId: string;
+    source: 'interviewer' | 'candidate';
+    language: string;
+    provider: 'gemini-live' | 'google-cloud';
+    customVocabulary?: string[];
+  }) {
     return await this.handleResponse(this.electron?.startInterviewSource(options), false, 'startInterviewSource');
   }
   async stopInterviewSource(sessionId: string, source: 'interviewer' | 'candidate') {
@@ -182,6 +203,13 @@ class ElectronService {
   }
   endInterviewAudioStream(sessionId: string, source: 'interviewer' | 'candidate') {
     this.electron?.endInterviewAudioStream(sessionId, source);
+  }
+  async flushInterviewTranscription(sessionId: string, source: 'interviewer' | 'candidate') {
+    return await this.handleResponse(
+      this.electron?.flushInterviewTranscription(sessionId, source),
+      false,
+      'flushInterviewTranscription'
+    );
   }
   onInterviewTranscriptDelta(callback: (delta: InterviewTranscriptDelta) => void) {
     return this.electron?.onInterviewTranscriptDelta(callback) || (() => {});
@@ -197,7 +225,9 @@ class ElectronService {
     turns: TranscriptTurn[];
     config: InterviewConfig;
     visualContext?: string;
+    quickFragments?: string[];
     variant: InterviewAnswerVariant;
+    provider?: 'hermes' | 'gemini';
   }) {
     return await this.handleResponse(this.electron?.requestInterviewAnswer(args), null, 'requestInterviewAnswer');
   }

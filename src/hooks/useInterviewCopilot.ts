@@ -5,6 +5,7 @@ import {
   InterviewAnswerVariant,
   InterviewConfig,
   InterviewFlowStatus,
+  GoogleCloudAuthStatus,
   InterviewSession,
   InterviewTranscriptionStatus,
   TranscriptTurn
@@ -21,6 +22,14 @@ const makeId = (prefix: string) => {
   const suffix = globalThis.crypto?.randomUUID?.() || `${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
   return `${prefix}_${suffix}`;
 };
+
+const buildTranscriptionVocabulary = (config: InterviewConfig): string[] => [
+  config.company,
+  config.role,
+  config.resume.split(/\r?\n/).find(line => (
+    line.trim().length >= 3 && line.trim().length <= 80
+  )) || ''
+].map(value => value.trim()).filter(Boolean);
 
 const isEditableTarget = (target: EventTarget | null) => {
   if (!(target instanceof HTMLElement)) return false;
@@ -40,6 +49,9 @@ export const useInterviewCopilot = (options: { embedded?: boolean; onClosePanel?
   const [screenStatus, setScreenStatus] = useState<'idle' | 'reading' | 'error'>('idle');
   const [error, setError] = useState('');
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [cloudAuthStatus, setCloudAuthStatus] = useState<GoogleCloudAuthStatus | null>(null);
+  const [isAuthenticatingCloud, setIsAuthenticatingCloud] = useState(false);
+  const [isPreparingQuickAnswer, setIsPreparingQuickAnswer] = useState(false);
 
   const {
     startRecording: startSystemRecording,
@@ -75,6 +87,37 @@ export const useInterviewCopilot = (options: { embedded?: boolean; onClosePanel?
     });
     refreshSessions();
   }, [refreshSessions]);
+
+  useEffect(() => {
+    if (config.transcriptionProvider !== 'google-cloud' || cloudAuthStatus !== null) return;
+    electronService.getGoogleCloudAuthStatus().then(setCloudAuthStatus);
+  }, [cloudAuthStatus, config.transcriptionProvider]);
+
+  const authenticateGoogleCloud = useCallback(async () => {
+    if (isAuthenticatingCloud) return;
+    setIsAuthenticatingCloud(true);
+    setError('');
+    const projectId = config.googleCloudProjectId.trim();
+    if (!projectId) {
+      setError('Informe o Project ID do Google Cloud antes de conectar.');
+      setIsAuthenticatingCloud(false);
+      return;
+    }
+    const status = await electronService.loginGoogleCloud(projectId);
+    setCloudAuthStatus(status);
+    if (!status.authenticated) {
+      setError(status.error || 'Nao foi possivel conectar ao Google Cloud.');
+    }
+    setIsAuthenticatingCloud(false);
+  }, [config.googleCloudProjectId, isAuthenticatingCloud]);
+
+  const openCloudDataLogging = useCallback(() => {
+    const projectId = cloudAuthStatus?.projectId;
+    const projectQuery = projectId ? `?project=${encodeURIComponent(projectId)}` : '';
+    electronService.openExternal(
+      `https://console.cloud.google.com/apis/api/speech.googleapis.com/overview${projectQuery}`
+    );
+  }, [cloudAuthStatus?.projectId]);
 
   useEffect(() => {
     if (!session?.startedAt) {
@@ -126,7 +169,7 @@ export const useInterviewCopilot = (options: { embedded?: boolean; onClosePanel?
         setFlowStatus(current => current === 'answering' ? current : 'listening');
       }
       if (status.source === 'interviewer' && status.status === 'error') {
-        setError(status.error || 'Falha na transcricao do audio do sistema.');
+        setError(status.error || 'Falha na transcricao em tempo real do audio do sistema.');
       }
     });
 
@@ -220,9 +263,11 @@ export const useInterviewCopilot = (options: { embedded?: boolean; onClosePanel?
       const systemStarted = await electronService.startInterviewSource({
         sessionId: activeSession.id,
         source: 'interviewer',
-        language: activeSession.config.language
+        language: activeSession.config.language,
+        provider: activeSession.config.transcriptionProvider || 'gemini-live',
+        customVocabulary: buildTranscriptionVocabulary(activeSession.config)
       });
-      if (!systemStarted) throw new Error('Gemini Live nao iniciou para o audio do sistema.');
+      if (!systemStarted) throw new Error('A transcricao em tempo real nao iniciou para o audio do sistema.');
 
       const recorderStarted = await startRecorder(activeSession, 'interviewer');
       if (!recorderStarted) throw new Error('Nao foi possivel capturar o audio do sistema.');
@@ -231,7 +276,9 @@ export const useInterviewCopilot = (options: { embedded?: boolean; onClosePanel?
         const microphoneSourceStarted = await electronService.startInterviewSource({
           sessionId: activeSession.id,
           source: 'candidate',
-          language: activeSession.config.language
+          language: activeSession.config.language,
+          provider: activeSession.config.transcriptionProvider || 'gemini-live',
+          customVocabulary: buildTranscriptionVocabulary(activeSession.config)
         });
         if (microphoneSourceStarted) {
           const microphoneStarted = await startRecorder(activeSession, 'candidate');
@@ -320,6 +367,8 @@ export const useInterviewCopilot = (options: { embedded?: boolean; onClosePanel?
   const requestAnswer = useCallback(async (
     variant: InterviewAnswerVariant = 'answer',
     answer?: Pick<InterviewAnswer, 'question' | 'turnId'>
+      & Partial<Pick<InterviewAnswer, 'provider'>>
+      & { quickFragments?: string[] }
   ) => {
     const activeSession = sessionRef.current;
     if (!activeSession) return;
@@ -358,6 +407,7 @@ export const useInterviewCopilot = (options: { embedded?: boolean; onClosePanel?
     }
 
     const answerId = makeId('answer');
+    const provider = answer?.provider || 'gemini';
     const nextAnswer: InterviewAnswer = {
       id: answerId,
       sessionId: activeSession.id,
@@ -365,7 +415,7 @@ export const useInterviewCopilot = (options: { embedded?: boolean; onClosePanel?
       question,
       text: '',
       status: 'streaming',
-      provider: 'hermes',
+      provider,
       variant,
       createdAt: new Date().toISOString()
     };
@@ -388,7 +438,9 @@ export const useInterviewCopilot = (options: { embedded?: boolean; onClosePanel?
       turns: sessionRef.current?.transcript || activeSession.transcript,
       config: activeSession.config,
       visualContext: sessionRef.current?.transcript.find(turn => turn.id === turnId)?.visualContext,
-      variant
+      quickFragments: answer?.quickFragments,
+      variant,
+      provider
     });
 
     if (!result) {
@@ -406,6 +458,79 @@ export const useInterviewCopilot = (options: { embedded?: boolean; onClosePanel?
     if (!activeAnswerIdRef.current) return;
     await electronService.cancelInterviewAnswer(activeAnswerIdRef.current);
   }, []);
+
+  const answerLatestQuestion = useCallback(() => {
+    const activeSession = sessionRef.current;
+    if (!activeSession) return;
+
+    const recentTurns = [...activeSession.transcript].reverse();
+    const latestTurn = recentTurns.find(turn => (
+      turn.source === 'interviewer'
+      && `${turn.text}${turn.pendingText}`.trim()
+    )) || recentTurns.find(turn => (
+      ['screen', 'manual'].includes(turn.source)
+      && `${turn.text}${turn.pendingText}`.trim()
+    ));
+
+    if (!latestTurn) {
+      setError('Ainda nao ha uma pergunta transcrita para responder.');
+      return;
+    }
+
+    const question = `${latestTurn.text}${latestTurn.pendingText}`.trim();
+    setSelectedTurnId(latestTurn.id);
+    setQuestionDraft(question);
+    setActiveAnswerId(latestTurn.answerId || null);
+    requestAnswer('answer', {
+      question,
+      turnId: latestTurn.id,
+      provider: 'gemini'
+    });
+  }, [requestAnswer]);
+
+  const quickAnswer = useCallback(async () => {
+    const currentSession = sessionRef.current;
+    if (!currentSession || isPreparingQuickAnswer) return;
+
+    setIsPreparingQuickAnswer(true);
+    setError('');
+    try {
+      await electronService.flushInterviewTranscription(currentSession.id, 'interviewer');
+      const activeSession = sessionRef.current;
+      if (!activeSession) return;
+
+      const interviewerTurns = activeSession.transcript.filter(turn => turn.source === 'interviewer');
+      const quickFragments = interviewerTurns
+        .flatMap(turn => turn.fragments?.length
+          ? turn.fragments
+          : [`${turn.text}${turn.pendingText}`])
+        .map(fragment => fragment.replace(/\s+/g, ' ').trim())
+        .filter(Boolean)
+        .slice(-5);
+      const latestTurn = [...interviewerTurns].reverse().find(turn => (
+        `${turn.text}${turn.pendingText}`.trim() || turn.fragments?.some(Boolean)
+      ));
+
+      if (!latestTurn || quickFragments.length === 0) {
+        setError('Ainda nao ha conversa transcrita para gerar a resposta rapida.');
+        return;
+      }
+
+      const question = quickFragments.join(' ');
+      setSelectedTurnId(latestTurn.id);
+      setQuestionDraft(question);
+      setActiveAnswerId(latestTurn.answerId || null);
+      setIsPreparingQuickAnswer(false);
+      await requestAnswer('quick', {
+        question,
+        turnId: latestTurn.id,
+        provider: 'gemini',
+        quickFragments
+      });
+    } finally {
+      setIsPreparingQuickAnswer(false);
+    }
+  }, [isPreparingQuickAnswer, requestAnswer]);
 
   const captureScreen = useCallback(async () => {
     const activeSession = sessionRef.current;
@@ -473,12 +598,12 @@ export const useInterviewCopilot = (options: { embedded?: boolean; onClosePanel?
       }
       if (event.code === 'Space' && !isEditableTarget(event.target) && sessionRef.current) {
         event.preventDefault();
-        requestAnswer('answer');
+        answerLatestQuestion();
       }
     };
     globalThis.addEventListener('keydown', handleKeyDown);
     return () => globalThis.removeEventListener('keydown', handleKeyDown);
-  }, [options.onClosePanel, requestAnswer]);
+  }, [answerLatestQuestion, options.onClosePanel]);
 
   useEffect(() => () => {
     stopSystemRecording();
@@ -502,6 +627,13 @@ export const useInterviewCopilot = (options: { embedded?: boolean; onClosePanel?
     () => session?.answers.find(answer => answer.id === activeAnswerId) || null,
     [activeAnswerId, session?.answers]
   );
+  const canAnswerLatestQuestion = useMemo(
+    () => Boolean(session?.transcript.some(turn => (
+      ['interviewer', 'screen', 'manual'].includes(turn.source)
+      && `${turn.text}${turn.pendingText}`.trim()
+    ))),
+    [session?.transcript]
+  );
 
   return {
     config,
@@ -519,6 +651,10 @@ export const useInterviewCopilot = (options: { embedded?: boolean; onClosePanel?
     screenStatus,
     error,
     elapsedSeconds,
+    cloudAuthStatus,
+    isAuthenticatingCloud,
+    authenticateGoogleCloud,
+    openCloudDataLogging,
     isPinned,
     togglePin,
     handleMinimize,
@@ -528,6 +664,10 @@ export const useInterviewCopilot = (options: { embedded?: boolean; onClosePanel?
     newSession,
     selectTurn,
     requestAnswer,
+    answerLatestQuestion,
+    quickAnswer,
+    isPreparingQuickAnswer,
+    canAnswerLatestQuestion,
     stopAnswer,
     captureScreen,
     loadSession,

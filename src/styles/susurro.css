@@ -107,7 +107,9 @@
 .interview-icon-button:disabled,
 .interview-answer-actions button:disabled { opacity: 0.32; cursor: default; }
 
-.interview-listen-button {
+.interview-listen-button,
+.interview-answer-now-button,
+.interview-quick-answer-button {
   height: 30px;
   display: inline-flex;
   align-items: center;
@@ -120,6 +122,38 @@
   cursor: pointer;
   font-size: 10px;
   font-weight: 700;
+}
+
+.interview-answer-now-button {
+  border-color: rgba(56, 189, 248, 0.38);
+  background: rgba(56, 189, 248, 0.12);
+  color: #bae6fd;
+  white-space: nowrap;
+}
+
+.interview-quick-answer-button {
+  border-color: rgba(74, 222, 128, 0.38);
+  background: rgba(74, 222, 128, 0.1);
+  color: #bbf7d0;
+  white-space: nowrap;
+}
+
+.interview-answer-now-button:hover:not(:disabled) {
+  border-color: rgba(56, 189, 248, 0.62);
+  background: rgba(56, 189, 248, 0.2);
+  color: #fff;
+}
+
+.interview-quick-answer-button:hover:not(:disabled) {
+  border-color: rgba(74, 222, 128, 0.62);
+  background: rgba(74, 222, 128, 0.18);
+  color: #fff;
+}
+
+.interview-answer-now-button:disabled,
+.interview-quick-answer-button:disabled {
+  opacity: 0.35;
+  cursor: default;
 }
 
 .interview-listen-button.active { background: #dc2626; border-color: #ef4444; color: #fff; }
@@ -166,6 +200,7 @@
 
 .interview-form-grid input,
 .interview-form-grid select,
+.interview-wide-field input,
 .interview-wide-field textarea,
 .interview-question-editor textarea {
   width: 100%;
@@ -180,17 +215,74 @@
 }
 
 .interview-form-grid input,
-.interview-form-grid select { height: 34px; padding: 0 9px; }
+.interview-form-grid select,
+.interview-wide-field input { height: 34px; padding: 0 9px; }
+.interview-transcription-provider-field { grid-column: 1 / -1; }
 .interview-wide-field { margin-top: 12px; }
 .interview-wide-field textarea { padding: 9px; resize: vertical; line-height: 1.45; }
 .interview-form-grid input:focus,
 .interview-form-grid select:focus,
+.interview-wide-field input:focus,
 .interview-wide-field textarea:focus,
 .interview-question-editor textarea:focus { border-color: rgba(239, 68, 68, 0.55); }
 
 .interview-toggle-row { display: flex; flex-wrap: wrap; gap: 14px; margin: 14px 0; }
 .interview-toggle { display: inline-flex; align-items: center; gap: 7px; color: rgba(255, 255, 255, 0.68); font-size: 11px; }
 .interview-toggle input { accent-color: #dc2626; }
+
+.interview-cloud-auth {
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 14px;
+  padding: 7px 9px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.interview-cloud-auth.connected { border-color: rgba(34, 197, 94, 0.25); }
+.interview-cloud-auth-state { min-width: 0; display: flex; align-items: center; gap: 8px; }
+.interview-cloud-auth-state > svg { flex-shrink: 0; color: rgba(255, 255, 255, 0.38); }
+.interview-cloud-auth.connected .interview-cloud-auth-state > svg { color: #4ade80; }
+.interview-cloud-auth-state > span { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.interview-cloud-auth-state strong { color: rgba(255, 255, 255, 0.76); font-size: 10px; }
+.interview-cloud-auth-state small {
+  overflow: hidden;
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 9px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.interview-cloud-auth-actions { display: flex; align-items: center; gap: 5px; flex-shrink: 0; }
+
+.interview-cloud-auth-button {
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 9px;
+  border: 1px solid rgba(56, 189, 248, 0.28);
+  border-radius: 5px;
+  background: rgba(56, 189, 248, 0.09);
+  color: #7dd3fc;
+  font-size: 9px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.interview-cloud-auth-button.discount {
+  border-color: rgba(34, 197, 94, 0.25);
+  background: rgba(34, 197, 94, 0.08);
+  color: #86efac;
+}
+
+.interview-cloud-auth-button:disabled { opacity: 0.55; cursor: wait; }
+.interview-cloud-auth-button .spin { animation: spin 0.9s linear infinite; }
 
 .interview-primary-button {
   height: 36px;
@@ -390,6 +482,9 @@
   .interview-workspace { grid-template-columns: 1fr; grid-template-rows: minmax(180px, 42%) minmax(240px, 58%); }
   .interview-transcript-pane { border-right: 0; border-bottom: 1px solid rgba(255, 255, 255, 0.08); }
   .interview-context-strip { grid-template-columns: 1fr 1fr; }
+  .interview-cloud-auth { align-items: flex-start; flex-direction: column; }
+  .interview-cloud-auth-actions { width: 100%; }
+  .interview-cloud-auth-button { flex: 1; }
 }
 
 /* ─── Root window container ─────────────────────────────────────────── */

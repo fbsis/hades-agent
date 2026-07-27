@@ -5,6 +5,7 @@ const hermesService = require('./hermesService');
 const logger = require('./logger');
 const {
   DEFAULT_CONFIG,
+  buildGeminiInterviewPrompt,
   buildInterviewContext,
   buildInterviewInstruction,
   clip
@@ -160,6 +161,47 @@ class InterviewService {
     return buildInterviewInstruction(args);
   }
 
+  async streamGeminiAnswer(args, instruction, state, emit) {
+    const settings = store.getSettings();
+    const apiKey = settings?.general?.apiKey || process.env.VITE_GEMINI_API_KEY;
+    if (!apiKey) throw new Error('Gemini API key nao configurada.');
+
+    const controller = new AbortController();
+    state.abortController = controller;
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({
+      model: settings.general.minichatModel || 'gemini-2.5-flash',
+      systemInstruction: instruction,
+      generationConfig: {
+        temperature: 0.25,
+        maxOutputTokens: args.variant === 'code' ? 1400 : args.variant === 'quick' ? 350 : 700
+      }
+    });
+    const prompt = buildGeminiInterviewPrompt(args);
+    const streamResult = await model.generateContentStream(prompt, {
+      signal: controller.signal
+    });
+
+    for await (const chunk of streamResult.stream) {
+      if (state.cancelled) break;
+      const delta = chunk.text();
+      if (!delta) continue;
+      state.text += delta;
+      emit({ type: 'delta', text: delta, provider: 'gemini' });
+    }
+
+    if (!state.cancelled && !state.text.trim()) {
+      const response = await streamResult.response;
+      const text = response.text().trim();
+      if (text) {
+        state.text = text;
+        emit({ type: 'delta', text, provider: 'gemini' });
+      }
+    }
+
+    return { success: !state.cancelled, cancelled: state.cancelled, text: state.text };
+  }
+
   async generateGeminiFallback(args, context, instruction) {
     const settings = store.getSettings();
     const apiKey = settings?.general?.apiKey || process.env.VITE_GEMINI_API_KEY;
@@ -185,6 +227,7 @@ class InterviewService {
     const sessionId = args.sessionId;
     const context = this.buildContext(args);
     const instruction = this.buildInstruction(args);
+    const requestedProvider = args.provider === 'gemini' ? 'gemini' : 'hermes';
     const state = {
       answerId,
       sessionId,
@@ -192,8 +235,9 @@ class InterviewService {
       question,
       text: '',
       cancelled: false,
-      provider: 'hermes',
-      eventSequence: 0
+      provider: requestedProvider,
+      eventSequence: 0,
+      abortController: null
     };
     const emit = payload => {
       state.eventSequence += 1;
@@ -215,67 +259,79 @@ class InterviewService {
       question,
       text: '',
       status: 'streaming',
-      provider: 'hermes',
+      provider: requestedProvider,
       variant: args.variant || 'answer',
       createdAt: new Date().toISOString()
     };
     this.upsertAnswer(sessionId, answer);
-    emit({ type: 'start', provider: 'hermes' });
+    emit({ type: 'start', provider: requestedProvider });
 
     try {
-      const result = await hermesService.askStream({
-        streamId: answerId,
-        prompt: question,
-        context,
-        instruction,
-        mode: 'interview',
-        preferredAnswerStyle: args.variant === 'code' ? 'code_explained' : 'short',
-        includeLocalContext: false,
-        maxOutputTokens: args.variant === 'code' ? 1400 : 700,
-        timeoutMs: store.getSettings()?.hermes?.timeoutMs || 30000,
-        logType: 'interview_answer',
-        primaryAgent: true
-      }, event => {
-        if (event.type === 'delta' && event.text) {
-          state.text += event.text;
-          emit({ type: 'delta', text: event.text, provider: 'hermes' });
-        } else if (event.type === 'tool') {
-          emit({ type: 'tool', text: event.text, provider: 'hermes' });
-        }
-      });
+      let result = null;
+      if (requestedProvider === 'gemini') {
+        result = await this.streamGeminiAnswer(args, instruction, state, emit);
+      } else {
+        result = await hermesService.askStream({
+          streamId: answerId,
+          prompt: question,
+          context,
+          instruction,
+          mode: 'interview',
+          preferredAnswerStyle: args.variant === 'code' ? 'code_explained' : 'short',
+          includeLocalContext: false,
+          maxOutputTokens: args.variant === 'code' ? 1400 : 700,
+          timeoutMs: store.getSettings()?.hermes?.timeoutMs || 30000,
+          logType: 'interview_answer',
+          primaryAgent: true
+        }, event => {
+          if (event.type === 'delta' && event.text) {
+            state.text += event.text;
+            emit({ type: 'delta', text: event.text, provider: 'hermes' });
+          } else if (event.type === 'tool') {
+            emit({ type: 'tool', text: event.text, provider: 'hermes' });
+          }
+        });
+      }
 
       if (state.cancelled || result?.cancelled) {
         const cancelled = {
           ...answer,
           text: state.text.trim(),
           status: 'cancelled',
+          provider: state.provider,
           completedAt: new Date().toISOString()
         };
         this.upsertAnswer(sessionId, cancelled);
-        emit({ type: 'cancelled', text: cancelled.text, provider: 'hermes' });
+        emit({ type: 'cancelled', text: cancelled.text, provider: state.provider });
         return cancelled;
       }
 
-      const nonStreamedHermesText = String(result?.text || '').trim();
-      if (
-        result?.success
-        && !state.text.trim()
-        && nonStreamedHermesText
-        && nonStreamedHermesText !== 'Hermes nao retornou texto.'
-      ) {
-        state.text = nonStreamedHermesText;
-        emit({ type: 'delta', text: state.text, provider: 'hermes' });
-      }
+      if (requestedProvider === 'hermes') {
+        const nonStreamedHermesText = String(result?.text || '').trim();
+        if (
+          result?.success
+          && !state.text.trim()
+          && nonStreamedHermesText
+          && nonStreamedHermesText !== 'Hermes nao retornou texto.'
+        ) {
+          state.text = nonStreamedHermesText;
+          emit({ type: 'delta', text: state.text, provider: 'hermes' });
+        }
 
-      if (!result?.success && state.text.trim()) {
-        throw new Error(result?.error || 'O stream do Hermes terminou antes de completar a resposta.');
-      }
+        if (!result?.success && state.text.trim()) {
+          throw new Error(result?.error || 'O stream do Hermes terminou antes de completar a resposta.');
+        }
 
-      if (!state.text.trim()) {
-        state.provider = 'gemini';
-        const fallbackText = await this.generateGeminiFallback(args, context, instruction);
-        state.text = fallbackText;
-        emit({ type: 'delta', text: fallbackText, provider: 'gemini' });
+        if (!state.text.trim()) {
+          state.provider = 'gemini';
+          const fallbackText = await this.generateGeminiFallback(
+            args,
+            context,
+            this.buildInstruction({ ...args, provider: 'gemini' })
+          );
+          state.text = fallbackText;
+          emit({ type: 'delta', text: fallbackText, provider: 'gemini' });
+        }
       }
 
       if (!state.text.trim()) throw new Error(result?.error || 'Nenhuma resposta foi gerada.');
@@ -316,6 +372,7 @@ class InterviewService {
     const state = this.activeAnswers.get(answerId);
     if (!state) return false;
     state.cancelled = true;
+    state.abortController?.abort();
     hermesService.cancelStream(answerId);
     return true;
   }
