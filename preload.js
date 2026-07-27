@@ -122,6 +122,7 @@ contextBridge.exposeInMainWorld('electron', {
   updateInterviewSession: (sessionId, patch) => ipcRenderer.invoke('interview-update-session', sessionId, patch),
   finishInterviewSession: (sessionId) => ipcRenderer.invoke('interview-finish-session', sessionId),
   archiveInterviewSession: (sessionId) => ipcRenderer.invoke('interview-archive-session', sessionId),
+  summarizeInterviewSession: (sessionId) => ipcRenderer.invoke('interview-summarize-session', sessionId),
   saveInterviewTurn: (sessionId, turn) => ipcRenderer.invoke('interview-save-turn', sessionId, turn),
   startInterviewSource: (options) => ipcRenderer.invoke('interview-start-source', options),
   stopInterviewSource: (sessionId, source) => ipcRenderer.invoke('interview-stop-source', sessionId, source),

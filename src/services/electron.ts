@@ -180,6 +180,9 @@ class ElectronService {
   async archiveInterviewSession(sessionId: string) {
     return await this.handleResponse(this.electron?.archiveInterviewSession(sessionId), null, 'archiveInterviewSession');
   }
+  async summarizeInterviewSession(sessionId: string) {
+    return await this.handleResponse(this.electron?.summarizeInterviewSession(sessionId), null, 'summarizeInterviewSession');
+  }
   async saveInterviewTurn(sessionId: string, turn: TranscriptTurn) {
     return await this.handleResponse(this.electron?.saveInterviewTurn(sessionId, turn), null, 'saveInterviewTurn');
   }
@@ -187,7 +190,7 @@ class ElectronService {
     sessionId: string;
     source: 'interviewer' | 'candidate';
     language: string;
-    provider: 'gemini-live' | 'google-cloud';
+    provider: 'whisper-local' | 'gemini-live' | 'google-cloud';
     customVocabulary?: string[];
   }) {
     return await this.handleResponse(this.electron?.startInterviewSource(options), false, 'startInterviewSource');
@@ -225,6 +228,7 @@ class ElectronService {
     turns: TranscriptTurn[];
     config: InterviewConfig;
     visualContext?: string;
+    sessionSummary?: string;
     quickFragments?: string[];
     variant: InterviewAnswerVariant;
     provider?: 'hermes' | 'gemini';

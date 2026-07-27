@@ -87,12 +87,13 @@ export interface ElectronAPI {
   updateInterviewSession: (sessionId: string, patch: Partial<InterviewSession>) => Promise<IPCResponse<InterviewSession>>;
   finishInterviewSession: (sessionId: string) => Promise<IPCResponse<InterviewSession>>;
   archiveInterviewSession: (sessionId: string) => Promise<IPCResponse<InterviewSession>>;
+  summarizeInterviewSession: (sessionId: string) => Promise<IPCResponse<InterviewSession>>;
   saveInterviewTurn: (sessionId: string, turn: TranscriptTurn) => Promise<IPCResponse<TranscriptTurn>>;
   startInterviewSource: (options: {
     sessionId: string;
     source: 'interviewer' | 'candidate';
     language: string;
-    provider: 'gemini-live' | 'google-cloud';
+    provider: 'whisper-local' | 'gemini-live' | 'google-cloud';
     customVocabulary?: string[];
   }) => Promise<IPCResponse<boolean>>;
   stopInterviewSource: (sessionId: string, source: 'interviewer' | 'candidate') => Promise<IPCResponse<boolean>>;
@@ -110,6 +111,7 @@ export interface ElectronAPI {
     turns: TranscriptTurn[];
     config: InterviewConfig;
     visualContext?: string;
+    sessionSummary?: string;
     quickFragments?: string[];
     variant: InterviewAnswerVariant;
     provider?: 'hermes' | 'gemini';

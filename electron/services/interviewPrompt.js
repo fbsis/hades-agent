@@ -1,14 +1,18 @@
 const DEFAULT_CONFIG = {
+  mode: 'meeting',
+  title: '',
+  description: '',
   role: '',
   company: '',
   resume: '',
   jobDescription: '',
-  language: 'auto',
+  language: 'pt-BR',
   answerStyle: 'natural',
-  transcriptionProvider: 'gemini-live',
+  transcriptionProvider: 'whisper-local',
   googleCloudProjectId: '',
   extraInstructions: '',
   transcribeMicrophone: false,
+  saveTranscript: true,
   retainAudio: false
 };
 
@@ -56,7 +60,10 @@ function buildGeminiInterviewPrompt(args = {}) {
   const questionAlreadyIncluded = recentTexts.some(turn => turn.text === question);
 
   return [
-    '<interview_context>',
+    '<meeting_context>',
+    `Mode: ${config.mode}`,
+    config.title ? `Meeting title: ${config.title}` : '',
+    config.description ? `<meeting_description>\n${clipDocument(config.description, 3000)}\n</meeting_description>` : '',
     config.role ? `Target role: ${config.role}` : '',
     config.company ? `Company: ${config.company}` : '',
     config.resume ? `<resume>\n${clipDocument(config.resume, 8000)}\n</resume>` : '<resume>Not provided</resume>',
@@ -75,14 +82,17 @@ function buildGeminiInterviewPrompt(args = {}) {
     args.visualContext
       ? `<screen_context>\n${clipDocument(args.visualContext, 2000)}\n</screen_context>`
       : '',
+    args.sessionSummary
+      ? `<meeting_summary>\n${clipDocument(args.sessionSummary, 3000)}\n</meeting_summary>`
+      : '',
     !quickFragments.length && !questionAlreadyIncluded && question
       ? `<question>\n${question}\n</question>`
       : '',
-    '</interview_context>',
+    '</meeting_context>',
     '',
     args.variant === 'quick'
-      ? 'Infer the current interview question from the latest live fragments, including an incomplete final fragment, and answer as the candidate.'
-      : 'Answer the interview question as the candidate.'
+      ? 'Infer the current question from the latest live fragments, including an incomplete final fragment, and answer as the participant.'
+      : 'Answer the current question as the participant.'
   ].filter(Boolean).join('\n');
 }
 
@@ -96,6 +106,9 @@ function buildInterviewContext(args = {}) {
     .join('\n');
 
   return clip([
+    `Mode: ${config.mode}`,
+    config.title ? `Meeting title: ${config.title}` : '',
+    config.description ? `Meeting description: ${clip(config.description, 1200)}` : '',
     config.role ? `Target role: ${config.role}` : '',
     config.company ? `Company: ${config.company}` : '',
     config.resume ? `Candidate resume:\n${clipDocument(config.resume, 2400)}` : '',
@@ -103,6 +116,7 @@ function buildInterviewContext(args = {}) {
     config.extraInstructions ? `Candidate instructions: ${clip(config.extraInstructions, 600)}` : '',
     config.language !== 'auto' ? `Response language: ${config.language}` : 'Response language: same as the question',
     recentTurns ? `Recent interview context:\n${recentTurns}` : '',
+    args.sessionSummary ? `Saved meeting summary:\n${clip(args.sessionSummary, 1600)}` : '',
     args.visualContext ? `Current screen context from Gemini:\n${clip(args.visualContext, 1600)}` : ''
   ].filter(Boolean).join('\n\n'), 4800);
 }
@@ -116,9 +130,7 @@ function buildInterviewInstruction(args = {}) {
   const variantInstruction = {
     quick: [
       'Infer the current question from the latest live fragments, even when the last fragment ends mid-word.',
-      'Respond in exactly this Markdown structure: "Resumo:" followed by one or two short sentences, then 3 to 5 bullet points using "- ".',
-      'Never exceed five bullets. Keep every bullet short and easy to scan while speaking.',
-      'Do not add another heading, introduction or conclusion.'
+      'Answer the inferred question directly using the mandatory two-level bullet format.'
     ].join(' '),
     shorter: 'Rewrite as a much shorter answer that takes at most 30 seconds to say.',
     detail: 'Add useful concrete detail while keeping the answer easy to speak.',
@@ -129,15 +141,21 @@ function buildInterviewInstruction(args = {}) {
   }[variant] || '';
 
   return [
-    'Act as a real-time interview copilot for the candidate.',
-    'Answer in first person as words the candidate can naturally say aloud.',
+    args.config?.mode === 'meeting'
+      ? 'Act as a real-time meeting copilot for the participant.'
+      : 'Act as a real-time interview copilot for the candidate.',
+    'Answer in first person as words the participant can naturally say aloud.',
     candidateContextInstruction,
-    'Never invent a personal experience; when memory lacks one, give a truthful adaptable framing.',
+    'When the supplied context lacks a relevant documented experience, you may create a plausible illustrative example, but frame it explicitly as an opinion, hypothetical approach, or what the candidate would do rather than as a verified past event.',
     variant === 'quick'
       ? ''
-      : 'Default length is 45 to 90 seconds. Avoid headings and bullets unless the question is technical.',
-    'For behavioral questions, use a compact STAR flow without naming the STAR sections.',
-    'For coding questions, give the approach and trade-offs before a Markdown code block.',
+      : 'Default length is 45 to 90 seconds. Keep the response easy to scan while the candidate is speaking.',
+    'Always use this exact two-level Markdown structure for every answer, regardless of question type:',
+    '"**Resumo**" followed by 2 to 4 short bullet points using "- " that give the direct, essential answer.',
+    '"**Aprofundamento**" followed by 2 to 4 advanced bullet points using "- " that demonstrate deeper knowledge through relevant details, trade-offs, edge cases, architecture, or concrete examples.',
+    'Keep each bullet independently readable while the candidate is speaking. Do not write prose paragraphs, introductions, or conclusions outside the bullets.',
+    'For behavioral questions, distribute a compact STAR flow across the summary and advanced bullets without naming the STAR sections.',
+    'For coding questions, use the summary and advanced bullets for the approach and trade-offs, then provide a Markdown code block after the bullets.',
     `Configured style: ${style}.`,
     variantInstruction,
     'Return only the answer the candidate should use.'

@@ -188,7 +188,33 @@
 }
 
 .interview-section-title { margin-bottom: 14px; }
+.interview-mode-selector {
+  display: inline-flex;
+  gap: 2px;
+  margin-bottom: 14px;
+  padding: 2px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.025);
+}
+.interview-mode-selector button {
+  height: 28px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.48);
+  font-size: 10px;
+  font-weight: 800;
+  cursor: pointer;
+}
+.interview-mode-selector button.active {
+  background: #dc2626;
+  color: #fff;
+}
 .interview-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.interview-title-field,
+.interview-transcription-provider-field { grid-column: 1 / -1; }
 .interview-form-grid label,
 .interview-wide-field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .interview-form-grid label > span,
@@ -202,7 +228,7 @@
 .interview-form-grid select,
 .interview-wide-field input,
 .interview-wide-field textarea,
-.interview-question-editor textarea {
+.interview-question-editor input {
   width: 100%;
   box-sizing: border-box;
   border: 1px solid rgba(255, 255, 255, 0.1);
@@ -217,14 +243,13 @@
 .interview-form-grid input,
 .interview-form-grid select,
 .interview-wide-field input { height: 34px; padding: 0 9px; }
-.interview-transcription-provider-field { grid-column: 1 / -1; }
 .interview-wide-field { margin-top: 12px; }
 .interview-wide-field textarea { padding: 9px; resize: vertical; line-height: 1.45; }
 .interview-form-grid input:focus,
 .interview-form-grid select:focus,
 .interview-wide-field input:focus,
 .interview-wide-field textarea:focus,
-.interview-question-editor textarea:focus { border-color: rgba(239, 68, 68, 0.55); }
+.interview-question-editor input:focus { border-color: rgba(239, 68, 68, 0.55); }
 
 .interview-toggle-row { display: flex; flex-wrap: wrap; gap: 14px; margin: 14px 0; }
 .interview-toggle { display: inline-flex; align-items: center; gap: 7px; color: rgba(255, 255, 255, 0.68); font-size: 11px; }
@@ -431,26 +456,39 @@
 .interview-live-dot { width: 6px; height: 6px; border-radius: 50%; background: #ef4444; }
 
 .interview-answer-pane { flex: 1; min-height: 0; display: flex; flex-direction: column; }
-.interview-question-editor { position: relative; padding: 10px; border-bottom: 1px solid rgba(255, 255, 255, 0.06); }
-.interview-question-editor textarea { min-height: 68px; padding: 9px 104px 9px 9px; resize: vertical; line-height: 1.45; }
-.interview-answer-submit {
-  position: absolute;
-  right: 18px;
-  bottom: 18px;
-  height: 28px;
+.interview-question-editor { padding: 10px; border-bottom: 1px solid rgba(255, 255, 255, 0.06); }
+.interview-question-editor { display: flex; align-items: center; gap: 7px; }
+.interview-question-editor input { min-width: 0; height: 34px; padding: 0 9px; }
+.interview-question-capture {
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 0 9px;
-  border: 1px solid rgba(239, 68, 68, 0.4);
-  border-radius: 5px;
-  background: #dc2626;
-  color: #fff;
-  font-size: 9px;
-  font-weight: 800;
+  justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(255, 255, 255, 0.6);
   cursor: pointer;
 }
-.interview-answer-submit:disabled { opacity: 0.35; cursor: default; }
+.interview-question-capture:hover:not(:disabled) {
+  border-color: rgba(56, 189, 248, 0.4);
+  background: rgba(56, 189, 248, 0.1);
+  color: #fff;
+}
+.interview-question-capture:disabled { opacity: 0.4; cursor: wait; }
+.interview-summary {
+  max-height: 130px;
+  overflow-y: auto;
+  padding: 9px 12px;
+  border-bottom: 1px solid rgba(56, 189, 248, 0.18);
+  background: rgba(56, 189, 248, 0.06);
+  font-size: 10px;
+  line-height: 1.45;
+}
+.interview-summary strong { display: block; margin-bottom: 5px; color: #7dd3fc; }
+.interview-summary div { color: rgba(255, 255, 255, 0.7); white-space: pre-wrap; }
 .interview-answer-output { flex: 1; min-height: 0; overflow-y: auto; padding: 14px 16px; }
 .interview-answer-status { display: flex; align-items: center; gap: 7px; margin-bottom: 10px; color: rgba(255, 255, 255, 0.36); font-size: 9px; }
 .interview-provider { padding: 2px 5px; border-radius: 4px; font-size: 8px; font-weight: 900; text-transform: uppercase; }

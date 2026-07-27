@@ -52,6 +52,7 @@ export const useInterviewCopilot = (options: { embedded?: boolean; onClosePanel?
   const [cloudAuthStatus, setCloudAuthStatus] = useState<GoogleCloudAuthStatus | null>(null);
   const [isAuthenticatingCloud, setIsAuthenticatingCloud] = useState(false);
   const [isPreparingQuickAnswer, setIsPreparingQuickAnswer] = useState(false);
+  const [isSummarizing, setIsSummarizing] = useState(false);
 
   const {
     startRecording: startSystemRecording,
@@ -149,7 +150,9 @@ export const useInterviewCopilot = (options: { embedded?: boolean; onClosePanel?
         const previousSequence = persistedTurnSequencesRef.current.get(delta.turnId) || 0;
         if (turn?.isFinal && (turn.lastSequence || 0) > previousSequence) {
           persistedTurnSequencesRef.current.set(delta.turnId, turn.lastSequence || 0);
-          queueMicrotask(() => electronService.saveInterviewTurn(current.id, turn));
+          if (current.config.saveTranscript) {
+            queueMicrotask(() => electronService.saveInterviewTurn(current.id, turn));
+          }
           if (turn.source === 'interviewer' && turn.isQuestion) {
             queueMicrotask(() => {
               setSelectedTurnId(turn.id);
@@ -264,7 +267,7 @@ export const useInterviewCopilot = (options: { embedded?: boolean; onClosePanel?
         sessionId: activeSession.id,
         source: 'interviewer',
         language: activeSession.config.language,
-        provider: activeSession.config.transcriptionProvider || 'gemini-live',
+        provider: activeSession.config.transcriptionProvider || 'whisper-local',
         customVocabulary: buildTranscriptionVocabulary(activeSession.config)
       });
       if (!systemStarted) throw new Error('A transcricao em tempo real nao iniciou para o audio do sistema.');
@@ -277,7 +280,7 @@ export const useInterviewCopilot = (options: { embedded?: boolean; onClosePanel?
           sessionId: activeSession.id,
           source: 'candidate',
           language: activeSession.config.language,
-          provider: activeSession.config.transcriptionProvider || 'gemini-live',
+          provider: activeSession.config.transcriptionProvider || 'whisper-local',
           customVocabulary: buildTranscriptionVocabulary(activeSession.config)
         });
         if (microphoneSourceStarted) {
@@ -341,6 +344,15 @@ export const useInterviewCopilot = (options: { embedded?: boolean; onClosePanel?
     if (!activeSession) return;
     if (activeAnswerIdRef.current) await electronService.cancelInterviewAnswer(activeAnswerIdRef.current);
     await stopListening();
+    if (activeSession.config.saveTranscript) {
+      await Promise.all((sessionRef.current?.transcript || []).map(turn => (
+        electronService.saveInterviewTurn(activeSession.id, {
+          ...turn,
+          text: `${turn.text}${turn.pendingText}`.trim(),
+          pendingText: ''
+        })
+      )));
+    }
     const finished = await electronService.finishInterviewSession(activeSession.id);
     if (finished) setSession(finished);
     refreshSessions();
@@ -401,7 +413,9 @@ export const useInterviewCopilot = (options: { embedded?: boolean; onClosePanel?
         isQuestion: true
       };
       turnId = manualTurn.id;
-      await electronService.saveInterviewTurn(activeSession.id, manualTurn);
+      if (activeSession.config.saveTranscript) {
+        await electronService.saveInterviewTurn(activeSession.id, manualTurn);
+      }
       updateSessionState(current => ({ ...current, transcript: [...current.transcript, manualTurn] }));
       setSelectedTurnId(turnId);
     }
@@ -438,6 +452,7 @@ export const useInterviewCopilot = (options: { embedded?: boolean; onClosePanel?
       turns: sessionRef.current?.transcript || activeSession.transcript,
       config: activeSession.config,
       visualContext: sessionRef.current?.transcript.find(turn => turn.id === turnId)?.visualContext,
+      sessionSummary: activeSession.summary,
       quickFragments: answer?.quickFragments,
       variant,
       provider
@@ -558,7 +573,9 @@ export const useInterviewCopilot = (options: { embedded?: boolean; onClosePanel?
       isQuestion: Boolean(analysis.detectedQuestion) || isLikelyInterviewQuestion(text),
       visualContext: analysis.context
     };
-    await electronService.saveInterviewTurn(activeSession.id, screenTurn);
+    if (activeSession.config.saveTranscript) {
+      await electronService.saveInterviewTurn(activeSession.id, screenTurn);
+    }
     await electronService.updateInterviewSession(activeSession.id, { visualContext: analysis.context });
     updateSessionState(current => ({
       ...current,
@@ -571,15 +588,45 @@ export const useInterviewCopilot = (options: { embedded?: boolean; onClosePanel?
     setScreenStatus('idle');
   }, [questionDraft, screenStatus, updateSessionState]);
 
+  const summarizeSession = useCallback(async () => {
+    const activeSession = sessionRef.current;
+    if (!activeSession || isSummarizing) return;
+    if (!activeSession.config.saveTranscript) {
+      setError('Ative "Salvar transcrição" para gerar um resumo reutilizável.');
+      return;
+    }
+    setIsSummarizing(true);
+    setError('');
+    await Promise.all(activeSession.transcript.map(turn => (
+      electronService.saveInterviewTurn(activeSession.id, {
+        ...turn,
+        text: `${turn.text}${turn.pendingText}`.trim(),
+        pendingText: ''
+      })
+    )));
+    const summarized = await electronService.summarizeInterviewSession(activeSession.id);
+    if (summarized) {
+      setSession(summarized);
+      sessionRef.current = summarized;
+    } else {
+      setError('Nao foi possivel resumir a transcrição.');
+    }
+    setIsSummarizing(false);
+  }, [isSummarizing]);
+
   const loadSession = useCallback((loaded: InterviewSession) => {
-    setSession(loaded);
-    sessionRef.current = loaded;
-    setConfig({ ...DEFAULT_INTERVIEW_CONFIG, ...loaded.config });
-    const latestQuestion = [...loaded.transcript].reverse().find(turn => turn.isQuestion)
-      || [...loaded.transcript].reverse().find(turn => turn.source === 'interviewer');
+    const normalized = {
+      ...loaded,
+      config: { ...DEFAULT_INTERVIEW_CONFIG, ...loaded.config }
+    };
+    setSession(normalized);
+    sessionRef.current = normalized;
+    setConfig(normalized.config);
+    const latestQuestion = [...normalized.transcript].reverse().find(turn => turn.isQuestion)
+      || [...normalized.transcript].reverse().find(turn => turn.source === 'interviewer');
     setSelectedTurnId(latestQuestion?.id || null);
     setQuestionDraft(latestQuestion?.text || '');
-    setActiveAnswerId(latestQuestion?.answerId || loaded.answers.at(-1)?.id || null);
+    setActiveAnswerId(latestQuestion?.answerId || normalized.answers.at(-1)?.id || null);
     setFlowStatus('idle');
     setError('');
   }, []);
@@ -667,9 +714,11 @@ export const useInterviewCopilot = (options: { embedded?: boolean; onClosePanel?
     answerLatestQuestion,
     quickAnswer,
     isPreparingQuickAnswer,
+    isSummarizing,
     canAnswerLatestQuestion,
     stopAnswer,
     captureScreen,
+    summarizeSession,
     loadSession,
     archiveSession
   };

@@ -46,8 +46,36 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({
   return (
     <div className="interview-setup">
       <div className="interview-setup-form">
-        <div className="interview-section-title">Preparar entrevista</div>
+        <div className="interview-section-title">
+          Preparar {config.mode === 'interview' ? 'entrevista' : 'reunião'}
+        </div>
+        <div className="interview-mode-selector" role="group" aria-label="Tipo de reunião">
+          <button
+            type="button"
+            className={config.mode === 'meeting' ? 'active' : ''}
+            onClick={() => update('mode', 'meeting')}
+          >
+            Reunião
+          </button>
+          <button
+            type="button"
+            className={config.mode === 'interview' ? 'active' : ''}
+            onClick={() => update('mode', 'interview')}
+          >
+            Entrevista
+          </button>
+        </div>
         <div className="interview-form-grid">
+          <label className="interview-title-field">
+            <span>{config.mode === 'interview' ? 'Título da entrevista' : 'Título da chamada'}</span>
+            <input
+              value={config.title}
+              onChange={event => update('title', event.target.value)}
+              placeholder={config.mode === 'interview' ? 'Entrevista técnica' : 'Planejamento semanal'}
+            />
+          </label>
+          {config.mode === 'interview' && (
+            <>
           <label>
             <span>Cargo</span>
             <input value={config.role} onChange={event => update('role', event.target.value)} placeholder="Senior Software Engineer" />
@@ -56,6 +84,8 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({
             <span>Empresa</span>
             <input value={config.company} onChange={event => update('company', event.target.value)} placeholder="Empresa" />
           </label>
+            </>
+          )}
           <label>
             <span>Idioma</span>
             <select value={config.language} onChange={event => update('language', event.target.value as InterviewConfig['language'])}>
@@ -82,27 +112,42 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({
                 event.target.value as InterviewConfig['transcriptionProvider']
               )}
             >
+              <option value="whisper-local">Whisper local (privado e sem custo)</option>
               <option value="gemini-live">Gemini Live (apos pausas)</option>
               <option value="google-cloud">Google Cloud (transcricao continua)</option>
             </select>
           </label>
         </div>
 
+        {config.mode === 'interview' ? (
+          <>
+            <label className="interview-wide-field">
+              <span>Currículo</span>
+              <textarea
+                value={config.resume}
+                onChange={event => update('resume', event.target.value)}
+                rows={4}
+                placeholder="Cole aqui o currículo usado para gerar respostas."
+              />
+            </label>
+            <label className="interview-wide-field">
+              <span>Descrição da vaga</span>
+              <textarea value={config.jobDescription} onChange={event => update('jobDescription', event.target.value)} rows={3} />
+            </label>
+          </>
+        ) : (
+          <label className="interview-wide-field">
+            <span>Descrição da reunião</span>
+            <textarea
+              value={config.description}
+              onChange={event => update('description', event.target.value)}
+              rows={4}
+              placeholder="Objetivo, participantes, pauta e informações úteis."
+            />
+          </label>
+        )}
         <label className="interview-wide-field">
-          <span>Curriculo</span>
-          <textarea
-            value={config.resume}
-            onChange={event => update('resume', event.target.value)}
-            rows={4}
-            placeholder="Cole aqui o curriculo que o Gemini deve usar nas respostas."
-          />
-        </label>
-        <label className="interview-wide-field">
-          <span>Descricao da vaga</span>
-          <textarea value={config.jobDescription} onChange={event => update('jobDescription', event.target.value)} rows={3} />
-        </label>
-        <label className="interview-wide-field">
-          <span>Instrucoes adicionais</span>
+          <span>Contexto adicional</span>
           <textarea value={config.extraInstructions} onChange={event => update('extraInstructions', event.target.value)} rows={2} />
         </label>
 
@@ -164,6 +209,14 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({
           <label className="interview-toggle">
             <input
               type="checkbox"
+              checked={config.saveTranscript}
+              onChange={event => update('saveTranscript', event.target.checked)}
+            />
+            <span>Salvar transcrição</span>
+          </label>
+          <label className="interview-toggle">
+            <input
+              type="checkbox"
               checked={config.transcribeMicrophone}
               onChange={event => update('transcribeMicrophone', event.target.checked)}
             />
@@ -182,7 +235,7 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({
         {error && <div className="interview-error">{error}</div>}
         <button className="interview-primary-button" type="button" onClick={onStart}>
           <Radio size={16} />
-          Iniciar entrevista
+          Iniciar {config.mode === 'interview' ? 'entrevista' : 'reunião'}
         </button>
       </div>
 

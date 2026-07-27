@@ -3,6 +3,7 @@ const { GoogleGenerativeAI } = require('@google/generative-ai');
 const store = require('../store/jsonStore');
 const hermesService = require('./hermesService');
 const logger = require('./logger');
+const { geminiGenerationConfig } = require('./interviewGenerationConfig');
 const {
   DEFAULT_CONFIG,
   buildGeminiInterviewPrompt,
@@ -57,11 +58,15 @@ class InterviewService {
   createSession(config = {}) {
     const now = new Date().toISOString();
     const normalizedConfig = { ...DEFAULT_CONFIG, ...(config || {}) };
-    const titleParts = [normalizedConfig.company, normalizedConfig.role].filter(Boolean);
+    const titleParts = normalizedConfig.mode === 'interview'
+      ? [normalizedConfig.company, normalizedConfig.role].filter(Boolean)
+      : [];
+    const fallbackLabel = normalizedConfig.mode === 'interview' ? 'Entrevista' : 'Reuniao';
     const session = {
       id: id('interview'),
       status: 'active',
-      title: titleParts.join(' - ') || `Entrevista ${new Date().toLocaleDateString('pt-BR')}`,
+      title: normalizedConfig.title || titleParts.join(' - ')
+        || `${fallbackLabel} ${new Date().toLocaleDateString('pt-BR')}`,
       startedAt: now,
       updatedAt: now,
       config: normalizedConfig,
@@ -161,6 +166,56 @@ class InterviewService {
     return buildInterviewInstruction(args);
   }
 
+  async summarizeSession(sessionId) {
+    const session = this.getSession(sessionId);
+    if (!session) throw new Error('Sessao nao encontrada.');
+    const transcript = (session.transcript || [])
+      .map(turn => `${turn.source}: ${String(turn.text || '').trim()}`)
+      .filter(line => !line.endsWith(':'))
+      .join('\n');
+    if (!transcript.trim()) throw new Error('Nao ha transcricao salva para resumir.');
+
+    const instruction = [
+      'Resuma esta reuniao ou entrevista em Markdown compacto.',
+      'Use as secoes Resumo, Decisoes, Acoes, Perguntas abertas e Contexto.',
+      'Use somente bullets, omita secoes sem conteudo e preserve nomes, numeros e compromissos.',
+      'O resumo sera reutilizado como contexto para responder perguntas futuras.'
+    ].join(' ');
+    let provider = 'hermes';
+    let text = '';
+    const hermesResult = await hermesService.ask({
+      prompt: `Titulo: ${session.title}\n\n${clip(transcript, 16000)}`,
+      instruction,
+      includeLocalContext: false,
+      maxOutputTokens: 1200,
+      logType: 'meeting_summary',
+      primaryAgent: true
+    });
+
+    if (hermesResult.success && hermesResult.text) {
+      text = hermesResult.text.trim();
+    } else {
+      provider = 'gemini';
+      const settings = store.getSettings();
+      const apiKey = settings?.general?.apiKey || process.env.VITE_GEMINI_API_KEY;
+      if (!apiKey) throw new Error(hermesResult.error || 'Nenhuma IA configurada para resumir.');
+      const genAI = new GoogleGenerativeAI(apiKey);
+      const model = genAI.getGenerativeModel({
+        model: settings.general.minichatModel || 'gemini-2.5-flash',
+        systemInstruction: instruction
+      });
+      const result = await model.generateContent(`Titulo: ${session.title}\n\n${clip(transcript, 16000)}`);
+      text = result.response.text().trim();
+    }
+
+    if (!text) throw new Error('A IA nao retornou um resumo.');
+    return this.updateSession(sessionId, {
+      summary: text,
+      summaryAt: new Date().toISOString(),
+      summaryProvider: provider
+    });
+  }
+
   async streamGeminiAnswer(args, instruction, state, emit) {
     const settings = store.getSettings();
     const apiKey = settings?.general?.apiKey || process.env.VITE_GEMINI_API_KEY;
@@ -169,13 +224,11 @@ class InterviewService {
     const controller = new AbortController();
     state.abortController = controller;
     const genAI = new GoogleGenerativeAI(apiKey);
+    const modelName = settings.general.minichatModel || 'gemini-2.5-flash';
     const model = genAI.getGenerativeModel({
-      model: settings.general.minichatModel || 'gemini-2.5-flash',
+      model: modelName,
       systemInstruction: instruction,
-      generationConfig: {
-        temperature: 0.25,
-        maxOutputTokens: args.variant === 'code' ? 1400 : args.variant === 'quick' ? 350 : 700
-      }
+      generationConfig: geminiGenerationConfig(modelName, args.variant)
     });
     const prompt = buildGeminiInterviewPrompt(args);
     const streamResult = await model.generateContentStream(prompt, {
@@ -190,12 +243,23 @@ class InterviewService {
       emit({ type: 'delta', text: delta, provider: 'gemini' });
     }
 
+    const response = await streamResult.response;
     if (!state.cancelled && !state.text.trim()) {
-      const response = await streamResult.response;
       const text = response.text().trim();
       if (text) {
         state.text = text;
         emit({ type: 'delta', text, provider: 'gemini' });
+      }
+    }
+
+    const finishReason = response.candidates?.[0]?.finishReason;
+    if (!state.cancelled && finishReason && finishReason !== 'STOP') {
+      logger.warn(
+        'INTERVIEW',
+        `Gemini ${args.variant || 'answer'} finished with ${finishReason} after ${state.text.length} chars`
+      );
+      if (finishReason === 'MAX_TOKENS') {
+        throw new Error('Gemini atingiu o limite antes de concluir a resposta. Tente novamente.');
       }
     }
 

@@ -67,16 +67,20 @@ class JsonStore {
         preferredAnswerStyle: 'auto'
       },
       interview: {
+        mode: 'meeting',
+        title: '',
+        description: '',
         role: '',
         company: '',
         resume: '',
         jobDescription: '',
-        language: 'auto',
+        language: 'pt-BR',
         answerStyle: 'natural',
-        transcriptionProvider: 'gemini-live',
+        transcriptionProvider: 'whisper-local',
         googleCloudProjectId: '',
         extraInstructions: '',
         transcribeMicrophone: false,
+        saveTranscript: true,
         retainAudio: false
       },
       layout: {
@@ -213,6 +217,14 @@ class JsonStore {
       layout: { ...this._defaultSettings.layout, ...(saved.layout || {}) },
       shortcuts: { ...this._defaultSettings.shortcuts, ...(saved.shortcuts || {}) }
     };
+    if (!saved.general?.localWhisperDefaultMigrated) {
+      this.cache.settings.interview.transcriptionProvider = 'whisper-local';
+      if (this.cache.settings.interview.language === 'auto') {
+        this.cache.settings.interview.language = 'pt-BR';
+      }
+      this.cache.settings.general.localWhisperDefaultMigrated = true;
+      this.safeSaveSettings(this.cache.settings);
+    }
 
     // Populate env variables from settings for backward compatibility & frontend access
     process.env.VITE_GEMINI_API_KEY = this.cache.settings.general.apiKey || '';

@@ -1,11 +1,12 @@
 import React from 'react';
 import {
   AlignLeft,
+  Camera,
   Clipboard,
   Code2,
   ListCollapse,
+  LoaderCircle,
   RotateCcw,
-  Send,
   Square,
   UserRound
 } from 'lucide-react';
@@ -21,6 +22,8 @@ interface InterviewAnswerPaneProps {
   onAnswer: (variant: InterviewAnswerVariant, answer?: InterviewAnswer) => void;
   onStop: () => void;
   onCopy: (text: string) => void;
+  screenStatus: 'idle' | 'reading' | 'error';
+  onCaptureScreen: () => void;
 }
 
 export const InterviewAnswerPane: React.FC<InterviewAnswerPaneProps> = ({
@@ -30,25 +33,40 @@ export const InterviewAnswerPane: React.FC<InterviewAnswerPaneProps> = ({
   onQuestionChange,
   onAnswer,
   onStop,
-  onCopy
+  onCopy,
+  screenStatus,
+  onCaptureScreen
 }) => (
   <div className="interview-answer-pane">
     <div className="interview-question-editor">
-      <textarea
+      <input
+        type="text"
         value={question}
         onChange={event => onQuestionChange(event.target.value)}
+        onKeyDown={event => {
+          if (
+            event.key !== 'Enter'
+            || event.nativeEvent.isComposing
+            || !question.trim()
+            || answer?.status === 'streaming'
+          ) return;
+          event.preventDefault();
+          onAnswer('answer');
+        }}
         placeholder="Selecione ou escreva uma pergunta..."
-        rows={3}
+        aria-label="Pergunta da reunião"
       />
       <button
         type="button"
-        className="interview-answer-submit"
-        onClick={() => onAnswer('answer')}
-        disabled={!question.trim() || answer?.status === 'streaming'}
-        title="Responder pergunta"
+        className="interview-question-capture"
+        onClick={onCaptureScreen}
+        disabled={screenStatus === 'reading'}
+        title={screenStatus === 'reading' ? 'Lendo tela' : 'Capturar tela'}
+        aria-label="Capturar tela"
       >
-        <Send size={15} />
-        Responder pergunta
+        {screenStatus === 'reading'
+          ? <LoaderCircle className="spin" size={15} />
+          : <Camera size={15} />}
       </button>
     </div>
 

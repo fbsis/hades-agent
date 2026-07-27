@@ -3,7 +3,8 @@ export type InterviewFlowStatus = 'idle' | 'starting' | 'listening' | 'answering
 export type InterviewSessionStatus = 'active' | 'completed' | 'archived';
 export type InterviewLanguage = 'auto' | 'pt-BR' | 'en-US';
 export type InterviewAnswerStyle = 'natural' | 'concise' | 'star' | 'technical';
-export type InterviewTranscriptionProvider = 'gemini-live' | 'google-cloud';
+export type MeetingMode = 'meeting' | 'interview';
+export type InterviewTranscriptionProvider = 'whisper-local' | 'gemini-live' | 'google-cloud';
 export type InterviewAnswerVariant = 'answer' | 'quick' | 'shorter' | 'detail' | 'star' | 'code' | 'retry';
 
 export interface GoogleCloudAuthStatus {
@@ -13,6 +14,9 @@ export interface GoogleCloudAuthStatus {
 }
 
 export interface InterviewConfig {
+  mode: MeetingMode;
+  title: string;
+  description: string;
   role: string;
   company: string;
   resume: string;
@@ -23,6 +27,7 @@ export interface InterviewConfig {
   googleCloudProjectId: string;
   extraInstructions: string;
   transcribeMicrophone: boolean;
+  saveTranscript: boolean;
   retainAudio: boolean;
 }
 
@@ -74,6 +79,9 @@ export interface InterviewSession {
   transcript: TranscriptTurn[];
   answers: InterviewAnswer[];
   visualContext?: string;
+  summary?: string;
+  summaryAt?: string;
+  summaryProvider?: 'hermes' | 'gemini';
   audioArtifacts?: InterviewAudioArtifact[];
 }
 
@@ -94,7 +102,7 @@ export interface InterviewTranscriptionStatus {
   turnId?: string;
   sequence?: number;
   status: 'connecting' | 'ready' | 'reconnecting' | 'closed' | 'error';
-  provider?: 'google-cloud' | 'gemini-live';
+  provider?: InterviewTranscriptionProvider;
   attempt?: number;
   error?: string;
 }
@@ -122,15 +130,19 @@ export interface InterviewScreenAnalysis {
 }
 
 export const DEFAULT_INTERVIEW_CONFIG: InterviewConfig = {
+  mode: 'meeting',
+  title: '',
+  description: '',
   role: '',
   company: '',
   resume: '',
   jobDescription: '',
-  language: 'auto',
+  language: 'pt-BR',
   answerStyle: 'natural',
-  transcriptionProvider: 'gemini-live',
+  transcriptionProvider: 'whisper-local',
   googleCloudProjectId: '',
   extraInstructions: '',
   transcribeMicrophone: false,
+  saveTranscript: true,
   retainAudio: false
 };

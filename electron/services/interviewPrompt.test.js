@@ -42,14 +42,40 @@ describe('interview prompt contract', () => {
     expect(context).not.toContain('turn text 2');
   });
 
+  it('includes meeting details and the saved summary in future answers', () => {
+    const context = buildInterviewContext({
+      config: {
+        mode: 'meeting',
+        title: 'Architecture review',
+        description: 'Choose the queue strategy.'
+      },
+      sessionSummary: '- The team prefers at-least-once delivery.'
+    });
+
+    expect(context).toContain('Mode: meeting');
+    expect(context).toContain('Meeting title: Architecture review');
+    expect(context).toContain('Choose the queue strategy.');
+    expect(context).toContain('Saved meeting summary');
+    expect(context).toContain('at-least-once delivery');
+  });
+
   it('locks natural spoken and coding response behavior', () => {
     const natural = buildInterviewInstruction({ config: { answerStyle: 'natural' }, variant: 'answer' });
     const gemini = buildInterviewInstruction({ config: { answerStyle: 'natural' }, variant: 'answer', provider: 'gemini' });
     const coding = buildInterviewInstruction({ config: { answerStyle: 'technical' }, variant: 'code' });
     expect(natural).toContain('first person');
     expect(natural).toContain('45 to 90 seconds');
+    expect(natural).toContain('every answer');
+    expect(natural).toContain('**Resumo**');
+    expect(natural).toContain('2 to 4 short bullet points');
+    expect(natural).toContain('**Aprofundamento**');
+    expect(natural).toContain('2 to 4 advanced bullet points');
+    expect(natural).toContain('Do not write prose paragraphs');
     expect(gemini).toContain('supplied resume');
     expect(gemini).not.toContain('Hermes persistent memory');
+    expect(gemini).toContain('plausible illustrative example');
+    expect(gemini).toContain('opinion');
+    expect(gemini).toContain('hypothetical');
     expect(coding).toContain('Markdown code');
   });
 
@@ -104,9 +130,12 @@ describe('interview prompt contract', () => {
     expect(prompt).toContain('fragment 6');
     expect(prompt).toContain('incomplete final fragment');
     expect(prompt).not.toContain('<last_five_conversation_texts>');
-    expect(instruction).toContain('Resumo:');
-    expect(instruction).toContain('3 to 5 bullet points');
-    expect(instruction).toContain('Never exceed five bullets');
+    expect(instruction).toContain('**Resumo**');
+    expect(instruction).toContain('**Aprofundamento**');
+    expect(instruction).toContain('2 to 4 short bullet points');
+    expect(instruction).toContain('2 to 4 advanced bullet points');
+    expect(instruction).toContain('mandatory two-level bullet format');
+    expect(instruction).not.toContain('120 words');
     expect(instruction).not.toContain('Avoid headings and bullets');
   });
 });

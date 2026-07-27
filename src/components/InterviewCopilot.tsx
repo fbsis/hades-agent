@@ -1,11 +1,8 @@
 import React, { useState } from 'react';
 import {
-  Camera,
   Check,
-  ChevronLeft,
-  CircleStop,
+  FileText,
   Headphones,
-  MessageSquareReply,
   Mic,
   Minus,
   Pin,
@@ -30,15 +27,12 @@ interface InterviewCopilotProps {
 const InterviewCopilot: React.FC<InterviewCopilotProps> = ({ embedded = false, onClosePanel }) => {
   const copilot = useInterviewCopilot({ embedded, onClosePanel });
   const [isContextOpen, setIsContextOpen] = useState(false);
-  const isListening = copilot.flowStatus === 'listening' || copilot.flowStatus === 'answering';
-  const isStarting = copilot.flowStatus === 'starting';
-
   return (
     <div className={`app-container interview-copilot ${embedded ? 'embedded-susurro' : ''}`}>
       <header className="interview-header">
         <div className="interview-header-title">
           <Radio size={16} />
-          <span>{copilot.session?.title || 'Interview Copilot'}</span>
+          <span>{copilot.session?.title || 'Reunião'}</span>
           {copilot.session && <time>{formatTime(copilot.elapsedSeconds)}</time>}
         </div>
 
@@ -48,7 +42,9 @@ const InterviewCopilot: React.FC<InterviewCopilotProps> = ({ embedded = false, o
               className={`source-status status-${copilot.sourceStatuses.interviewer?.status || 'idle'}`}
               title={copilot.sourceStatuses.interviewer?.provider === 'google-cloud'
                 ? 'Google Cloud Speech-to-Text com resultados intermediarios'
-                : 'Gemini Live'}
+                : copilot.sourceStatuses.interviewer?.provider === 'whisper-local'
+                  ? 'Whisper local, privado e sem custo de API'
+                  : 'Gemini Live'}
             >
               <Headphones size={12} /> Sistema
             </span>
@@ -65,30 +61,11 @@ const InterviewCopilot: React.FC<InterviewCopilotProps> = ({ embedded = false, o
             <>
               <button
                 type="button"
-                className="interview-icon-button"
-                onClick={copilot.captureScreen}
-                disabled={copilot.screenStatus === 'reading'}
-                title={copilot.screenStatus === 'reading' ? 'Lendo tela' : 'Ler tela com Gemini'}
-              >
-                <Camera size={15} />
-              </button>
-              <button
-                type="button"
                 className={`interview-icon-button ${isContextOpen ? 'active' : ''}`}
                 onClick={() => setIsContextOpen(open => !open)}
-                title="Contexto da entrevista"
+                title="Contexto da reunião"
               >
                 <SlidersHorizontal size={15} />
-              </button>
-              <button
-                type="button"
-                className="interview-answer-now-button"
-                onClick={copilot.answerLatestQuestion}
-                disabled={!copilot.canAnswerLatestQuestion}
-                title="Responder automaticamente a pergunta mais recente com Gemini"
-              >
-                <MessageSquareReply size={14} />
-                Responder pergunta
               </button>
               <button
                 type="button"
@@ -102,17 +79,17 @@ const InterviewCopilot: React.FC<InterviewCopilotProps> = ({ embedded = false, o
               </button>
               <button
                 type="button"
-                className={`interview-listen-button ${isListening ? 'active' : ''}`}
-                onClick={isListening ? copilot.stopListening : copilot.startListening}
-                disabled={isStarting || copilot.flowStatus === 'stopping'}
+                className="interview-icon-button"
+                onClick={copilot.summarizeSession}
+                disabled={copilot.isSummarizing || !copilot.session.transcript.length}
+                title={copilot.isSummarizing ? 'Resumindo transcrição' : 'Resumir transcrição'}
               >
-                {isListening ? <CircleStop size={14} /> : <Radio size={14} />}
-                {isStarting ? 'Conectando' : isListening ? 'Pausar' : 'Ouvir'}
+                <FileText className={copilot.isSummarizing ? 'spin' : ''} size={15} />
               </button>
-              <button type="button" className="interview-icon-button" onClick={copilot.newSession} title="Nova entrevista">
+              <button type="button" className="interview-icon-button" onClick={copilot.newSession} title="Nova reunião">
                 <Plus size={15} />
               </button>
-              <button type="button" className="interview-icon-button" onClick={copilot.finishSession} title="Finalizar entrevista">
+              <button type="button" className="interview-icon-button" onClick={copilot.finishSession} title="Finalizar reunião">
                 <Check size={15} />
               </button>
             </>
@@ -125,10 +102,10 @@ const InterviewCopilot: React.FC<InterviewCopilotProps> = ({ embedded = false, o
           <button
             type="button"
             className="interview-icon-button"
-            onClick={embedded && onClosePanel ? onClosePanel : copilot.handleMinimize}
-            title={embedded ? 'Voltar' : 'Minimizar'}
+            onClick={copilot.handleMinimize}
+            title="Minimizar e continuar"
           >
-            {embedded ? <ChevronLeft size={16} /> : <Minus size={16} />}
+            <Minus size={16} />
           </button>
         </div>
       </header>
@@ -151,14 +128,23 @@ const InterviewCopilot: React.FC<InterviewCopilotProps> = ({ embedded = false, o
         <>
           {isContextOpen && (
             <div className="interview-context-strip">
-              <span><strong>Cargo</strong>{copilot.session.config.role || 'Nao informado'}</span>
-              <span><strong>Empresa</strong>{copilot.session.config.company || 'Nao informada'}</span>
+              <span><strong>Tipo</strong>{copilot.session.config.mode === 'interview' ? 'Entrevista' : 'Reunião'}</span>
+              <span><strong>Título</strong>{copilot.session.config.title || copilot.session.title}</span>
+              {copilot.session.config.mode === 'interview' && (
+                <span><strong>Cargo / Empresa</strong>{[copilot.session.config.role, copilot.session.config.company].filter(Boolean).join(' / ') || 'Nao informado'}</span>
+              )}
               <span><strong>Idioma</strong>{copilot.session.config.language}</span>
               <span><strong>Estilo</strong>{copilot.session.config.answerStyle}</span>
             </div>
           )}
 
           {copilot.error && <div className="interview-error-banner">{copilot.error}</div>}
+          {copilot.session.summary && (
+            <div className="interview-summary">
+              <strong>Resumo da reunião</strong>
+              <div>{copilot.session.summary}</div>
+            </div>
+          )}
           <main className="interview-workspace">
             <section className="interview-transcript-pane">
               <div className="interview-pane-heading">
@@ -192,6 +178,8 @@ const InterviewCopilot: React.FC<InterviewCopilotProps> = ({ embedded = false, o
                 onAnswer={copilot.requestAnswer}
                 onStop={copilot.stopAnswer}
                 onCopy={text => electronService.copyToClipboard(text)}
+                screenStatus={copilot.screenStatus}
+                onCaptureScreen={copilot.captureScreen}
               />
             </section>
           </main>

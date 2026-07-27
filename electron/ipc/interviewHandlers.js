@@ -50,6 +50,10 @@ function registerInterviewHandlers() {
     interviewService.archiveSession(sessionId)
   )));
 
+  ipcMain.handle('interview-summarize-session', wrap((event, sessionId) => (
+    interviewService.summarizeSession(sessionId)
+  )));
+
   ipcMain.handle('interview-save-turn', wrap((event, sessionId, turn) => (
     interviewService.upsertTurn(sessionId, turn)
   )));
