@@ -1,4 +1,4 @@
-const { ipcMain, BrowserWindow, screen } = require('electron');
+const { app, ipcMain, BrowserWindow, screen } = require('electron');
 const windowManager = require('../windows/windowManager');
 const appState = require('../appState');
 
@@ -45,6 +45,17 @@ function registerWindowHandlers() {
       return { success: true };
     }
     windowManager.minimizeToFloatingHead();
+    return { success: true };
+  });
+
+  /**
+   * Explicitly exits the app instead of minimizing it into the floating head.
+   */
+  ipcMain.handle('quit-app', () => {
+    appState.isQuitting = true;
+    app.isQuitting = true;
+    app.quit();
+    setTimeout(() => app.exit(0), 1500).unref();
     return { success: true };
   });
 

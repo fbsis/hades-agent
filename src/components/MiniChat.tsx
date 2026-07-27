@@ -1,6 +1,5 @@
 import React from 'react';
 import { ChatHeader } from './chat/ChatHeader';
-import { SettingsMenu } from './chat/SettingsMenu';
 import { ChatList } from './chat/ChatList';
 import { useMiniChat } from '../hooks/useMiniChat';
 import { electronService } from '../services/electron';
@@ -33,14 +32,8 @@ const MiniChat: React.FC<MiniChatProps> = ({
     isResizing,
     timer,
     tokens,
-    isSettingsOpen,
-    menuView,
-    currentModel,
     copiedId,
     chatEndRef,
-    setCurrentModel,
-    setIsSettingsOpen,
-    setMenuView,
     togglePin,
     handleMinimize,
     startResizing,
@@ -53,27 +46,14 @@ const MiniChat: React.FC<MiniChatProps> = ({
       <ChatHeader
         timer={timer}
         tokens={tokens}
-        currentModel={currentModel}
         isPinned={isPinned}
-        isSettingsOpen={isSettingsOpen}
         togglePin={togglePin}
-        setIsSettingsOpen={setIsSettingsOpen}
-        onOpenSettings={onOpenSettings}
+        onOpenSettings={onOpenSettings || (() => electronService.showSettings())}
         onOpenTranscription={onOpenTranscription || (() => electronService.showSusurro())}
         onCloseSession={clearHistory}
         onMinimize={embedded && onClosePanel ? onClosePanel : handleMinimize}
         embedded={embedded}
       />
-
-      {isSettingsOpen && (
-        <SettingsMenu
-          view={menuView}
-          currentModel={currentModel}
-          onSetView={setMenuView}
-          onSelectModel={setCurrentModel}
-          onClose={() => setIsSettingsOpen(false)}
-        />
-      )}
 
       <ChatList
         messages={messages}

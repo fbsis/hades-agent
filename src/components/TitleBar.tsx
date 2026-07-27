@@ -4,7 +4,7 @@ import { electronService } from '../services/electron';
 
 const TitleBar: React.FC = () => {
   const handleClose = () => {
-    electronService.closeWindow();
+    electronService.quitApp();
   };
 
   return (
@@ -26,7 +26,7 @@ const TitleBar: React.FC = () => {
         <span className="app-title">Hades-Agent</span>
       </div>
       <div className="window-controls">
-        <button onClick={handleClose} className="close-btn" title="Fechar para a bandeja">
+        <button onClick={handleClose} className="close-btn" title="Sair do Hades">
           <X size={14} />
         </button>
       </div>

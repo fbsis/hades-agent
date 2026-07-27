@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { SettingsData } from '../../types/electron';
-import { MODELS } from '../../constants/models';
-import { Eye, EyeOff, Key, Cpu, Shield, Moon } from 'lucide-react';
+import { Eye, EyeOff, Key, Shield, Moon } from 'lucide-react';
 
 interface GeneralTabProps {
   settings: SettingsData['general'];
@@ -16,7 +15,7 @@ const GeneralTab: React.FC<GeneralTabProps> = ({ settings, updateSettings }) => 
     <div>
       <div className="tab-header">
         <h2 className="tab-title">Configurações</h2>
-        <p className="tab-subtitle">Ajuste modelos de IA, privacidade e chaves de acesso.</p>
+        <p className="tab-subtitle">Ajuste privacidade, memória e chaves de acesso.</p>
       </div>
 
       <div className="section-header">
@@ -137,60 +136,6 @@ const GeneralTab: React.FC<GeneralTabProps> = ({ settings, updateSettings }) => 
 
       <div className="section-header">
         <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <Cpu size={16} /> Modelos em Uso
-        </span>
-      </div>
-
-      <div className="setting-row">
-        <div className="setting-info">
-          <div className="setting-title">Modelo do Minichat (Raciocínio)</div>
-        </div>
-        <div className="setting-control">
-          <select 
-            className="settings-select"
-            aria-label="Modelo do Minichat"
-            value={settings.minichatModel}
-            onChange={(e) => updateSettings({ minichatModel: e.target.value })}
-          >
-            {MODELS.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
-          </select>
-        </div>
-      </div>
-
-      <div className="setting-row">
-        <div className="setting-info">
-          <div className="setting-title">Gravador (Speech-to-Text)</div>
-        </div>
-        <div className="setting-control">
-          <select 
-            className="settings-select"
-            aria-label="Modelo do Gravador de Voz"
-            value={settings.sttModel}
-            onChange={(e) => updateSettings({ sttModel: e.target.value })}
-          >
-            {MODELS.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
-          </select>
-        </div>
-      </div>
-
-      <div className="setting-row">
-        <div className="setting-info">
-          <div className="setting-title">Transcrição Completa</div>
-        </div>
-        <div className="setting-control">
-          <select 
-            className="settings-select"
-            aria-label="Modelo de Transcrição Completa"
-            value={settings.fullTranscriptionModel}
-            onChange={(e) => updateSettings({ fullTranscriptionModel: e.target.value })}
-          >
-            {MODELS.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
-          </select>
-        </div>
-      </div>
-
-      <div className="section-header">
-        <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <Shield size={16} /> Privacidade
         </span>
       </div>
@@ -237,23 +182,6 @@ const GeneralTab: React.FC<GeneralTabProps> = ({ settings, updateSettings }) => 
         </div>
       </div>
 
-      <div className="setting-row">
-        <div className="setting-info">
-          <div className="setting-title">Modelo do Dreaming</div>
-          <div className="setting-desc">Escolha o modelo que processará os diários de sessões para gerar novas memórias.</div>
-        </div>
-        <div className="setting-control">
-          <select 
-            className="settings-select"
-            aria-label="Modelo do Dreaming"
-            value={settings.dreamingModel || 'gemini-2.5-flash'}
-            onChange={(e) => updateSettings({ dreamingModel: e.target.value })}
-            disabled={!(settings.dreamingEnabled ?? true)}
-          >
-            {MODELS.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
-          </select>
-        </div>
-      </div>
     </div>
   );
 };

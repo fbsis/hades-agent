@@ -24,6 +24,7 @@ export interface ElectronAPI {
   closeWindow: () => Promise<IPCResponse<void>>;
   minimizeWindow: () => Promise<IPCResponse<void>>;
   minimizeToHead: () => Promise<IPCResponse<void>>;
+  quitApp: () => Promise<IPCResponse<void>>;
   resizeWindow: (width: number, height: number) => Promise<IPCResponse<void>>;
   togglePin: () => void;
   isPinned: () => Promise<boolean>;

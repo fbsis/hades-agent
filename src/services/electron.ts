@@ -55,6 +55,7 @@ class ElectronService {
   async closeWindow() { await this.handleResponse(this.electron?.closeWindow(), undefined, 'closeWindow'); }
   async minimizeWindow() { await this.handleResponse(this.electron?.minimizeWindow(), undefined, 'minimizeWindow'); }
   async minimizeToHead() { await this.handleResponse(this.electron?.minimizeToHead(), undefined, 'minimizeToHead'); }
+  async quitApp() { await this.handleResponse(this.electron?.quitApp(), undefined, 'quitApp'); }
   async resizeWindow(width: number, height: number) { await this.handleResponse(this.electron?.resizeWindow(width, height), undefined, 'resizeWindow'); }
   togglePin() { this.electron?.togglePin(); }
   async isPinned() { return await this.electron?.isPinned() ?? false; }

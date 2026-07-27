@@ -9,12 +9,11 @@ export type CommandPanel = 'command' | 'chat' | 'settings' | 'transcription' | '
  * Orchestrator hook for the CommandBar component.
  * Manages input state, screen capture, and Electron IPC interactions.
  */
-export const useCommandBar = (activePanel: CommandPanel = 'command') => {
+export const useCommandBar = (activePanel: CommandPanel = 'command', isOptionsOpen = false) => {
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [query, setQuery] = useState('');
   const [attachedImage, setAttachedImage] = useState<string | null>(null);
-  const [isModelDropdownOpen, setIsModelDropdownOpen] = useState(false);
 
   // Focus and IPC event setup
   useEffect(() => {
@@ -47,6 +46,16 @@ export const useCommandBar = (activePanel: CommandPanel = 'command') => {
   // Handle window resizing and textarea auto-height
   useLayoutEffect(() => {
     if (inputRef.current && containerRef.current) {
+      if (activePanel === 'chat') {
+        electronService.resizeWindow(365, 720);
+        return;
+      }
+
+      if (activePanel === 'transcription') {
+        electronService.resizeWindow(940, 720);
+        return;
+      }
+
       if (activePanel !== 'command') {
         electronService.resizeWindow(820, 720);
         return;
@@ -61,15 +70,12 @@ export const useCommandBar = (activePanel: CommandPanel = 'command') => {
       inputRef.current.style.height = `${limitedTextAreaHeight}px`;
       inputRef.current.style.overflowY = scHeight > maxTextAreaHeight ? 'auto' : 'hidden';
 
-      let height = containerRef.current.offsetHeight;
-      if (isModelDropdownOpen) {
-        height += 240;
-      }
+      const height = containerRef.current.offsetHeight;
       const limitedWindowHeight = Math.min(height, 550);
       
-      electronService.resizeWindow(730, limitedWindowHeight);
+      electronService.resizeWindow(365, limitedWindowHeight);
     }
-  }, [query, attachedImage, isModelDropdownOpen, activePanel]);
+  }, [query, attachedImage, activePanel, isOptionsOpen]);
 
   const handleCapture = async () => {
     try {
@@ -140,8 +146,6 @@ export const useCommandBar = (activePanel: CommandPanel = 'command') => {
     handleSend,
     handleKeyDown,
     handlePaste,
-    removeAttachment,
-    isModelDropdownOpen,
-    setIsModelDropdownOpen
+    removeAttachment
   };
 };

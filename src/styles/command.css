@@ -4,7 +4,7 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  width: 720px;
+  width: 365px;
   border-radius: 12px;
   border: 1px solid rgba(220, 38, 38, 0.35);
   box-shadow: 
@@ -20,13 +20,35 @@
   overflow: hidden !important;
 }
 
+.command-mode.panel-chat.unified-expanded {
+  width: 365px;
+}
+
+.command-mode.panel-chat .chat-header {
+  padding: 0 8px;
+  gap: 4px;
+}
+
+.command-mode.panel-chat .title-with-timer {
+  gap: 6px;
+}
+
+.command-mode.panel-chat .action-btn {
+  width: 28px;
+  height: 28px;
+}
+
+.command-mode.panel-chat .chat-title h1 {
+  font-size: 13px;
+}
+
 .command-main {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 12px;
   width: 100%;
-  min-height: 64px;
-  padding: 12px 18px;
+  min-height: 56px;
+  padding: 10px 14px;
   border-bottom: 1px solid rgba(220, 38, 38, 0.15);
   box-sizing: border-box;
   -webkit-app-region: drag;
@@ -69,8 +91,8 @@
   display: flex;
   justify-content: flex-start;
   align-items: center;
-  gap: 12px;
-  padding: 10px 18px;
+  gap: 8px;
+  padding: 8px 14px;
   background: rgba(8, 4, 4, 0.7);
   backdrop-filter: blur(10px);
   position: relative;
@@ -91,6 +113,26 @@
   border-radius: 6px;
 }
 
+.footer-btn.text-btn {
+  min-height: 30px;
+  padding: 6px 10px;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0;
+}
+
+.footer-btn.select-btn {
+  min-width: 92px;
+  justify-content: space-between;
+}
+
+.footer-btn.text-btn:hover,
+.footer-btn.text-btn.active {
+  color: #fff;
+}
+
 .footer-btn:hover {
   background: rgba(220, 38, 38, 0.1);
   border-color: rgba(220, 38, 38, 0.3);
@@ -104,8 +146,19 @@
   box-shadow: 0 0 12px rgba(220, 38, 38, 0.12);
 }
 
+.footer-btn.danger:hover {
+  background: rgba(239, 68, 68, 0.18);
+  border-color: rgba(239, 68, 68, 0.45);
+  box-shadow: 0 0 12px rgba(239, 68, 68, 0.14);
+}
+
 .footer-btn:active {
   transform: translateY(0);
+}
+
+.footer-spacer {
+  flex: 1;
+  min-width: 8px;
 }
 
 .keycap-box {
@@ -134,7 +187,56 @@
 }
 
 .char-counter {
+  flex-shrink: 0;
+  font-size: 10px;
+  color: rgba(220, 38, 38, 0.4);
+  font-weight: 600;
+  letter-spacing: 0;
   transition: color 0.2s ease;
+}
+
+.command-options-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px;
+  background: rgba(8, 4, 4, 0.82);
+  border-top: 1px solid rgba(220, 38, 38, 0.12);
+  border-bottom-left-radius: 11px;
+  border-bottom-right-radius: 11px;
+  -webkit-app-region: no-drag;
+}
+
+.command-options-menu .option-row {
+  width: 100%;
+  min-height: 30px;
+  padding: 0 10px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.74);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-align: left;
+}
+
+.command-options-menu .option-row:hover {
+  background: rgba(220, 38, 38, 0.1);
+  border-color: rgba(220, 38, 38, 0.18);
+  color: #fff;
+}
+
+.command-options-menu .option-row.danger:hover {
+  background: rgba(239, 68, 68, 0.16);
+  border-color: rgba(239, 68, 68, 0.28);
+  color: #fff;
+}
+
+.command-footer:has(+ .command-options-menu) {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
 }
 
 .dropdown-item:hover {

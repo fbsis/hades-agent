@@ -35,6 +35,7 @@ contextBridge.exposeInMainWorld('electron', {
   closeWindow: () => ipcRenderer.invoke('close-window'),
   minimizeWindow: () => ipcRenderer.invoke('minimize-window'),
   minimizeToHead: () => ipcRenderer.invoke('minimize-to-head'),
+  quitApp: () => ipcRenderer.invoke('quit-app'),
   resizeWindow: (w, h) => ipcRenderer.invoke('resize-window', { width: w, height: h }),
   showChat: () => ipcRenderer.send('show-chat'),
   showSettings: () => ipcRenderer.send('show-settings'),

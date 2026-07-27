@@ -5,12 +5,9 @@ import { formatTime } from '../../utils/formatters';
 interface ChatHeaderProps {
   timer: number;
   tokens: number;
-  currentModel: string;
   isPinned: boolean;
-  isSettingsOpen: boolean;
   togglePin: () => void;
-  setIsSettingsOpen: (open: boolean) => void;
-  onOpenSettings?: () => void;
+  onOpenSettings: () => void;
   onOpenTranscription: () => void;
   onCloseSession: () => void;
   onMinimize: () => void;
@@ -23,11 +20,8 @@ interface ChatHeaderProps {
 export const ChatHeader: React.FC<ChatHeaderProps> = ({
   timer,
   tokens,
-  currentModel,
   isPinned,
-  isSettingsOpen,
   togglePin,
-  setIsSettingsOpen,
   onOpenSettings,
   onOpenTranscription,
   onCloseSession,
@@ -66,7 +60,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
             </svg>
           </button>
           <div className="usage-popup">
-            {currentModel.split('/')[1] || currentModel} • {tokens.toLocaleString()} tokens
+            {tokens.toLocaleString()} tokens
           </div>
         </div>
 
@@ -92,14 +86,8 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
         </button>
 
         <button 
-          className={`action-btn settings-btn ${isSettingsOpen ? 'active' : ''}`}
-          onClick={() => {
-            if (onOpenSettings) {
-              onOpenSettings();
-              return;
-            }
-            setIsSettingsOpen(!isSettingsOpen);
-          }}
+          className="action-btn settings-btn"
+          onClick={onOpenSettings}
           title="Configurações"
         >
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

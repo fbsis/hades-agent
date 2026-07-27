@@ -44,8 +44,6 @@ export const useMiniChat = (options: { embedded?: boolean; isActive?: boolean; o
     const saved = localStorage.getItem('minichat_session_tokens');
     return saved ? parseInt(saved, 10) : 0;
   });
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [menuView, setMenuView] = useState<'main' | 'models'>('main');
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   // Load initial settings
@@ -134,9 +132,6 @@ export const useMiniChat = (options: { embedded?: boolean; isActive?: boolean; o
   const isBusyRef = useRef(isBusy);
   useEffect(() => { isBusyRef.current = isBusy; }, [isBusy]);
 
-  const currentModelRef = useRef(currentModel);
-  useEffect(() => { currentModelRef.current = currentModel; }, [currentModel]);
-
   // Handle incoming messages and task executions from Electron IPC
   useEffect(() => {
     // New message from Command Bar
@@ -202,19 +197,6 @@ export const useMiniChat = (options: { embedded?: boolean; isActive?: boolean; o
     };
   }, [addMessage, handleAIResponse, handleMinimize, options.embedded, options.isActive, options.onClosePanel]); // Removed isBusy, currentModel, messages from dependencies
 
-  const handleSelectModel = async (modelId: string) => {
-    setCurrentModel(modelId);
-    try {
-      const settings = await electronService.getSettings();
-      if (settings) {
-        settings.general.minichatModel = modelId;
-        await electronService.saveSettings(settings);
-      }
-    } catch (err) {
-      console.error('Failed to persist model selection from minichat:', err);
-    }
-  };
-
   return {
     messages,
     pendingMessages,
@@ -225,15 +207,9 @@ export const useMiniChat = (options: { embedded?: boolean; isActive?: boolean; o
     isResizing,
     timer,
     tokens,
-    isSettingsOpen,
-    menuView,
-    currentModel,
     copiedId,
     chatEndRef,
     addMessage,
-    setCurrentModel: handleSelectModel,
-    setIsSettingsOpen,
-    setMenuView,
     togglePin,
     handleMinimize,
     startResizing,
