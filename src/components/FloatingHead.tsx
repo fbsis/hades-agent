@@ -73,7 +73,7 @@ const FloatingHead: React.FC = () => {
         <span className="floating-head-glow" />
         <img
           className="floating-head-logo"
-          src="/icon/metis-symbol.png"
+          src="./icon/metis-symbol.png"
           alt=""
           aria-hidden="true"
           draggable={false}

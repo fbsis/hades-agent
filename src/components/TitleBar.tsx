@@ -11,7 +11,7 @@ const TitleBar: React.FC = () => {
     <header className="title-bar">
       <div className="drag-region" style={{ display: 'flex', alignItems: 'center' }}>
         <img 
-          src="/icon/icon.png" 
+          src="./icon/icon.png"
           alt="Metis"
           style={{ 
             width: '16px', 
