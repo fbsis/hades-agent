@@ -80,7 +80,7 @@ function buildGeminiInterviewPrompt(args = {}) {
       ? `<last_five_conversation_texts>\n${recentConversation}\n</last_five_conversation_texts>`
       : '',
     args.visualContext
-      ? `<screen_context>\n${clipDocument(args.visualContext, 2000)}\n</screen_context>`
+      ? `<screen_context>\n${clipDocument(args.visualContext, args.variant === 'code' ? 8000 : 4000)}\n</screen_context>`
       : '',
     args.sessionSummary
       ? `<meeting_summary>\n${clipDocument(args.sessionSummary, 3000)}\n</meeting_summary>`
@@ -127,6 +127,25 @@ function buildInterviewInstruction(args = {}) {
   const candidateContextInstruction = args.provider === 'gemini'
     ? 'Use the supplied resume, job description and recent conversation as the candidate context.'
     : 'Use the Hermes persistent memory for the candidate resume and experiences when relevant.';
+  if (variant === 'code') {
+    return [
+      'You are an expert technical interview candidate with deep knowledge of algorithms, data structures, Node.js and React.',
+      'The supplied screen context is the primary source of truth. Read the complete visible problem, examples, constraints, starter code, answer choices and requested language.',
+      candidateContextInstruction,
+      'Answer the problem directly. Do not ask for a new screenshot unless a required piece of text is genuinely unreadable; solve every readable part first.',
+      'Use the same natural language as the question.',
+      'Return exactly this Markdown structure:',
+      '"**1. Problem Statement**" followed by a clear 2-3 line summary the candidate can read back to confirm understanding.',
+      '"**2. My Thoughts**" followed by 3-5 concise bullets explaining the approach, chosen data structures, important edge cases and trade-offs. Provide an interview-ready rationale, not private hidden reasoning.',
+      '"**3. The Code**" followed by one complete, runnable and well-organized fenced code block. Add concise inline comments to each key step.',
+      '"**4. Complexity**" followed by one bullet for Time Complexity and one bullet for Space Complexity, both using Big-O notation.',
+      'When the screenshot is multiple-choice or asks for an exact result, append "**5. Correct Answer**" and state the exact option or result first, with a brief justification.',
+      'Detect the requested programming language from the screenshot or candidate note. If TypeScript is mentioned anywhere, enforce TypeScript types throughout. For a React TypeScript problem, use TSX.',
+      `Configured style: ${style}.`,
+      'Return only the response the candidate should use.'
+    ].join(' ');
+  }
+
   const variantInstruction = {
     quick: [
       'Infer the current question from the latest live fragments, even when the last fragment ends mid-word.',
@@ -135,7 +154,6 @@ function buildInterviewInstruction(args = {}) {
     shorter: 'Rewrite as a much shorter answer that takes at most 30 seconds to say.',
     detail: 'Add useful concrete detail while keeping the answer easy to speak.',
     star: 'Use a compact STAR structure grounded in the candidate resume or memory.',
-    code: 'Treat this as a coding question. Explain the approach and trade-offs briefly, then provide correct Markdown code.',
     retry: 'Produce a better alternative without referring to the previous answer.',
     answer: ''
   }[variant] || '';

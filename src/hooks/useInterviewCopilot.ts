@@ -380,7 +380,7 @@ export const useInterviewCopilot = (options: { embedded?: boolean; onClosePanel?
     variant: InterviewAnswerVariant = 'answer',
     answer?: Pick<InterviewAnswer, 'question' | 'turnId'>
       & Partial<Pick<InterviewAnswer, 'provider'>>
-      & { quickFragments?: string[] }
+      & { quickFragments?: string[]; visualContext?: string }
   ) => {
     const activeSession = sessionRef.current;
     if (!activeSession) return;
@@ -451,7 +451,8 @@ export const useInterviewCopilot = (options: { embedded?: boolean; onClosePanel?
       question,
       turns: sessionRef.current?.transcript || activeSession.transcript,
       config: activeSession.config,
-      visualContext: sessionRef.current?.transcript.find(turn => turn.id === turnId)?.visualContext,
+      visualContext: answer?.visualContext
+        || sessionRef.current?.transcript.find(turn => turn.id === turnId)?.visualContext,
       sessionSummary: activeSession.summary,
       quickFragments: answer?.quickFragments,
       variant,
@@ -586,7 +587,13 @@ export const useInterviewCopilot = (options: { embedded?: boolean; onClosePanel?
     setQuestionDraft(screenTurn.text);
     setActiveAnswerId(null);
     setScreenStatus('idle');
-  }, [questionDraft, screenStatus, updateSessionState]);
+    await requestAnswer(analysis.programmingQuestionVisible ? 'code' : 'answer', {
+      question: screenTurn.text,
+      turnId: screenTurn.id,
+      provider: 'gemini',
+      visualContext: analysis.context
+    });
+  }, [questionDraft, requestAnswer, screenStatus, updateSessionState]);
 
   const summarizeSession = useCallback(async () => {
     const activeSession = sessionRef.current;

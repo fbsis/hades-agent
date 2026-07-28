@@ -231,36 +231,52 @@ class InterviewService {
       generationConfig: geminiGenerationConfig(modelName, args.variant)
     });
     const prompt = buildGeminiInterviewPrompt(args);
-    const streamResult = await model.generateContentStream(prompt, {
-      signal: controller.signal
-    });
+    let requestPrompt = prompt;
+    let continuationAttempted = false;
 
-    for await (const chunk of streamResult.stream) {
-      if (state.cancelled) break;
-      const delta = chunk.text();
-      if (!delta) continue;
-      state.text += delta;
-      emit({ type: 'delta', text: delta, provider: 'gemini' });
-    }
+    while (!state.cancelled) {
+      const streamResult = await model.generateContentStream(requestPrompt, {
+        signal: controller.signal
+      });
 
-    const response = await streamResult.response;
-    if (!state.cancelled && !state.text.trim()) {
-      const text = response.text().trim();
-      if (text) {
-        state.text = text;
-        emit({ type: 'delta', text, provider: 'gemini' });
+      for await (const chunk of streamResult.stream) {
+        if (state.cancelled) break;
+        const delta = chunk.text();
+        if (!delta) continue;
+        state.text += delta;
+        emit({ type: 'delta', text: delta, provider: 'gemini' });
       }
-    }
 
-    const finishReason = response.candidates?.[0]?.finishReason;
-    if (!state.cancelled && finishReason && finishReason !== 'STOP') {
-      logger.warn(
-        'INTERVIEW',
-        `Gemini ${args.variant || 'answer'} finished with ${finishReason} after ${state.text.length} chars`
-      );
-      if (finishReason === 'MAX_TOKENS') {
-        throw new Error('Gemini atingiu o limite antes de concluir a resposta. Tente novamente.');
+      const response = await streamResult.response;
+      if (!state.cancelled && !state.text.trim()) {
+        const text = response.text().trim();
+        if (text) {
+          state.text = text;
+          emit({ type: 'delta', text, provider: 'gemini' });
+        }
       }
+
+      const finishReason = response.candidates?.[0]?.finishReason;
+      if (!state.cancelled && finishReason && finishReason !== 'STOP') {
+        logger.warn(
+          'INTERVIEW',
+          `Gemini ${args.variant || 'answer'} finished with ${finishReason} after ${state.text.length} chars`
+        );
+      }
+
+      if (!state.cancelled && finishReason === 'MAX_TOKENS' && !continuationAttempted) {
+        continuationAttempted = true;
+        requestPrompt = [
+          prompt,
+          `<partial_answer>\n${state.text}\n</partial_answer>`,
+          'The previous response reached the output limit.',
+          'Return only the missing continuation, starting exactly where the partial answer stopped.',
+          'Do not repeat any heading, bullet, explanation or code already present.'
+        ].join('\n\n');
+        continue;
+      }
+
+      break;
     }
 
     return { success: !state.cancelled, cancelled: state.cancelled, text: state.text };
@@ -343,7 +359,7 @@ class InterviewService {
           mode: 'interview',
           preferredAnswerStyle: args.variant === 'code' ? 'code_explained' : 'short',
           includeLocalContext: false,
-          maxOutputTokens: args.variant === 'code' ? 1400 : 700,
+          maxOutputTokens: args.variant === 'code' ? 8192 : 4096,
           timeoutMs: store.getSettings()?.hermes?.timeoutMs || 30000,
           logType: 'interview_answer',
           primaryAgent: true
@@ -448,11 +464,19 @@ class InterviewService {
     if (!Array.isArray(images) || images.length === 0) throw new Error('Nenhuma tela disponivel.');
 
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: settings.general.minichatModel || 'gemini-2.5-flash' });
+    const model = genAI.getGenerativeModel({
+      model: settings.general.minichatModel || 'gemini-2.5-flash',
+      generationConfig: {
+        temperature: 0.1,
+        maxOutputTokens: 3072,
+        responseMimeType: 'application/json'
+      }
+    });
     const prompt = [
       'Read all visible content in these screenshots, including code, terminal output, question text and alternatives.',
-      'Extract the exact interview or programming question when one is visible.',
-      'Create compact context for another agent. Do not answer with uncertainty about truncation.',
+      'For a technical test, extract the complete problem statement, examples, constraints, starter code, requested language and all answer choices.',
+      'Extract the exact interview or programming question when one is visible. Preserve identifiers, numbers and code syntax exactly.',
+      'Create complete but compact context for the answering model. Do not claim the screenshot is truncated merely because there are other windows.',
       question ? `Candidate note: ${question}` : '',
       'Return only valid JSON: {"summary":"","detectedQuestion":"","extractedText":"","programmingQuestionVisible":false,"directAnswer":"","confidence":0}'
     ].filter(Boolean).join('\n');

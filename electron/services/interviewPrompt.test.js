@@ -76,7 +76,36 @@ describe('interview prompt contract', () => {
     expect(gemini).toContain('plausible illustrative example');
     expect(gemini).toContain('opinion');
     expect(gemini).toContain('hypothetical');
-    expect(coding).toContain('Markdown code');
+    expect(coding).toContain('expert technical interview candidate');
+    expect(coding).toContain('**1. Problem Statement**');
+    expect(coding).toContain('**2. My Thoughts**');
+    expect(coding).toContain('**3. The Code**');
+    expect(coding).toContain('**4. Complexity**');
+    expect(coding).toContain('**5. Correct Answer**');
+    expect(coding).toContain('enforce TypeScript types');
+    expect(coding).toContain('React TypeScript problem');
+  });
+
+  it('keeps substantially more visual context for coding screenshots', () => {
+    const visualContext = `START-${'x'.repeat(3000)}-CENTRAL-CONSTRAINTS-${'x'.repeat(2500)}-END`;
+    const codingPrompt = buildGeminiInterviewPrompt({
+      question: 'Solve the visible problem',
+      visualContext,
+      variant: 'code',
+      config: {}
+    });
+    const regularPrompt = buildGeminiInterviewPrompt({
+      question: 'Answer the visible question',
+      visualContext,
+      variant: 'answer',
+      config: {}
+    });
+
+    expect(codingPrompt).toContain('START-');
+    expect(codingPrompt).toContain('-CENTRAL-CONSTRAINTS-');
+    expect(codingPrompt).toContain('-END');
+    expect(regularPrompt).not.toContain('-CENTRAL-CONSTRAINTS-');
+    expect(regularPrompt).toContain('-END');
   });
 
   it('builds the Gemini question prompt with resume, job and only five recent texts', () => {

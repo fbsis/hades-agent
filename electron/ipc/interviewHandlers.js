@@ -96,7 +96,7 @@ function registerInterviewHandlers() {
   ipcMain.handle('interview-analyze-screen', wrap(async (event, question) => {
     const sources = await desktopCapturer.getSources({
       types: ['screen'],
-      thumbnailSize: { width: 1920, height: 1080 }
+      thumbnailSize: { width: 2560, height: 1600 }
     });
     const images = sources.map(source => source.thumbnail.toDataURL());
     return interviewService.analyzeScreen(images, question);
