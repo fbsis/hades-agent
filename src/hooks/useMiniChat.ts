@@ -57,7 +57,7 @@ export const useMiniChat = (options: { embedded?: boolean; isActive?: boolean; o
 
   // Timer effect: ticks only when active session exists (messages.length > 0)
   useEffect(() => {
-    if (messages.length === 0) {
+    if (options.embedded || messages.length === 0) {
       setTimer(0);
       localStorage.removeItem('minichat_timer');
       return;
@@ -72,7 +72,7 @@ export const useMiniChat = (options: { embedded?: boolean; isActive?: boolean; o
     }, 1000);
 
     return () => clearInterval(timerInterval);
-  }, [messages.length]);
+  }, [messages.length, options.embedded]);
 
   // Listen for live settings updates from the main process
   useEffect(() => {

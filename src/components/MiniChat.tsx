@@ -43,17 +43,18 @@ const MiniChat: React.FC<MiniChatProps> = ({
 
   return (
     <div className={`app-container chat-mode ${embedded ? 'embedded-chat' : ''} ${isResizing ? 'resizing' : ''}`}>
-      <ChatHeader
-        timer={timer}
-        tokens={tokens}
-        isPinned={isPinned}
-        togglePin={togglePin}
-        onOpenSettings={onOpenSettings || (() => electronService.showSettings())}
-        onOpenTranscription={onOpenTranscription || (() => electronService.showSusurro())}
-        onCloseSession={clearHistory}
-        onMinimize={embedded && onClosePanel ? onClosePanel : handleMinimize}
-        embedded={embedded}
-      />
+      {!embedded && (
+        <ChatHeader
+          timer={timer}
+          tokens={tokens}
+          isPinned={isPinned}
+          togglePin={togglePin}
+          onOpenSettings={onOpenSettings || (() => electronService.showSettings())}
+          onOpenTranscription={onOpenTranscription || (() => electronService.showSusurro())}
+          onCloseSession={clearHistory}
+          onMinimize={handleMinimize}
+        />
+      )}
 
       <ChatList
         messages={messages}
