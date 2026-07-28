@@ -1,20 +1,16 @@
-<p align="center">
-  <img src="https://res.cloudinary.com/dmii83n8i/image/upload/fl_preserve_transparency/v1779237561/hades-agent_cx7vq7.jpg?_s=public-apps" alt="Hades Banner" width="100%" style="border-radius: 16px; max-width: 800px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);">
-</p>
-
 <table>
   <tr>
     <td width="35%" align="center" valign="top">
-      <img src="public/icon/icon.png" width="280" style="border-radius: 40px; border: 5px solid #ff2a2a; box-shadow: 0 15px 40px rgba(255, 42, 42, 0.4); display: block; margin-bottom: 15px;" alt="Hades Agent Logo" />
+      <img src="public/icon/icon.png" width="280" style="border-radius: 40px; border: 5px solid #2dd4bf; box-shadow: 0 15px 40px rgba(45, 212, 191, 0.3); display: block; margin-bottom: 15px;" alt="Metis Logo" />
       <p align="center" style="margin-top: 10px; margin-bottom: 0;">
-        <img src="https://img.shields.io/badge/License-MIT-red?style=flat-square&color=150202" alt="License" style="display: inline-block; vertical-align: middle;" />
-        <img src="https://img.shields.io/badge/Electron-42.0-red?style=flat-square&logo=electron&logoColor=white&color=150202" alt="Electron" style="display: inline-block; vertical-align: middle;" />
-        <img src="https://img.shields.io/badge/React-19.0-red?style=flat-square&logo=react&logoColor=61DAFB&color=150202" alt="React" style="display: inline-block; vertical-align: middle;" />
+        <img src="https://img.shields.io/badge/License-MIT-0f766e?style=flat-square" alt="License" style="display: inline-block; vertical-align: middle;" />
+        <img src="https://img.shields.io/badge/Electron-42.0-0f766e?style=flat-square&logo=electron&logoColor=white" alt="Electron" style="display: inline-block; vertical-align: middle;" />
+        <img src="https://img.shields.io/badge/React-19.0-0f766e?style=flat-square&logo=react&logoColor=white" alt="React" style="display: inline-block; vertical-align: middle;" />
       </p>
     </td>
     <td width="65%" valign="top" style="padding-left: 20px;">
-      <h1 style="margin-top: 0; margin-bottom: 8px;">Hades Agent <img src="https://res.cloudinary.com/dmii83n8i/image/upload/v1779302517/hades-tray-icon-128_dks55n.png" width="36" height="36" align="center" style="display: inline-block; vertical-align: middle; margin-left: 6px;" alt="Hades Icon" /></h1>
-      <p><strong>Hades is an always-on desktop assistant with live transcription, contextual chat, visual understanding, Hermes-backed memory, and a draggable floating bubble.</strong></p>
+      <h1 style="margin-top: 0; margin-bottom: 8px;">Metis</h1>
+      <p><strong>Metis is an always-on desktop assistant with live transcription, contextual chat, visual understanding, Hermes-backed memory, and a draggable floating bubble.</strong></p>
       <p><strong>Safety Model:</strong> the renderer stays sandboxed behind a typed IPC bridge. API keys are stored locally, Hermes access is opt-in, and privileged operations remain in the Electron main process.</p>
     </td>
   </tr>
@@ -50,11 +46,11 @@
 </tr>
 <tr>
   <td><b>🤖 Hermes Primary Agent</b></td>
-  <td>Hades can use a local <strong>Hermes Agent</strong> server as the main brain for MiniChat, memory, web/API/CLI, research, suggestions, and multi-step work while keeping latency-sensitive interview responses and fallback on Gemini.</td>
+  <td>Metis can use a local <strong>Hermes Agent</strong> server as the main brain for MiniChat, memory, web/API/CLI, research, suggestions, and multi-step work while keeping latency-sensitive interview responses and fallback on Gemini.</td>
 </tr>
 <tr>
   <td><b>👁️ Gemini Visual Context</b></td>
-  <td>Images are read by Gemini first. Hades extracts text, code, UI state, and visible answers, then either answers directly or forwards compact visual context to Hermes.</td>
+  <td>Images are read by Gemini first. Metis extracts text, code, UI state, and visible answers, then either answers directly or forwards compact visual context to Hermes.</td>
 </tr>
 <tr>
   <td><b>🫧 Floating Bubble Mode</b></td>
@@ -72,19 +68,19 @@
 
 ---
 
-## <img src="https://api.iconify.design/lucide:download.svg?color=%23ff2a2a" width="22" height="22" align="center" style="vertical-align: middle; margin-right: 8px;" /> Getting Started
+## <img src="https://api.iconify.design/lucide:download.svg?color=%232dd4bf" width="22" height="22" align="center" style="vertical-align: middle; margin-right: 8px;" /> Getting Started
 
 ### For Users (Download Installer)
 
 1. Head to the **[Releases](https://github.com/fbsis/hades-agent/releases)** page.
-2. Download **`Hades-Agent-Setup-1.0.0.exe`** (or the `.zip` portable version).
-3. Run the installer, launch Hades, then press **`Alt+S`** to enter your API keys.
+2. Download **`Metis-Setup-1.0.0.exe`** (or the `.zip` portable version).
+3. Run the installer, launch Metis, then press **`Alt+S`** to enter your API keys.
 
 > [!WARNING]
-> **Platform:** Hades was originally built for **Windows**, but the repository now includes macOS packaging support via `electron-builder --mac`. Some macOS-specific behavior still needs validation, especially around tray icon presentation and stealth window handling.
+> **Platform:** Metis was originally built for **Windows**, but the repository now includes macOS packaging support via `electron-builder --mac`. Some macOS-specific behavior still needs validation, especially around tray icon presentation and stealth window handling.
 
 > [!IMPORTANT]
-> Hades requires two free API keys to operate:
+> Metis requires two free API keys to operate:
 > - **[Google Gemini API Key](https://aistudio.google.com/app/apikey)** — for all AI inference and voice streaming.
 > - **[Tavily Search API Key](https://app.tavily.com/)** — for real-time web search grounding.
 
@@ -112,7 +108,7 @@ npm install
 npm run dev
 ```
 
-The first `npm run dev` downloads the quantized multilingual Whisper `large-v3-turbo-q5_0` model and prepares the native runtime. Later starts reuse those files, clear stale Hades Electron processes, then launch Vite and Electron concurrently.
+The first `npm run dev` downloads the quantized multilingual Whisper `large-v3-turbo-q5_0` model and prepares the native runtime. Later starts reuse those files, clear stale Metis Electron processes, then launch Vite and Electron concurrently.
 
 ### Build / Package commands
 
@@ -123,9 +119,9 @@ The first `npm run dev` downloads the quantized multilingual Whisper `large-v3-t
 
 ### Hermes Agent
 
-Hades can connect to a local Hermes Agent API server for MiniChat, persistent memory, context-aware interviews, web/API/CLI work, research, suggestions and multi-step tasks.
+Metis can connect to a local Hermes Agent API server for MiniChat, persistent memory, context-aware interviews, web/API/CLI work, research, suggestions and multi-step tasks.
 
-Hades remains the desktop UI/audio assistant. Hermes becomes the primary agent when enabled. Gemini stays on the fast transcription path, session titles and fallback.
+Metis remains the desktop UI/audio assistant. Hermes becomes the primary agent when enabled. Gemini stays on the fast transcription path, session titles and fallback.
 
 Enable the Hermes API server in `~/.hermes/.env`:
 
@@ -150,17 +146,17 @@ See [docs/hermes-agent.md](docs/hermes-agent.md) for memory behavior, low-token 
 
 Open **Options > Interview** or press `Alt+B`. Before listening, set the target role, company, resume, job description, language, answer style, and optional instructions.
 
-- Local Whisper is the default transcription provider. Hades bundles `whisper.cpp` v1.9.1 and the quantized multilingual `large-v3-turbo-q5_0` model in packaged builds and transcribes two-second PCM windows without an API key or per-minute charge. The model adds about 547 MB before installer compression.
+- Local Whisper is the default transcription provider. Metis bundles `whisper.cpp` v1.9.1 and the quantized multilingual `large-v3-turbo-q5_0` model in packaged builds and transcribes two-second PCM windows without an API key or per-minute charge. The model adds about 547 MB before installer compression.
 - The model is loaded only after interview listening starts. System audio and the optional microphone share one server; pausing or finishing the final transcription source terminates that server and releases the model memory.
 - A bundled Silero VAD 6.2 model rejects non-speech segments before inference. Adaptive noise detection, a 240 ms speech pre-roll, and a second PCM activity gate prevent silence hallucinations and preserve quiet word beginnings.
 - Portuguese is the default recognition language to avoid unreliable language detection on short windows. Select English or automatic detection in the interview setup when needed.
 - `npm run whisper:prepare` prepares the current machine explicitly. macOS builds compile a static Metal/Accelerate-enabled server; Windows x64 builds use the official prebuilt runtime. Generated binaries and model files stay outside Git and are copied into the application by `electron-builder`.
-- Gemini Live remains available and uses the Google AI Studio API key already configured in Hades. Gemini 3.1 normally publishes input transcription after a speech boundary; Hades still consumes interim hypotheses when the API provides them.
-- To use Google Cloud instead, select **Google Cloud (continuous transcription)**, enter a project ID, and click **Connect** before the meeting. Hades starts `gcloud auth application-default login`, opens the Google authorization page, sets that project as the ADC quota project, and validates both the token and quota configuration.
-- Hades uses Speech-to-Text V1 for the free monthly allowance and lowest discounted streaming price. **Lower cost** opens the project page where data logging can be enabled after accepting Google's terms. Data logging allows Google to use and retain submitted audio/transcripts for model improvement; enable it only when you have permission from every data originator.
+- Gemini Live remains available and uses the Google AI Studio API key already configured in Metis. Gemini 3.1 normally publishes input transcription after a speech boundary; Metis still consumes interim hypotheses when the API provides them.
+- To use Google Cloud instead, select **Google Cloud (continuous transcription)**, enter a project ID, and click **Connect** before the meeting. Metis starts `gcloud auth application-default login`, opens the Google authorization page, sets that project as the ADC quota project, and validates both the token and quota configuration.
+- Metis uses Speech-to-Text V1 for the free monthly allowance and lowest discounted streaming price. **Lower cost** opens the project page where data logging can be enabled after accepting Google's terms. Data logging allows Google to use and retain submitted audio/transcripts for model improvement; enable it only when you have permission from every data originator.
 - The Google Cloud CLI must be installed, billing must be linked to the selected project, `speech.googleapis.com` must be enabled, and the signed-in account must have `serviceusage.services.use` (normally through **Service Usage Consumer**) on that project. See the official [Cloud STT setup](https://cloud.google.com/speech-to-text/docs/setup), [authentication](https://cloud.google.com/speech-to-text/docs/authentication), and [pricing](https://cloud.google.com/speech-to-text/pricing) pages.
 - System audio is transcribed locally by default. Microphone transcription is optional and remains a separate source so speakers stay separated.
-- If ADC is unavailable, expired, or rejected, Hades automatically falls back to Gemini Live. Gemini Live remains functional but does not guarantee continuous interim transcript updates.
+- If ADC is unavailable, expired, or rejected, Metis automatically falls back to Gemini Live. Gemini Live remains functional but does not guarantee continuous interim transcript updates.
 - The latest likely interviewer question is highlighted locally without an LLM request. Every finalized interviewer turn still has an explicit **Answer** action.
 - Click **Answer question** or press `Space` outside an input to send the latest five conversation texts, resume, job description, and interview instructions to a separate Gemini stream. The transcript continues while Gemini responds.
 - Click **Quick answer** to flush the current Gemini Live audio stream, infer the question from the latest five transcription fragments, and stream a short summary followed by at most five speaking points.
@@ -171,9 +167,9 @@ Open **Options > Interview** or press `Alt+B`. Before listening, set the target 
 
 ---
 
-## <img src="https://api.iconify.design/lucide:keyboard.svg?color=%23ff2a2a" width="22" height="22" align="center" style="vertical-align: middle; margin-right: 8px;" /> Keyboard Shortcuts
+## <img src="https://api.iconify.design/lucide:keyboard.svg?color=%232dd4bf" width="22" height="22" align="center" style="vertical-align: middle; margin-right: 8px;" /> Keyboard Shortcuts
 
-Hades opens as a compact command window by default and can be minimized into a draggable floating bubble:
+Metis opens as a compact command window by default and can be minimized into a draggable floating bubble:
 
 | Shortcut | Action |
 | :--- | :--- |
@@ -189,16 +185,16 @@ Hades opens as a compact command window by default and can be minimized into a d
 
 ---
 
-## <img src="https://api.iconify.design/lucide:network.svg?color=%23ff2a2a" width="22" height="22" align="center" style="vertical-align: middle; margin-right: 8px;" /> System Architecture
+## <img src="https://api.iconify.design/lucide:network.svg?color=%232dd4bf" width="22" height="22" align="center" style="vertical-align: middle; margin-right: 8px;" /> System Architecture
 
-Hades orchestrates multiple transparent overlay windows through a strict **IPC event bridge**, keeping the renderer completely sandboxed from the filesystem while the main process handles all privileged operations:
+Metis orchestrates multiple transparent overlay windows through a strict **IPC event bridge**, keeping the renderer completely sandboxed from the filesystem while the main process handles all privileged operations:
 
 ```mermaid
 graph TD
-    classDef main fill:#1a0505,stroke:#ff2a2a,stroke-width:2px,color:#fff;
-    classDef float fill:#0a0303,stroke:#dc2626,stroke-width:1px,color:#fff;
+    classDef main fill:#071713,stroke:#2dd4bf,stroke-width:2px,color:#fff;
+    classDef float fill:#081310,stroke:#14b8a6,stroke-width:1px,color:#fff;
     classDef service fill:#111,stroke:#888,stroke-width:1px,color:#aaa;
-    classDef external fill:#2b0c0c,stroke:#f97316,stroke-width:1px,color:#ffed4a;
+    classDef external fill:#10201c,stroke:#f97316,stroke-width:1px,color:#ffed4a;
 
     Main[Electron Main Process]:::main
     
@@ -244,9 +240,9 @@ graph TD
 
 ---
 
-## <img src="https://api.iconify.design/lucide:cpu.svg?color=%23ff2a2a" width="22" height="22" align="center" style="vertical-align: middle; margin-right: 8px;" /> AI-Assisted Engineering
+## <img src="https://api.iconify.design/lucide:cpu.svg?color=%232dd4bf" width="22" height="22" align="center" style="vertical-align: middle; margin-right: 8px;" /> AI-Assisted Engineering
 
-Hades was co-engineered with **[Google Antigravity](https://deepmind.google/)** (Advanced Agentic Coding Assistant by Google DeepMind) using **Subagent-Driven Development (SDD)**:
+Metis was co-engineered with **[Google Antigravity](https://deepmind.google/)** (Advanced Agentic Coding Assistant by Google DeepMind) using **Subagent-Driven Development (SDD)**:
 
 - **Modular Autonomy:** Specialized subagents independently built IPC event engines, AES-256 cryptography wrappers, voice PCM pipelines, and window lifecycle managers — each validated in isolation before integration.
 - **Strict Quality Gates:** Architecture enforces minimal custom React hook sizes, a single centralized state store (`jsonStore.js`), and production Vite compilation times consistently under **760 ms**.
@@ -254,20 +250,20 @@ Hades was co-engineered with **[Google Antigravity](https://deepmind.google/)** 
 
 ---
 
-## <img src="https://api.iconify.design/lucide:sparkles.svg?color=%23ff2a2a" width="22" height="22" align="center" style="vertical-align: middle; margin-right: 8px;" /> Inspiration & Credits
+## <img src="https://api.iconify.design/lucide:sparkles.svg?color=%232dd4bf" width="22" height="22" align="center" style="vertical-align: middle; margin-right: 8px;" /> Inspiration & Credits
 
 > [!NOTE]
-> Hades Agent is inspired by **Persua**, a conceptual real-time voice and AI assistant created by software engineer **Lucas Montano** ([@lucasmontano](https://github.com/lucasmontano)). Hades was engineered entirely from scratch to explore raw PCM streaming, full-duplex WebSockets, and OS-level content-protection algorithms in Electron. Thank you, Lucas, for pushing the community to build things that don't exist yet.
+> Metis is inspired by **Persua**, a conceptual real-time voice and AI assistant created by software engineer **Lucas Montano** ([@lucasmontano](https://github.com/lucasmontano)). Metis was engineered entirely from scratch to explore raw PCM streaming, full-duplex WebSockets, and OS-level content-protection algorithms in Electron. Thank you, Lucas, for pushing the community to build things that don't exist yet.
 
 ---
 
-## <img src="https://api.iconify.design/lucide:star.svg?color=%23ff2a2a" width="22" height="22" align="center" style="vertical-align: middle; margin-right: 8px;" /> Star History
+## <img src="https://api.iconify.design/lucide:star.svg?color=%232dd4bf" width="22" height="22" align="center" style="vertical-align: middle; margin-right: 8px;" /> Star History
 
 [![Star History Chart](https://api.star-history.com/chart?repos=fbsis/hades-agent&type=date&legend=top-left)](https://www.star-history.com/?repos=fbsis%2Fhades-agent&type=date&legend=top-left)
 
 ---
 
-## <img src="https://api.iconify.design/lucide:file-text.svg?color=%23ff2a2a" width="22" height="22" align="center" style="vertical-align: middle; margin-right: 8px;" /> License
+## <img src="https://api.iconify.design/lucide:file-text.svg?color=%232dd4bf" width="22" height="22" align="center" style="vertical-align: middle; margin-right: 8px;" /> License
 
 MIT — See [LICENSE](LICENSE).
 

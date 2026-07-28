@@ -1,22 +1,22 @@
-# Hades + Hermes Agent
+# Metis + Hermes Agent
 
-Hades agora pode usar o Hermes como agente principal.
+Metis agora pode usar o Hermes como agente principal.
 
-O objetivo desta integracao e manter o Hades leve:
+O objetivo desta integracao e manter o Metis leve:
 
-- Hades cuida da UI desktop, audio, transcricao, janela flutuante e fallback.
+- Metis cuida da UI desktop, audio, transcricao, janela flutuante e fallback.
 - Hermes cuida do MiniChat, sugestoes, memoria persistente, contexto pessoal, web atual, APIs externas, CLI e tarefas multi-step.
 - Gemini fica no caminho rapido de transcricao ao vivo e nos titulos de sessao.
-- Hades envia apenas contexto compacto para economizar tokens.
+- Metis envia apenas contexto compacto para economizar tokens.
 
 ## Como o roteamento funciona
 
 Quando Hermes esta ativo como agente principal, o MiniChat envia o turno direto para o Hermes.
 
-O fallback Gemini continua existindo para quando Hermes estiver desligado ou falhar. Nesse fallback, o Hades tende a chamar `ask_hermes` quando o pedido envolve:
+O fallback Gemini continua existindo para quando Hermes estiver desligado ou falhar. Nesse fallback, o Metis tende a chamar `ask_hermes` quando o pedido envolve:
 
 - clima/tempo, web atual ou Google
-- APIs externas, CLI, terminal ou ferramentas fora do Hades
+- APIs externas, CLI, terminal ou ferramentas fora do Metis
 - pesquisa profunda ou tarefas multi-step
 - curriculo, entrevista, documentos, historico, preferencias ou memoria pessoal
 - modos `Entrevista`, `Ajuda`, `Ideias` ou `Codigo`
@@ -27,7 +27,7 @@ Ele tende a chamar `remember_with_hermes` quando o usuario pede para lembrar, sa
 
 A transcricao ao vivo do Susurro continua usando Gemini Live, porque precisa ser o caminho mais rapido.
 
-Quando uma sessao de transcricao e fechada, o Hades arquiva a reuniao e dispara uma chamada ao Hermes em background:
+Quando uma sessao de transcricao e fechada, o Metis arquiva a reuniao e dispara uma chamada ao Hermes em background:
 
 - gera resumo em portugues
 - extrai decisoes, tarefas, riscos e perguntas abertas
@@ -53,15 +53,15 @@ Depois inicie o gateway:
 hermes gateway
 ```
 
-Endpoint padrao usado pelo Hades:
+Endpoint padrao usado pelo Metis:
 
 ```txt
 http://127.0.0.1:8642/v1
 ```
 
-O Hades aceita a Base URL com ou sem `/v1`.
+O Metis aceita a Base URL com ou sem `/v1`.
 
-## Configuracao no Hades
+## Configuracao no Metis
 
 Abra `Settings > Agente` e configure:
 
@@ -70,7 +70,7 @@ Abra `Settings > Agente` e configure:
 - `API key`: a mesma chave definida em `API_SERVER_KEY`.
 - `Session key`: escopo de memoria do Hermes. Use algo estavel, como `hades-default`.
 - `Modelo`: identificador do modelo OpenAI-compatible exposto pelo Hermes.
-- `Contexto max`: limite de caracteres enviados pelo Hades em cada chamada.
+- `Contexto max`: limite de caracteres enviados pelo Metis em cada chamada.
 - `Resumo reuniao max`: limite de caracteres enviados ao Hermes ao fechar uma transcricao.
 - `Hermes como agente principal`: faz o MiniChat usar Hermes para tudo, com Gemini para transcricao rapida, titulos de sessao e fallback.
 
@@ -78,9 +78,9 @@ Use `Testar Hermes` para validar a conexao.
 
 ## Memoria
 
-O Hermes gerencia a memoria dele. O Hades nao configura nem le o diretorio interno de memoria do Hermes.
+O Hermes gerencia a memoria dele. O Metis nao configura nem le o diretorio interno de memoria do Hermes.
 
-A tela `Agente` mostra apenas o uso local das chamadas feitas pelo Hades: chamadas, falhas, caracteres enviados, caracteres recebidos e tokens estimados.
+A tela `Agente` mostra apenas o uso local das chamadas feitas pelo Metis: chamadas, falhas, caracteres enviados, caracteres recebidos e tokens estimados.
 
 Para enviar curriculo, documento ou ideia:
 
@@ -89,7 +89,7 @@ Para enviar curriculo, documento ou ideia:
 3. Escolha o tipo, por exemplo `Curriculo`.
 4. Clique em `Enviar ao Hermes`.
 
-O Hades nao cria embeddings nem banco vetorial nesse fluxo. Ele pede para o Hermes resumir e registrar a memoria persistente.
+O Metis nao cria embeddings nem banco vetorial nesse fluxo. Ele pede para o Hermes resumir e registrar a memoria persistente.
 
 ## Uso de tokens
 
@@ -117,6 +117,6 @@ Fluxo recomendado:
 2. Defina `Modo ativo` como `Entrevista`.
 3. Defina `Formato preferido` como `Codigo` ou `Codigo + explicacao` se a entrevista for tecnica.
 
-Quando aparecer uma pergunta de entrevista, o Hades pode chamar o Hermes para recuperar contexto do curriculo e montar uma resposta.
+Quando aparecer uma pergunta de entrevista, o Metis pode chamar o Hermes para recuperar contexto do curriculo e montar uma resposta.
 
 Para perguntas tecnicas, o prompt permite resposta com codigo quando isso for util.

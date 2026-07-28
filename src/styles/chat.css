@@ -58,9 +58,9 @@
   display: inline-block;
   width: 6px;
   height: 6px;
-  background: #ef4444;
+  background: var(--color-primary-light);
   border-radius: 50%;
-  box-shadow: 0 0 8px rgba(239, 68, 68, 0.7);
+  box-shadow: 0 0 8px rgb(var(--color-primary-rgb) / 0.7);
   flex-shrink: 0;
   animation: timer-pulse 2s ease-in-out infinite;
 }
@@ -163,23 +163,23 @@
 }
 
 .action-btn.active {
-  color: #ef4444;
-  background: rgba(239, 68, 68, 0.1);
+  color: var(--color-primary-light);
+  background: rgb(var(--color-primary-rgb) / 0.1);
 }
 
 .action-btn.settings-btn.active {
-  color: #ef4444;
-  background: rgba(239, 68, 68, 0.1);
+  color: var(--color-primary-light);
+  background: rgb(var(--color-primary-rgb) / 0.1);
 }
 
 .new-session-btn:hover {
-  background: rgba(239, 68, 68, 0.15);
-  color: #ef4444;
+  background: rgb(var(--color-primary-rgb) / 0.15);
+  color: var(--color-primary-light);
 }
 
 .action-btn.close-btn:hover {
-  background: rgba(239, 68, 68, 0.15);
-  color: #ef4444;
+  background: rgb(var(--color-danger-rgb) / 0.15);
+  color: var(--color-danger-light);
 }
 
 /* Performance: disable heavy effects during window resize */
@@ -360,11 +360,11 @@
 .glint-text {
   background: linear-gradient(
     90deg,
-    rgba(220, 38, 38, 0.4) 0%,
-    rgba(220, 38, 38, 0.4) 35%,
-    rgba(239, 68, 68, 0.95) 50%,
-    rgba(220, 38, 38, 0.4) 65%,
-    rgba(220, 38, 38, 0.4) 100%
+    rgb(var(--color-primary-rgb) / 0.4) 0%,
+    rgb(var(--color-primary-rgb) / 0.4) 35%,
+    rgb(var(--color-primary-rgb) / 0.95) 50%,
+    rgb(var(--color-primary-rgb) / 0.4) 65%,
+    rgb(var(--color-primary-rgb) / 0.4) 100%
   );
   background-size: 200% auto;
   background-clip: text;

@@ -13,7 +13,7 @@ export const usePersonas = () => {
   const defaultPersona: Persona = {
     id: 'default',
     name: 'Assistente Geral',
-    systemPrompt: 'Você é o Hades, um assistente de IA prestativo e inteligente. Analise a transcrição de voz fornecida e gere sugestões, respostas rápidas ou insights úteis baseados no contexto da conversa.'
+    systemPrompt: 'Você é o Metis, um assistente de IA prestativo e inteligente. Analise a transcrição de voz fornecida e gere sugestões, respostas rápidas ou insights úteis baseados no contexto da conversa.'
   };
 
   useEffect(() => {

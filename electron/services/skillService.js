@@ -1,13 +1,11 @@
 const fs = require('fs');
 const path = require('path');
-const os = require('os');
-const { app } = require('electron');
 const logger = require('./logger');
+const { getMetisDataPath } = require('./metisDataPath');
 
 class SkillService {
   constructor() {
-    // We get the path dynamically, assuming this runs in the main process
-    const userDataPath = path.join(os.homedir(), '.Hades');
+    const userDataPath = getMetisDataPath();
     this.skillsDir = path.join(userDataPath, 'skills');
     
     if (!fs.existsSync(this.skillsDir)) {

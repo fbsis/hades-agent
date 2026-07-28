@@ -1,122 +1,107 @@
 import React, { useEffect, useState } from 'react';
 
-// ==========================================
-// CONFIGURAÇÃO DO ÍCONE (Ajuste aqui)
-// ==========================================
-// Você pode alterar a largura e a altura do ícone livremente aqui.
-// O texto ASCII Figlet está isolado e não será afetado pelo tamanho do ícone.
-const ICON_WIDTH = '145px';
-const ICON_HEIGHT = '145px';
-
 const Splash: React.FC = () => {
   const [phase, setPhase] = useState<'entering' | 'visible' | 'leaving'>('entering');
 
   useEffect(() => {
-    // Fase de entrada: starts 50ms after mount to trigger transition smoothly
     const enterTimer = setTimeout(() => setPhase('visible'), 50);
-    // Fase de saída começa após 2.4s
     const leaveTimer = setTimeout(() => setPhase('leaving'), 2400);
-
     return () => {
       clearTimeout(enterTimer);
       clearTimeout(leaveTimer);
     };
   }, []);
 
-  let opacity = 0;
-  let transform = 'translateY(12px)';
-
-  if (phase === 'visible') {
-    opacity = 1;
-    transform = 'translateY(0px)';
-  } else if (phase === 'leaving') {
-    transform = 'translateY(-12px)';
-  }
-
-  // Premium, continuous transition that is always active
-  const opacityTransition = 'opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1)';
-  const transformTransition = 'transform 0.8s cubic-bezier(0.16, 1, 0.3, 1)';
-
-  // HADES-AGENT em fonte Figlet ANSI Shadow
-  const asciiArt = `██╗  ██╗ █████╗ ██████╗ ███████╗███████╗       █████╗  ██████╗ ███████╗███╗   ██╗████████╗
-██║  ██║██╔══██╗██╔══██╗██╔════╝██╔════╝      ██╔══██╗██╔════╝ ██╔════╝████╗  ██║╚══██╔══╝
-███████║███████║██║  ██║█████╗  ███████╗█████╗███████║██║  ███╗█████╗  ██╔██╗ ██║   ██║   
-██╔══██║██╔══██║██║  ██║██╔══╝  ╚════██║╚════╝██╔══██║██║   ██║██╔══╝  ██║╚██╗██║   ██║   
-██║  ██║██║  ██║██████╔╝███████╗███████║      ██║  ██║╚██████╔╝███████╗██║ ╚████║   ██║   
-╚═╝  ╚═╝╚═╝  ╚═╝╚═════╝ ╚══════╝╚══════╝      ╚═╝  ╚═╝ ╚═════╝ ╚══════╝╚═╝  ╚═══╝   ╚═╝`;
+  const visible = phase === 'visible';
 
   return (
     <div
       style={{
         width: '100vw',
         height: '100vh',
-        background: '#000000', // Fundo preto premium
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         overflow: 'hidden',
+        border: '1px solid rgb(var(--color-primary-rgb) / 0.22)',
+        borderRadius: '18px',
+        boxSizing: 'border-box',
+        background: 'var(--surface-base)',
+        opacity: visible ? 1 : 0,
+        transform: phase === 'leaving' ? 'scale(0.985)' : visible ? 'scale(1)' : 'scale(0.985)',
+        transition: 'opacity 700ms ease, transform 700ms ease',
         WebkitAppRegion: 'drag',
-        userSelect: 'none',
-        opacity,
-        transition: opacityTransition,
-      } as any}
+        userSelect: 'none'
+      } as React.CSSProperties}
     >
       <div
         style={{
-          transform,
-          transition: transformTransition,
+          width: '100%',
           display: 'flex',
           alignItems: 'center',
-          gap: '16px',
-          padding: '8px',
+          justifyContent: 'center',
+          gap: '28px',
+          padding: '28px 42px'
         }}
       >
-        {/* CONTAINER DO ÍCONE: Isolado para redimensionamento independente */}
-        <div 
-          style={{ 
-            width: ICON_WIDTH, 
-            height: ICON_HEIGHT,
+        <img
+          src="./icon/icon.png"
+          alt="Metis"
+          style={{
+            width: '132px',
+            height: '132px',
             flexShrink: 0,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center'
+            borderRadius: '26px',
+            objectFit: 'cover',
+            boxShadow: '0 18px 42px rgba(0, 0, 0, 0.36)'
           }}
-        >
-          <img
-            src="./icon/icon.png"
-            alt="Hades Icon"
+        />
+        <div
+          aria-hidden="true"
+          style={{
+            width: '1px',
+            height: '116px',
+            background: 'rgba(255, 255, 255, 0.12)'
+          }}
+        />
+        <div style={{ minWidth: '260px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <strong
             style={{
-              width: '100%',
-              height: '100%',
-              borderRadius: '4px 16px 4px 16px',
-              border: '1px solid #ff2a2a',
-              filter: 'drop-shadow(0 0 15px rgba(220, 38, 38, 0.35))',
-              objectFit: 'cover'
-            }}
-          />
-        </div>
-
-        {/* CONTAINER DO TEXTO FIGLET: Totalmente isolado do tamanho do ícone */}
-        <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-          <pre
-            style={{
-              fontFamily: "'Courier New', Courier, monospace",
-              fontSize: '12px',
-              lineHeight: '1.2',
-              fontWeight: 'bold',
-              margin: 0,
-              padding: 0,
-              background: 'linear-gradient(180deg, #ff3333 0%, #a30000 70%, #540000 100%)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              backgroundClip: 'text',
-              filter: 'drop-shadow(0 0 1px rgba(0,0,0,0.5))',
-              whiteSpace: 'pre',
-              pointerEvents: 'none',
+              color: 'var(--text-main)',
+              fontFamily: "'Inter', system-ui, sans-serif",
+              fontSize: '46px',
+              fontWeight: 720,
+              lineHeight: 1,
+              letterSpacing: 0
             }}
           >
-            {asciiArt}
-          </pre>
+            METIS
+          </strong>
+          <span
+            style={{
+              color: 'var(--color-gold)',
+              fontFamily: "'JetBrains Mono', monospace",
+              fontSize: '11px',
+              fontWeight: 700,
+              letterSpacing: 0
+            }}
+          >
+            INTELIGÊNCIA PRÁTICA
+          </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '8px' }}>
+            <span
+              style={{
+                width: '6px',
+                height: '6px',
+                borderRadius: '50%',
+                background: 'var(--color-primary)',
+                boxShadow: '0 0 10px rgb(var(--color-primary-rgb) / 0.8)'
+              }}
+            />
+            <span style={{ color: 'rgba(255, 255, 255, 0.38)', fontSize: '10px' }}>
+              Inicializando assistente
+            </span>
+          </div>
         </div>
       </div>
     </div>

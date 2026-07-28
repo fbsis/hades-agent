@@ -1,5 +1,5 @@
 {
-  "name": "hades-agent",
+  "name": "metis-agent",
   "version": "1.0.0",
   "description": "",
   "main": "main.js",
@@ -21,8 +21,8 @@
     "dist:mac": "vite build && npm run package:mac"
   },
   "build": {
-    "appId": "com.victorl.hades",
-    "productName": "Hades Agent",
+    "appId": "com.fbsis.metis",
+    "productName": "Metis",
     "directories": {
       "output": "release"
     },
@@ -49,15 +49,15 @@
         "portable",
         "zip"
       ],
-      "icon": "public/icon/hades-tray-icon.ico"
+      "icon": "public/icon/metis-icon.ico"
     },
     "portable": {
-      "artifactName": "Hades-Agent-${version}-portable.exe"
+      "artifactName": "Metis-${version}-portable.exe"
     },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
-      "artifactName": "Hades-Agent-Setup-${version}.exe"
+      "artifactName": "Metis-Setup-${version}.exe"
     },
     "mac": {
       "target": [

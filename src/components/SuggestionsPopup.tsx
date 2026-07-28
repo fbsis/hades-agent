@@ -27,7 +27,7 @@ const SuggestionsPopup: React.FC = () => {
       aria-label="Sugestão do assistente"
     >
       <div className="popup-icon">
-        <Sparkles size={18} color="#60a5fa" />
+        <Sparkles size={18} color="var(--color-gold)" />
       </div>
       <div className="popup-content">
         <ReactMarkdown remarkPlugins={[remarkGfm]}>

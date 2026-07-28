@@ -39,7 +39,7 @@ function toggleCommandWindow() {
     windowManager.minimizeToFloatingHead(win);
   } else {
     console.log('[SHORTCUTS] === ACTION: SHOW UNIFIED COMMAND ===');
-    windowManager.showCommandPanel(appState.chatHasMessages ? 'chat' : 'command');
+    windowManager.showCommandPanel(appState.activeCommandPanel || 'command');
 
     // Deferred state check — see what happened after OS compositor settles
     setTimeout(() => {

@@ -4,8 +4,8 @@ const path = require('node:path');
 
 const projectRoot = path.resolve(__dirname, '..');
 const packageJson = JSON.parse(fs.readFileSync(path.join(projectRoot, 'package.json'), 'utf8'));
-const packageName = packageJson.name || 'hades-agent';
-const productName = packageJson.build?.productName || 'Hades Agent';
+const packageName = packageJson.name || 'metis-agent';
+const productName = packageJson.build?.productName || 'Metis';
 const dryRun = process.argv.includes('--dry-run');
 
 const ownPid = process.pid;
@@ -14,11 +14,12 @@ function normalize(value) {
   return String(value || '').replace(/\\/g, '/').toLowerCase();
 }
 
-function isStaleHadesElectron(command) {
+function isStaleMetisElectron(command) {
   const normalizedCommand = normalize(command);
   const normalizedRoot = normalize(projectRoot);
   const normalizedPackage = normalize(packageName);
   const normalizedProduct = normalize(productName);
+  const legacyProduct = 'hades agent';
 
   const looksLikeElectron = [
     'electron.app/contents/macos/electron',
@@ -26,14 +27,17 @@ function isStaleHadesElectron(command) {
     '\\node_modules\\electron\\',
     'electron.exe',
     `${normalizedProduct}.app`,
-    `${normalizedProduct}.exe`
+    `${normalizedProduct}.exe`,
+    `${legacyProduct}.app`,
+    `${legacyProduct}.exe`
   ].some(marker => normalizedCommand.includes(normalize(marker)));
 
   if (!looksLikeElectron) return false;
 
   return normalizedCommand.includes(normalizedRoot)
     || normalizedCommand.includes(normalizedPackage)
-    || normalizedCommand.includes(normalizedProduct);
+    || normalizedCommand.includes(normalizedProduct)
+    || normalizedCommand.includes(legacyProduct);
 }
 
 function isAlive(pid) {
@@ -92,13 +96,13 @@ function cleanUnix() {
     const pid = Number(match[1]);
     const command = match[3];
     if (!Number.isFinite(pid) || pid === ownPid) continue;
-    if (!isStaleHadesElectron(command)) continue;
+    if (!isStaleMetisElectron(command)) continue;
 
     matches.push({ pid, command });
   }
 
   if (matches.length === 0) {
-    console.log('[dev:clean] no stale Hades Electron process found.');
+    console.log('[dev:clean] no stale Metis Electron process found.');
     return;
   }
 
@@ -114,7 +118,7 @@ function cleanWindows() {
       '-ExecutionPolicy',
       'Bypass',
       '-Command',
-      'Get-CimInstance Win32_Process | Where-Object { $_.Name -match "^(electron|Hades Agent)\\.exe$" } | ForEach-Object { "$($_.ProcessId)`t$($_.CommandLine)" }'
+      'Get-CimInstance Win32_Process | Where-Object { $_.Name -match "^(electron|Metis|Hades Agent)\\.exe$" } | ForEach-Object { "$($_.ProcessId)`t$($_.CommandLine)" }'
     ], { encoding: 'utf8' });
   } catch (error) {
     console.warn(`[dev:clean] could not inspect Windows processes: ${error.message}`);
@@ -129,10 +133,10 @@ function cleanWindows() {
       const [pidText, ...commandParts] = line.split('\t');
       return { pid: Number(pidText), command: commandParts.join('\t') };
     })
-    .filter(({ pid, command }) => Number.isFinite(pid) && pid !== ownPid && isStaleHadesElectron(command));
+    .filter(({ pid, command }) => Number.isFinite(pid) && pid !== ownPid && isStaleMetisElectron(command));
 
   if (matches.length === 0) {
-    console.log('[dev:clean] no stale Hades Electron process found.');
+    console.log('[dev:clean] no stale Metis Electron process found.');
     return;
   }
 

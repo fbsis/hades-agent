@@ -2,7 +2,7 @@ const { screen, app } = require('electron');
 const path = require('node:path');
 
 /**
- * Window Configurations for the Hades Application.
+ * Window Configurations for the Metis Application.
  * This acts as the Single Source of Truth for window dimensions, properties, and paths.
  */
 
@@ -211,8 +211,8 @@ const windowConfigs = {
     }
   },
   splash: {
-    width: 900,
-    height: 180,
+    width: 720,
+    height: 260,
     frame: false,
     transparent: true,
     alwaysOnTop: true,
@@ -231,8 +231,8 @@ const windowConfigs = {
     onInit: (win) => {
       const { width: sw, height: sh } = screen.getPrimaryDisplay().workAreaSize;
       win.setPosition(
-        Math.floor((sw - 900) / 2),
-        Math.floor((sh - 180) / 2)
+        Math.floor((sw - 720) / 2),
+        Math.floor((sh - 260) / 2)
       );
       win.setAlwaysOnTop(true, 'floating');
       win.once('ready-to-show', () => {

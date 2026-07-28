@@ -42,7 +42,7 @@ const Settings: React.FC<SettingsProps> = ({ embedded = false, onClosePanel }) =
   if (isLoading || !settings) {
     return (
       <div className={`settings-window ${embedded ? 'embedded-settings' : ''}`} style={{ justifyContent: 'center', alignItems: 'center' }}>
-        <Loader className="animate-spin" size={32} color="#dc2626" />
+        <Loader className="animate-spin" size={32} color="var(--color-primary)" />
       </div>
     );
   }
@@ -51,7 +51,7 @@ const Settings: React.FC<SettingsProps> = ({ embedded = false, onClosePanel }) =
     <div className={`settings-window ${embedded ? 'embedded-settings' : ''}`}>
       <div className="settings-drag-area">
         <div style={{ fontSize: '12px', fontWeight: 600, color: 'rgba(255,255,255,0.5)' }}>
-          HADES AGENT
+          METIS
         </div>
         <button className="settings-close-btn" onClick={handleClose}>
           <X size={16} />

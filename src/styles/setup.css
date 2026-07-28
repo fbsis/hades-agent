@@ -17,8 +17,8 @@
   max-width: 400px;
   height: auto;
   max-height: calc(100vh - 16px);
-  background: rgba(15, 15, 25, 0.9);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgb(var(--surface-panel-rgb) / 0.92);
+  border: 1px solid var(--border-primary);
   border-radius: 12px;
   padding: 32px 24px;
   display: flex;
@@ -68,8 +68,8 @@
 
 .progress-bar-fill {
   height: 100%;
-  background: linear-gradient(90deg, #dc2626, #ef4444);
-  box-shadow: 0 0 20px rgba(220, 38, 38, 0.4);
+  background: linear-gradient(90deg, var(--color-primary), var(--color-primary-light));
+  box-shadow: 0 0 20px rgb(var(--color-primary-rgb) / 0.4);
   transition: width 0.4s cubic-bezier(0.1, 0.8, 0.2, 1);
 }
 
@@ -89,11 +89,11 @@
 
 .percentage-text {
   font-weight: 700;
-  color: #ef4444;
+  color: var(--color-primary-light);
 }
 
 .start-btn {
-  background: #dc2626;
+  background: var(--color-primary);
   color: white;
   border: none;
   padding: 14px 32px;
@@ -108,7 +108,7 @@
 }
 
 .start-btn:hover:not(:disabled) {
-  background: #b91c1c;
+  background: var(--color-primary-dark);
   transform: translateY(-2px);
 }
 

@@ -8,7 +8,7 @@ class SearchService {
             const apiKey = jsonStore.getSettings()?.general?.tavilyApiKey || process.env.VITE_TAVILY_API_KEY; 
             
             if (!apiKey) {
-                return "Erro: A chave da API do Tavily não está configurada. Por favor, configure-a nas Configurações do Hades (Alt+S).";
+                return "Erro: A chave da API do Tavily não está configurada. Por favor, configure-a nas Configurações do Metis (Alt+S).";
             }
 
             console.log(`[SearchService] Buscando via Tavily: ${query}`);

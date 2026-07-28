@@ -246,14 +246,14 @@ class HermesService {
 
     return [
       args.primaryAgent
-        ? 'Voce e o Hermes Agent sendo usado como agente principal do Hades Agent.'
-        : 'Voce e o Hermes Agent sendo chamado pelo Hades Agent como agente auxiliar.',
+        ? 'Voce e o Hermes Agent sendo usado como agente principal do Metis.'
+        : 'Voce e o Hermes Agent sendo chamado pelo Metis como agente auxiliar.',
       'Use suas proprias ferramentas e memoria persistente quando isso for necessario.',
-      'O Hades envia contexto compacto; nao assuma que ele enviou todo o historico.',
+      'O Metis envia contexto compacto; nao assuma que ele enviou todo o historico.',
       'Priorize respostas curtas, verificaveis e acionaveis.',
       'Para clima, web atual, APIs externas, CLI, pesquisa e tarefas multi-step, execute a acao no Hermes quando suas ferramentas permitirem.',
       'Para memorias, curriculo, entrevistas, preferencias e documentos, use a memoria persistente do Hermes quando apropriado.',
-      `Modo Hades: ${mode}. Estilo preferido: ${style}. Session key: ${config.sessionKey}.`
+      `Modo Metis: ${mode}. Estilo preferido: ${style}. Session key: ${config.sessionKey}.`
     ].join('\n');
   }
 
@@ -263,7 +263,7 @@ class HermesService {
     const localContext = includeLocalContext ? this.buildLocalContext(effectiveConfig.maxContextChars) : '';
     const context = clip(args.context || '', effectiveConfig.maxContextChars);
     const prompt = clip(args.prompt || args.task || '', effectiveConfig.maxContextChars);
-    const instruction = clip(args.instruction || 'Resolva a tarefa abaixo e retorne apenas o resultado util para o Hades.', 1200);
+    const instruction = clip(args.instruction || 'Resolva a tarefa abaixo e retorne apenas o resultado util para o Metis.', 1200);
 
     const userContent = [
       '<instrucao_hades>',
@@ -534,7 +534,7 @@ class HermesService {
   async ingestDocument(document = {}) {
     return this.remember({
       kind: document.type || 'document',
-      title: document.title || 'Documento Hades',
+      title: document.title || 'Documento Metis',
       source: document.source || 'manual',
       text: document.text || ''
     });
@@ -558,7 +558,7 @@ class HermesService {
 
     return this.ask({
       prompt: transcript,
-      instruction: 'Revise esta conversa do Hades e grave no Hermes apenas memorias futuras realmente uteis. Ignore conversa descartavel.',
+      instruction: 'Revise esta conversa do Metis e grave no Hermes apenas memorias futuras realmente uteis. Ignore conversa descartavel.',
       maxOutputTokens: 500,
       logType: 'conversation_memory'
     });
@@ -592,7 +592,7 @@ class HermesService {
 
     const result = await this.ask({
       prompt: [
-        `Titulo da sessao: ${session.title || 'Reuniao Hades'}`,
+        `Titulo da sessao: ${session.title || 'Reuniao Metis'}`,
         `Data: ${session.timestamp || new Date().toISOString()}`,
         '',
         transcript
@@ -601,7 +601,7 @@ class HermesService {
         'Skill: hades_meeting_summary.',
         'Gere um resumo de reuniao em portugues com: objetivo, decisoes, tarefas, riscos, perguntas abertas e contexto importante.',
         'Use a memoria persistente do Hermes para guardar apenas decisoes, preferencias, compromissos e fatos reutilizaveis.',
-        'Retorne um resumo curto e estruturado para ser anexado ao historico do Hades.'
+        'Retorne um resumo curto e estruturado para ser anexado ao historico do Metis.'
       ].join(' '),
       includeLocalContext: false,
       maxOutputTokens: 1200,

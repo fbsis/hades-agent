@@ -15,7 +15,7 @@ function registerWindowHandlers() {
       const settingsWin = windowManager.get('settings');
       const floatingHeadWin = windowManager.get('floatingHead');
       if (win === floatingHeadWin) {
-        windowManager.showCommandPanel('command');
+        windowManager.showCommandPanel(appState.activeCommandPanel || 'command');
       } else if (win === settingsWin) {
         win.hide();
       } else {
@@ -253,8 +253,15 @@ function registerWindowHandlers() {
     }
   });
 
+  ipcMain.on('command-panel-changed', (event, panel) => {
+    const allowedPanels = new Set(['command', 'chat', 'settings', 'transcription', 'voice']);
+    if (allowedPanels.has(panel)) {
+      appState.activeCommandPanel = panel;
+    }
+  });
+
   ipcMain.on('floating-head-click', () => {
-    windowManager.showCommandPanel('command');
+    windowManager.showCommandPanel(appState.activeCommandPanel || 'command');
   });
 
   ipcMain.on('move-floating-head', (event, delta) => {

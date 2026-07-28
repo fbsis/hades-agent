@@ -2,6 +2,31 @@ const { app, BrowserWindow, ipcMain, globalShortcut, screen, session } = require
 const path = require('node:path');
 const fs = require('node:fs');
 
+// Preserve existing local settings and history after the product rename.
+const migrateLegacyUserData = () => {
+  const target = app.getPath('userData');
+  const appData = app.getPath('appData');
+  const legacyPaths = [
+    path.join(appData, 'Hades Agent'),
+    path.join(appData, 'hades-agent')
+  ].filter(candidate => candidate !== target);
+
+  try {
+    const targetHasData = fs.existsSync(target) && fs.readdirSync(target).length > 0;
+    const source = legacyPaths.find(candidate => (
+      fs.existsSync(candidate) && fs.readdirSync(candidate).length > 0
+    ));
+    if (!targetHasData && source) {
+      fs.mkdirSync(target, { recursive: true });
+      fs.cpSync(source, target, { recursive: true, force: false });
+    }
+  } catch (error) {
+    console.warn(`[METIS] Could not migrate legacy user data: ${error.message}`);
+  }
+};
+
+migrateLegacyUserData();
+
 // Modular Imports
 const windowManager = require('./electron/windows/windowManager');
 const { initIPC } = require('./electron/ipc');
@@ -16,7 +41,7 @@ log.transports.console.level = false; // Disable console logging in production
 app.isQuitting = false;
 
 /**
- * Hades Application Orchestrator
+ * Metis Application Orchestrator
  * This is the main entry point for the Electron backend.
  * It initializes core services, window management, and IPC handlers.
  */
@@ -96,7 +121,7 @@ app.whenReady().then(() => {
     }, 3000);
   });
 
-  log.info('[MAIN] Hades Agent initialized successfully.');
+  log.info('[MAIN] Metis initialized successfully.');
 });
 
 const markAppAsQuitting = () => {

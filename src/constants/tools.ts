@@ -68,8 +68,8 @@ export const GEMINI_TOOLS = {
         type: "object",
         properties: {
           prompt: { type: "string", description: "Tarefa objetiva para o Hermes executar" },
-          context: { type: "string", description: "Contexto compacto que o Hades deve fornecer ao Hermes" },
-          instruction: { type: "string", description: "Como o Hermes deve devolver o resultado ao Hades" },
+          context: { type: "string", description: "Contexto compacto que o Metis deve fornecer ao Hermes" },
+          instruction: { type: "string", description: "Como o Hermes deve devolver o resultado ao Metis" },
           maxOutputTokens: { type: "number", description: "Limite opcional de tokens de resposta" }
         },
         required: ["prompt"]

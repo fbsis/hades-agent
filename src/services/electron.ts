@@ -82,6 +82,9 @@ class ElectronService {
   onOpenCommandPanel(callback: (panel: 'command' | 'chat' | 'settings' | 'transcription' | 'voice') => void) {
     return this.electron?.onOpenCommandPanel(callback) || (() => {});
   }
+  setActiveCommandPanel(panel: 'command' | 'chat' | 'settings' | 'transcription' | 'voice') {
+    this.electron?.setActiveCommandPanel(panel);
+  }
   onNotify(callback: (message: string) => void) {
     return this.electron?.onNotify(callback) || (() => {});
   }

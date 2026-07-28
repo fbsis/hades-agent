@@ -63,22 +63,21 @@ const FloatingHead: React.FC = () => {
       <button
         type="button"
         className="floating-head-button"
-        aria-label="Abrir Hades"
-        title="Abrir Hades"
+        aria-label="Abrir Metis"
+        title="Abrir Metis"
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerCancel}
       >
         <span className="floating-head-glow" />
-        <span className="floating-chat-bubbles" aria-hidden="true">
-          <span className="chat-bubble chat-bubble-main">
-            <span className="chat-bubble-dot" />
-            <span className="chat-bubble-dot" />
-            <span className="chat-bubble-dot" />
-          </span>
-          <span className="chat-bubble chat-bubble-small" />
-        </span>
+        <img
+          className="floating-head-logo"
+          src="/icon/metis-symbol.png"
+          alt=""
+          aria-hidden="true"
+          draggable={false}
+        />
       </button>
     </div>
   );

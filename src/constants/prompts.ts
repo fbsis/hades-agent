@@ -1,10 +1,10 @@
 /**
  * System prompts used throughout the application.
  */
-import hadesSystemPromptRaw from '../../prompts/hadesSystem.md?raw';
+import metisSystemPromptRaw from '../../prompts/metisSystem.md?raw';
 import susurroSystemPromptRaw from '../../prompts/susurroSystem.md?raw';
 
-export interface HadesContext {
+export interface MetisContext {
   date: string;          // ISO 8601 — e.g. "2026-05-16"
   weekday: string;       // Full name — e.g. "Sexta-feira"
   time: string;          // HH:mm — e.g. "13:21"
@@ -19,16 +19,16 @@ export interface HadesContext {
 }
 
 /**
- * Builds a rich HadesContext object from the current environment.
+ * Builds a rich MetisContext object from the current environment.
  * Called in useGemini.ts before each inference.
  */
-export const buildHadesContext = (
+export const buildMetisContext = (
   activeSkills: string = 'Nenhuma skill carregada ainda.',
   userMemory: string = 'Nenhuma memória consolidada ainda.',
   assistantMode: string = 'auto',
   preferredAnswerStyle: string = 'auto',
   hermesContext: string = 'Hermes desativado ou delegacao desligada.'
-): HadesContext => {
+): MetisContext => {
   const now = new Date();
   const locale = 'pt-BR';
 
@@ -66,8 +66,8 @@ export const buildHadesContext = (
  * Based on the "Lost in the Middle" positional bias principle:
  * critical rules go at the TOP and BOTTOM of the prompt.
  */
-export const getHadesSystemPrompt = (ctx: HadesContext): string => {
-  let prompt = hadesSystemPromptRaw;
+export const getMetisSystemPrompt = (ctx: MetisContext): string => {
+  let prompt = metisSystemPromptRaw;
   prompt = prompt.replace('{{date}}', ctx.date);
   prompt = prompt.replace('{{weekday}}', ctx.weekday);
   prompt = prompt.replace('{{time}}', ctx.time);

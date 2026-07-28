@@ -1,9 +1,8 @@
 const fs = require('node:fs');
 const path = require('node:path');
-const os = require('node:os');
-const { app } = require('electron');
 const logger = require('./logger');
 const sessionLogger = require('./sessionLogger');
+const { getMetisDataPath } = require('./metisDataPath');
 const { GoogleGenAI } = require('@google/genai');
 const jsonStore = require('../store/jsonStore');
 
@@ -13,7 +12,7 @@ const jsonStore = require('../store/jsonStore');
  */
 class DreamService {
   constructor() {
-    const userDataPath = path.join(os.homedir(), '.Hades');
+    const userDataPath = getMetisDataPath();
     this.memoryDir = path.join(userDataPath, 'memory');
     
     if (!fs.existsSync(this.memoryDir)) {

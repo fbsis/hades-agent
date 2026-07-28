@@ -62,7 +62,7 @@ function registerToolHandlers() {
   });
 
   /**
-   * Retrieves the system audio source ID for Hadesback capture.
+   * Retrieves the system audio source ID for playback capture.
    */
   ipcMain.handle('get-system-audio-source-id', async () => {
     try {

@@ -23,6 +23,7 @@ contextBridge.exposeInMainWorld('electron', {
     ipcRenderer.on('open-command-panel', sub);
     return () => ipcRenderer.removeListener('open-command-panel', sub);
   },
+  setActiveCommandPanel: (panel) => ipcRenderer.send('command-panel-changed', panel),
   onNotify: (callback) => {
     const sub = (_event, message) => callback(message);
     ipcRenderer.on('notify', sub);

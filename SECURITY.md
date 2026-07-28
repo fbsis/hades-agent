@@ -2,7 +2,7 @@
 
 ## Reporting a Vulnerability
 
-We take the security of Hades Agent seriously. If you find a security vulnerability, please do not report it publicly through GitHub issues. Instead, please report it directly and privately.
+We take the security of Metis seriously. If you find a security vulnerability, please do not report it publicly through GitHub issues. Instead, please report it directly and privately.
 
 To report a vulnerability, please email **pixodevbusiness@gmail.com** with the details of the vulnerability, including:
 
@@ -12,4 +12,4 @@ To report a vulnerability, please email **pixodevbusiness@gmail.com** with the d
 
 We will acknowledge receipt of your vulnerability report within 48 hours and work with you to resolve the issue as quickly as possible.
 
-Thank you for helping keep Hades Agent secure!
+Thank you for helping keep Metis secure!

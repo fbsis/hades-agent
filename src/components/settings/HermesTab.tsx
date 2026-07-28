@@ -87,7 +87,7 @@ const HermesTab: React.FC<HermesTabProps> = ({ hermes, assistant, updateHermes, 
 
     const result = await runAction('Chamando Hermes', () => electronService.askHermes({
       prompt: agentPrompt,
-      instruction: 'Resolva como agente principal do Hades. Use memoria, web, APIs ou CLI se isso for apropriado.',
+      instruction: 'Resolva como agente principal do Metis. Use memoria, web, APIs ou CLI se isso for apropriado.',
       mode: assistant.mode,
       preferredAnswerStyle: assistant.preferredAnswerStyle,
       maxOutputTokens: 900,
@@ -109,7 +109,7 @@ const HermesTab: React.FC<HermesTabProps> = ({ hermes, assistant, updateHermes, 
     <div>
       <div className="tab-header">
         <h2 className="tab-title">Hermes Agent</h2>
-        <p className="tab-subtitle">Use Hermes como agente principal do Hades, mantendo Gemini para transcricao rapida e titulos.</p>
+        <p className="tab-subtitle">Use Hermes como agente principal do Metis, mantendo Gemini para transcricao rapida e titulos.</p>
       </div>
 
       <div className="agent-status-row">
@@ -159,7 +159,7 @@ const HermesTab: React.FC<HermesTabProps> = ({ hermes, assistant, updateHermes, 
       <div className="setting-row">
         <div className="setting-info">
           <div className="setting-title">Formato preferido</div>
-          <div className="setting-desc">Controla se o Hades deve priorizar resposta curta, estrutura ou código.</div>
+          <div className="setting-desc">Controla se o Metis deve priorizar resposta curta, estrutura ou código.</div>
         </div>
         <div className="setting-control">
           <select
@@ -201,7 +201,7 @@ const HermesTab: React.FC<HermesTabProps> = ({ hermes, assistant, updateHermes, 
 
       <ToggleRow
         title="Ativar Hermes"
-        description="Quando ligado, o Hades pode usar o Hermes como agente principal."
+        description="Quando ligado, o Metis pode usar o Hermes como agente principal."
         checked={hermes.enabled}
         onChange={(value) => updateHermes({ enabled: value })}
       />
@@ -232,7 +232,7 @@ const HermesTab: React.FC<HermesTabProps> = ({ hermes, assistant, updateHermes, 
 
       <ToggleRow
         title="Hermes para ações externas"
-        description="Prefere Hermes para tempo, Google, APIs externas, CLI e trabalhos com ferramentas fora do Hades."
+        description="Prefere Hermes para tempo, Google, APIs externas, CLI e trabalhos com ferramentas fora do Metis."
         checked={hermes.useForExternalActions}
         onChange={(value) => updateHermes({ useForExternalActions: value })}
       />

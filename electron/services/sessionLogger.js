@@ -1,12 +1,11 @@
 const fs = require('fs');
 const path = require('path');
-const os = require('os');
-const { app } = require('electron');
 const logger = require('./logger');
+const { getMetisDataPath } = require('./metisDataPath');
 
 class SessionLogger {
   constructor() {
-    const userDataPath = path.join(os.homedir(), '.Hades');
+    const userDataPath = getMetisDataPath();
     this.sessionsDir = path.join(userDataPath, 'sessions');
     
     if (!fs.existsSync(this.sessionsDir)) {

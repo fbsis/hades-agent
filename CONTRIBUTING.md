@@ -1,6 +1,6 @@
-# Contributing to Hades Agent ☤
+# Contributing to Metis
 
-Thank you for your interest in contributing to Hades Agent! We welcome contributions from the community to help make this the best self-improving desktop AI agent.
+Thank you for your interest in contributing to Metis! We welcome contributions from the community to help make this the best self-improving desktop AI agent.
 
 ## How to Contribute
 
@@ -19,8 +19,8 @@ Thank you for your interest in contributing to Hades Agent! We welcome contribut
 
 1. Clone your fork of the repository:
    ```bash
-   git clone https://github.com/YOUR-USERNAME/Hades-Agent.git
-   cd Hades-Agent
+   git clone https://github.com/YOUR-USERNAME/hades-agent.git
+   cd hades-agent
    ```
 2. Install workspace dependencies:
    ```bash

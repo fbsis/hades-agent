@@ -11,7 +11,7 @@ class TaskService {
   interval = null;
 
   /**
-   * Starts the background task monitoring Hades..
+   * Starts Metis background task monitoring.
    */
   start() {
     if (this.interval) return;
@@ -92,7 +92,7 @@ class TaskService {
   }
 
   /**
-   * Stops the background task monitoring Hades.
+   * Stops Metis background task monitoring.
    */
   stop() {
     if (this.interval) {

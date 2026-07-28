@@ -12,21 +12,21 @@ const TitleBar: React.FC = () => {
       <div className="drag-region" style={{ display: 'flex', alignItems: 'center' }}>
         <img 
           src="/icon/icon.png" 
-          alt="Hades Icon" 
+          alt="Metis"
           style={{ 
             width: '16px', 
             height: '16px', 
             marginRight: '8px', 
             marginLeft: '8px',
-            borderRadius: '2px 8px 2px 8px', 
-            border: '1px solid #dc2626',
+            borderRadius: '4px',
+            border: '1px solid rgb(var(--color-primary-rgb) / 0.55)',
             objectFit: 'cover'
           }} 
         />
-        <span className="app-title">Hades-Agent</span>
+        <span className="app-title">Metis</span>
       </div>
       <div className="window-controls">
-        <button onClick={handleClose} className="close-btn" title="Sair do Hades">
+        <button onClick={handleClose} className="close-btn" title="Sair do Metis">
           <X size={14} />
         </button>
       </div>

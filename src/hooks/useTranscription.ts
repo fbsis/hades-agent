@@ -307,7 +307,7 @@ export const useTranscription = (
   return {
     isTranscribing,
     isConnecting,
-    startTranscriptionHades: toggleTranscription,
-    stopTranscriptionHades: toggleTranscription
+    startTranscriptionMetis: toggleTranscription,
+    stopTranscriptionMetis: toggleTranscription
   };
 };

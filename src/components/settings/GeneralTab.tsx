@@ -167,7 +167,7 @@ const GeneralTab: React.FC<GeneralTabProps> = ({ settings, updateSettings }) => 
       <div className="setting-row">
         <div className="setting-info">
           <div className="setting-title">Ativar Dreaming</div>
-          <div className="setting-desc">Permite que o Hades consolide aprendizados das conversas e interações em segundo plano.</div>
+          <div className="setting-desc">Permite que o Metis consolide aprendizados das conversas e interações em segundo plano.</div>
         </div>
         <div className="setting-control">
           <label className="switch" aria-label="Ativar Dreaming">

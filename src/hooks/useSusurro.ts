@@ -52,7 +52,7 @@ export const useSusurro = (options: { embedded?: boolean; autoStart?: boolean; o
     deletePersona
   } = usePersonas();
 
-  const { isTranscribing, isConnecting, startTranscriptionHades, stopTranscriptionHades } = useTranscription(
+  const { isTranscribing, isConnecting, startTranscriptionMetis, stopTranscriptionMetis } = useTranscription(
     selectedPersona,
     isSuggestionsEnabled,
     isGlobalTranslationEnabled,
@@ -92,7 +92,7 @@ export const useSusurro = (options: { embedded?: boolean; autoStart?: boolean; o
         e.preventDefault();
         e.stopPropagation();
         (document.activeElement as HTMLElement)?.blur();
-        startTranscriptionHades();
+        startTranscriptionMetis();
       }
     };
     globalThis.addEventListener('keydown', handleKeyDown);
@@ -101,12 +101,12 @@ export const useSusurro = (options: { embedded?: boolean; autoStart?: boolean; o
       globalThis.removeEventListener('keydown', handleKeyDown);
       clearInterval(timerInterval);
     };
-  }, [options.embedded, options.onClosePanel, startTranscriptionHades]);
+  }, [options.embedded, options.onClosePanel, startTranscriptionMetis]);
 
   useEffect(() => {
     if (!options.autoStart) return;
-    startTranscriptionHades();
-  }, [options.autoStart, startTranscriptionHades]);
+    startTranscriptionMetis();
+  }, [options.autoStart, startTranscriptionMetis]);
 
   useEffect(() => {
     return () => {
@@ -277,7 +277,7 @@ export const useSusurro = (options: { embedded?: boolean; autoStart?: boolean; o
     handleScroll,
 
     // Transcription
-    isTranscribing, isConnecting, startTranscriptionHades, stopTranscriptionHades,
+    isTranscribing, isConnecting, startTranscriptionMetis, stopTranscriptionMetis,
 
     // Handlers
     handleToggleGlobalTranslation,

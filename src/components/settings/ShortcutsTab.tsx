@@ -146,7 +146,7 @@ const ShortcutsTab: React.FC<ShortcutsTabProps> = ({ settings = {}, updateSettin
     <div className="shortcuts-tab-container">
       <div className="tab-header">
         <h2 className="tab-title">Teclas de Atalho</h2>
-        <p className="tab-subtitle">Personalize os atalhos globais de teclado para controlar o Hades de qualquer lugar do sistema.</p>
+        <p className="tab-subtitle">Personalize os atalhos globais de teclado para controlar o Metis de qualquer lugar do sistema.</p>
       </div>
 
       <div className="section-header">
@@ -160,9 +160,9 @@ const ShortcutsTab: React.FC<ShortcutsTabProps> = ({ settings = {}, updateSettin
           display: 'flex',
           alignItems: 'center',
           gap: '8px',
-          background: 'rgba(239, 68, 68, 0.1)',
-          border: '1px solid rgba(239, 68, 68, 0.2)',
-          color: '#ef4444',
+          background: 'rgb(var(--color-primary-rgb) / 0.1)',
+          border: '1px solid rgb(var(--color-primary-rgb) / 0.2)',
+          color: 'var(--color-primary-light)',
           padding: '12px 16px',
           borderRadius: '8px',
           fontSize: '13px',
@@ -200,8 +200,8 @@ const ShortcutsTab: React.FC<ShortcutsTabProps> = ({ settings = {}, updateSettin
                   {isModified && (
                     <span style={{
                       fontSize: '10px',
-                      background: 'rgba(239, 68, 68, 0.15)',
-                      color: '#ef4444',
+                      background: 'rgb(var(--color-primary-rgb) / 0.15)',
+                      color: 'var(--color-primary-light)',
                       padding: '2px 6px',
                       borderRadius: '4px',
                       fontWeight: 500
@@ -224,9 +224,9 @@ const ShortcutsTab: React.FC<ShortcutsTabProps> = ({ settings = {}, updateSettin
                   }}
                   className={`settings-input-shortcut ${isRecording ? 'recording' : ''}`}
                   style={{
-                    background: isRecording ? 'rgba(220, 38, 38, 0.15)' : 'rgba(255, 255, 255, 0.05)',
-                    border: isRecording ? '1px solid #dc2626' : '1px solid rgba(255, 255, 255, 0.1)',
-                    color: isRecording ? '#ef4444' : '#fff',
+                    background: isRecording ? 'rgb(var(--color-primary-rgb) / 0.15)' : 'rgba(255, 255, 255, 0.05)',
+                    border: isRecording ? '1px solid var(--color-primary)' : '1px solid rgba(255, 255, 255, 0.1)',
+                    color: isRecording ? 'var(--color-primary-light)' : '#fff',
                     padding: '8px 16px',
                     borderRadius: '8px',
                     fontSize: '14px',
@@ -235,7 +235,7 @@ const ShortcutsTab: React.FC<ShortcutsTabProps> = ({ settings = {}, updateSettin
                     minWidth: '150px',
                     textAlign: 'center',
                     transition: 'all 0.2s ease',
-                    boxShadow: isRecording ? '0 0 12px rgba(220, 38, 38, 0.3)' : 'none'
+                    boxShadow: isRecording ? '0 0 12px rgb(var(--color-primary-rgb) / 0.3)' : 'none'
                   }}
                 >
                   {isRecording ? (
@@ -244,7 +244,7 @@ const ShortcutsTab: React.FC<ShortcutsTabProps> = ({ settings = {}, updateSettin
                         width: '8px',
                         height: '8px',
                         borderRadius: '50%',
-                        background: '#ef4444',
+                        background: 'var(--color-primary-light)',
                         display: 'inline-block'
                       }} />
                       Aguardando teclas...
@@ -282,15 +282,15 @@ const ShortcutsTab: React.FC<ShortcutsTabProps> = ({ settings = {}, updateSettin
 
       <div style={{
         marginTop: '32px',
-        background: 'rgba(220, 38, 38, 0.05)',
-        border: '1px solid rgba(220, 38, 38, 0.1)',
+        background: 'rgb(var(--color-primary-rgb) / 0.05)',
+        border: '1px solid rgb(var(--color-primary-rgb) / 0.1)',
         borderRadius: '10px',
         padding: '16px 20px',
         display: 'flex',
         alignItems: 'flex-start',
         gap: '12px'
       }}>
-        <HelpCircle size={18} style={{ color: '#ef4444', marginTop: '2px', flexShrink: 0 }} />
+        <HelpCircle size={18} style={{ color: 'var(--color-primary-light)', marginTop: '2px', flexShrink: 0 }} />
         <div style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.6)', lineHeight: '1.5' }}>
           <strong>Como alterar um atalho:</strong> Clique no botão do atalho desejado para iniciar a gravação. Pressione a combinação de teclas no teclado (ex: <code>Alt+Shift+H</code>). O sistema validará e salvará o novo atalho automaticamente. Para cancelar, pressione <code>Esc</code>.
         </div>

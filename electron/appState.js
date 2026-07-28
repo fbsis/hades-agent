@@ -9,6 +9,7 @@ class AppState {
   isQuitting = false;
   isFileDialogOpen = false;
   pendingCommandPanel = null;
+  activeCommandPanel = 'command';
 
   constructor() {
     const history = store.getChatHistory();

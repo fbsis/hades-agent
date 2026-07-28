@@ -111,7 +111,7 @@
 }
 
 .text-typing {
-  color: #00f2ff;
+  color: var(--color-primary-light);
   text-shadow: 0 0 8px rgba(0, 242, 255, 0.3);
 }
 

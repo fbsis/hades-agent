@@ -12,8 +12,8 @@ let trayInstance = null;
  */
 function createTray() {
   const iconPath = process.platform === 'darwin'
-    ? path.join(__dirname, '../public/icon/hades-tray-icon-128.png')
-    : path.join(__dirname, '../public/icon/hades-tray-icon.ico');
+    ? path.join(__dirname, '../public/icon/metis-icon-128.png')
+    : path.join(__dirname, '../public/icon/metis-icon.ico');
   trayInstance = new Tray(iconPath);
 
   if (process.platform === 'darwin') {
@@ -22,7 +22,7 @@ function createTray() {
 
   const contextMenu = Menu.buildFromTemplate([
     {
-      label: 'Abrir Hades (Alt+D)',
+      label: 'Abrir Metis (Alt+D)',
       click: () => {
         windowManager.showCommandPanel('command');
       }
@@ -49,7 +49,7 @@ function createTray() {
     }
   ]);
 
-  trayInstance.setToolTip('Hades Agent');
+  trayInstance.setToolTip('Metis');
   trayInstance.setContextMenu(contextMenu);
 
   return trayInstance;

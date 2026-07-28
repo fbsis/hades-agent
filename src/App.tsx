@@ -14,11 +14,11 @@ const App: React.FC = () => {
 
   useEffect(() => {
     console.log(
-      `%c[HADES RENDERER] Window mounted: ${windowType || 'command'}`,
-      'color: #00ffcc; font-weight: bold; font-size: 14px;'
+      `%c[METIS RENDERER] Window mounted: ${windowType || 'command'}`,
+      'color: var(--color-primary-light); font-weight: bold; font-size: 14px;'
     )
-    console.log('[HADES RENDERER] Location:', globalThis.location.href)
-    console.log('[HADES RENDERER] Document visibilityState:', document.visibilityState)
+    console.log('[METIS RENDERER] Location:', globalThis.location.href)
+    console.log('[METIS RENDERER] Document visibilityState:', document.visibilityState)
   }, [windowType])
 
   if (windowType === 'splash') {

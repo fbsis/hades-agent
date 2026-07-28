@@ -39,7 +39,7 @@ function buildApplyResults(results: TranslationResult[]) {
 }
 
 /**
- * Hook to manage the translation Hades for Susurro messages.
+ * Hook to manage Metis translations for transcription messages.
  */
 export const useTranslation = (
   messages: SusurroMessage[],

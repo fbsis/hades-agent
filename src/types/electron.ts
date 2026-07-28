@@ -45,6 +45,7 @@ export interface ElectronAPI {
   onNewChatMessage: (callback: (msg: string, img?: string) => void) => () => void;
   onFocusInput: (callback: () => void) => () => void;
   onOpenCommandPanel: (callback: (panel: 'command' | 'chat' | 'settings' | 'transcription' | 'voice') => void) => () => void;
+  setActiveCommandPanel: (panel: 'command' | 'chat' | 'settings' | 'transcription' | 'voice') => void;
   onNotify: (callback: (message: string) => void) => () => void;
   notifHidden: () => void;
   

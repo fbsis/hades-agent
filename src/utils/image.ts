@@ -1,5 +1,5 @@
 /**
- * Image processing utilities for the Hades project.
+ * Image processing utilities for the Metis project.
  */
 
 /**

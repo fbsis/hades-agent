@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { ChatMessage } from '../types';
-import { buildHadesContext, getHadesSystemPrompt } from '../constants/prompts';
+import { buildMetisContext, getMetisSystemPrompt } from '../constants/prompts';
 import { GEMINI_TOOLS } from '../constants/tools';
 import { electronService } from '../services/electron';
 import { prepareGeminiPayload, processGeminiParts } from '../utils/ai';
@@ -8,7 +8,7 @@ import { mapModelIdToApiName } from '../constants/models';
 
 /**
  * Hook to manage Gemini AI inference and tool execution.
- * Handles the conversational Hades agent, tool calls, and state management.
+ * Handles the conversational Metis agent, tool calls, and state management.
  *
  * Architecture:
  * - Main loop uses native google_search + code_execution (built-in Gemini tools)
@@ -93,7 +93,7 @@ export const useGemini = (
   const buildHermesChatContext = (history: ChatMessage[], maxChars: number) => {
     const lines = history.slice(-12).map((message) => {
       const role = message.sender === 'user' ? 'usuario' : 'hades';
-      const imageNote = message.image ? '\n[imagem anexada no Hades; o contexto visual lido pelo Gemini sera enviado separadamente quando disponivel]' : '';
+      const imageNote = message.image ? '\n[imagem anexada no Metis; o contexto visual lido pelo Gemini sera enviado separadamente quando disponivel]' : '';
       return `${role}: ${message.text || ''}${imageNote}`;
     });
 
@@ -606,12 +606,12 @@ export const useGemini = (
           prompt: effectiveUserPrompt,
           context,
           instruction: [
-            'Voce e o agente principal do Hades no MiniChat.',
+            'Voce e o agente principal do Metis no MiniChat.',
             'Responda diretamente ao usuario em pt-BR.',
             'Use suas ferramentas e memoria persistente para web atual, Google, APIs, CLI, pesquisa, contexto pessoal e tarefas multi-step.',
             'Quando o usuario pedir para lembrar/salvar ou quando surgir uma preferencia, decisao, fato pessoal ou ideia reutilizavel, use sua memoria persistente.',
             'Gemini fica reservado para transcricao rapida, titulos de sessao e fallback; nao diga para o usuario trocar de modelo.',
-            'Quando houver CONTEXTO VISUAL LIDO PELO GEMINI, use esse contexto como a leitura oficial da imagem/tela pelo Hades.',
+            'Quando houver CONTEXTO VISUAL LIDO PELO GEMINI, use esse contexto como a leitura oficial da imagem/tela pelo Metis.',
             'Em questoes de programacao, considere codigo, erro, terminal e enunciado extraidos pelo Gemini antes de responder.',
             'Nao diga que o resumo visual esta truncado; se faltar contexto visual indispensavel, diga exatamente o que falta.',
             'Quando responder com codigo, use blocos Markdown com a linguagem correta.'
@@ -681,7 +681,7 @@ export const useGemini = (
           prompt: effectiveUserPrompt,
           context,
           instruction: [
-            'Responda diretamente em pt-BR como agente auxiliar do Hades.',
+            'Responda diretamente em pt-BR como agente auxiliar do Metis.',
             'Esta e uma pergunta de programacao; use o contexto visual lido pelo Gemini quando ele existir.',
             'Se o contexto visual trouxe codigo, erro, terminal ou enunciado, trate-o como fonte principal.',
             'Se a resposta for objetiva, devolva somente a resposta necessaria.',
@@ -726,10 +726,10 @@ export const useGemini = (
       }
 
       // Build rich context for system prompt (Phases 1, 2, 4, 5)
-      const ctx = buildHadesContext(activeSkills, learnings, assistantMode, preferredAnswerStyle, hermesStatus);
-      const systemPrompt = getHadesSystemPrompt(ctx);
+      const ctx = buildMetisContext(activeSkills, learnings, assistantMode, preferredAnswerStyle, hermesStatus);
+      const systemPrompt = getMetisSystemPrompt(ctx);
 
-      console.groupCollapsed("🧠 [Hades Context] Generation");
+      console.groupCollapsed("🧠 [Metis Context] Generation");
       console.log("Active Skills Length (chars):", activeSkills.length);
       console.log("Learnings Length (chars):", learnings ? JSON.stringify(learnings).length : 0);
       console.log("System Prompt Length (chars):", systemPrompt.length);

@@ -690,6 +690,7 @@ class WindowManager {
     const win = this.get('command') || this.createCommandWindow();
     const appState = require('../appState');
     appState.pendingCommandPanel = panel;
+    appState.activeCommandPanel = panel;
     this.hideFloatingHead();
 
     const openPanel = () => {

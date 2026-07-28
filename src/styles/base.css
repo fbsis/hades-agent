@@ -7,14 +7,56 @@
 
 :root {
   font-family: 'Inter', system-ui, Avenir, Helvetica, Arial, sans-serif;
-  --text-main: #f1f5f9;
-  --text-muted: #94a3b8;
-  --accent-blue: #dc2626;
-  --accent-light: #ef4444;
-  --bg-dark: rgba(10, 10, 10, 0.95);
+
+  /* Metis theme: change this palette to reskin the entire application. */
+  --metis-egean: #14b8a6;
+  --metis-egean-light: #5eead4;
+  --metis-egean-dark: #0f766e;
+  --metis-egean-rgb: 20 184 166;
+  --metis-egean-light-rgb: 94 234 212;
+  --metis-gold: #c9a55c;
+  --metis-gold-light: #e3c77c;
+  --metis-gold-rgb: 201 165 92;
+  --metis-ivory: #f3f0e8;
+  --metis-graphite: #0c1116;
+  --metis-graphite-rgb: 12 17 22;
+  --metis-surface: #111920;
+  --metis-surface-rgb: 17 25 32;
+  --metis-surface-raised: #172027;
+  --metis-coral: #e76f51;
+  --metis-coral-light: #f19a82;
+  --metis-coral-rgb: 231 111 81;
+
+  /* Semantic tokens used by components. */
+  --color-primary: var(--metis-egean);
+  --color-primary-light: var(--metis-egean-light);
+  --color-primary-dark: var(--metis-egean-dark);
+  --color-primary-rgb: var(--metis-egean-rgb);
+  --color-gold: var(--metis-gold);
+  --color-gold-light: var(--metis-gold-light);
+  --color-gold-rgb: var(--metis-gold-rgb);
+  --color-danger: var(--metis-coral);
+  --color-danger-light: var(--metis-coral-light);
+  --color-danger-rgb: var(--metis-coral-rgb);
+  --text-main: var(--metis-ivory);
+  --text-muted: #9caaa9;
+  --text-subtle: #6f7f7f;
+  --surface-base: var(--metis-graphite);
+  --surface-base-rgb: var(--metis-graphite-rgb);
+  --surface-panel: var(--metis-surface);
+  --surface-panel-rgb: var(--metis-surface-rgb);
+  --surface-raised: var(--metis-surface-raised);
+  --border-subtle: rgb(94 234 212 / 0.1);
+  --border-primary: rgb(var(--color-primary-rgb) / 0.3);
+
+  /* Backward-compatible aliases. */
+  --accent-blue: var(--color-primary);
+  --accent-light: var(--color-primary-light);
+  --bg-dark: rgb(12 17 22 / 0.95);
   color: var(--text-main);
   background-color: transparent;
   height: 100vh;
+  color-scheme: dark;
 }
 
 body {
@@ -46,12 +88,12 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgb(var(--color-primary-rgb) / 0.18);
   border-radius: 10px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.2);
+  background: rgb(var(--color-primary-rgb) / 0.34);
 }
 
 /* Utilities */

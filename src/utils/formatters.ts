@@ -1,5 +1,5 @@
 /**
- * Shared utility functions for the Hades project.
+ * Shared utility functions for the Metis project.
  */
 
 /**

@@ -34,6 +34,10 @@ const CommandBar: React.FC = () => {
   }, []);
 
   useEffect(() => {
+    electronService.setActiveCommandPanel(activePanel);
+  }, [activePanel]);
+
+  useEffect(() => {
     const unsubscribe = electronService.onOpenCommandPanel((panel) => {
       setActivePanel(panel);
       if (panel === 'command') {
@@ -167,7 +171,7 @@ const CommandBar: React.FC = () => {
           onClick={handleOpenChat}
           title="Abrir chat"
         >
-          Conversation
+          Conversa
         </button>
 
         <div className="footer-spacer" />
@@ -216,8 +220,8 @@ const CommandBar: React.FC = () => {
           type="button"
           className="footer-btn icon-btn danger"
           onClick={handleQuitApp}
-          title="Sair do Hades"
-          aria-label="Sair do Hades"
+          title="Sair do Metis"
+          aria-label="Sair do Metis"
           data-tooltip="Sair"
         >
           <Power size={16} />

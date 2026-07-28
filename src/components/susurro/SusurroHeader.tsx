@@ -68,7 +68,7 @@ export const SusurroHeader: React.FC<SusurroHeaderProps> = (props) => {
         <div className="title-with-timer">
           <div className={`status-indicator ${props.isTranscribing || props.isConnecting ? 'active' : ''}`} style={{ fontSize: '14px', marginRight: '6px' }}>
             {props.isTranscribing || props.isConnecting ? <Activity size={16} className="pulse" /> : <div className="dot" />}
-            <span style={{ fontWeight: 600, color: props.isTranscribing || props.isConnecting ? '#ef4444' : '#fff' }}>
+            <span style={{ fontWeight: 600, color: props.isTranscribing || props.isConnecting ? 'var(--color-primary-light)' : '#fff' }}>
               {props.isTranscribing ? "Escutando..." : props.isConnecting ? "Conectando..." : "Susurro"}
             </span>
           </div>
