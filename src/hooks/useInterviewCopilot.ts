@@ -10,7 +10,13 @@ import {
   InterviewTranscriptionStatus,
   TranscriptTurn
 } from '../types/interview';
-import { applyInterviewTranscriptDelta, isLikelyInterviewQuestion } from '../utils/interview';
+import {
+  applyInterviewTranscriptDelta,
+  canCaptureInterviewScreenShortcut,
+  isPlainSpaceShortcut,
+  isLikelyInterviewQuestion,
+  selectScreenAnswerVariant
+} from '../utils/interview';
 import { arrayBufferToBase64, floatTo16BitPCM } from '../utils/audio';
 import { electronService } from '../services/electron';
 import { useAudioRecorder } from './useAudioRecorder';
@@ -649,12 +655,15 @@ export const useInterviewCopilot = (options: { embedded?: boolean; onClosePanel?
     setQuestionDraft(screenTurn.text);
     setActiveAnswerId(null);
     setScreenStatus('idle');
-    await requestAnswer(analysis.programmingQuestionVisible ? 'code' : 'answer', {
-      question: screenTurn.text,
-      turnId: screenTurn.id,
-      provider: 'gemini',
-      visualContext: analysis.context
-    });
+    await requestAnswer(
+      selectScreenAnswerVariant(activeSession.config.mode, analysis.programmingQuestionVisible),
+      {
+        question: screenTurn.text,
+        turnId: screenTurn.id,
+        provider: 'gemini',
+        visualContext: analysis.context
+      }
+    );
   }, [questionDraft, requestAnswer, screenStatus, updateSessionState]);
 
   const summarizeSession = useCallback(async () => {
@@ -749,14 +758,25 @@ export const useInterviewCopilot = (options: { embedded?: boolean; onClosePanel?
         options.onClosePanel();
         return;
       }
-      if (event.code === 'Space' && !isEditableTarget(event.target) && sessionRef.current) {
+      const activeSession = sessionRef.current;
+      if (
+        isPlainSpaceShortcut(event)
+        && !isEditableTarget(event.target)
+        && activeSession?.status === 'active'
+      ) {
         event.preventDefault();
-        answerLatestQuestion();
+        quickAnswer();
       }
     };
     globalThis.addEventListener('keydown', handleKeyDown);
     return () => globalThis.removeEventListener('keydown', handleKeyDown);
-  }, [answerLatestQuestion, options.onClosePanel]);
+  }, [options.onClosePanel, quickAnswer]);
+
+  useEffect(() => electronService.onInterviewCaptureShortcut(() => {
+    const activeSession = sessionRef.current;
+    if (!canCaptureInterviewScreenShortcut(activeSession?.status, activeSession?.config.mode)) return;
+    captureScreen();
+  }), [captureScreen]);
 
   useEffect(() => () => {
     stopSystemRecording();

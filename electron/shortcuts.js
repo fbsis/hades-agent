@@ -71,6 +71,12 @@ function toggleSettingsWindow() {
   windowManager.showCommandPanel('settings');
 }
 
+function captureInterviewScreen() {
+  const win = windowManager.get('command');
+  if (!win || win.isDestroyed()) return;
+  win.webContents.send('interview-capture-screen');
+}
+
 function registerShortcut(name, key, handler) {
   try {
     const registered = globalShortcut.register(key, handler);
@@ -120,6 +126,9 @@ function registerGlobalShortcuts(retryCount = 0) {
       }
     }, 120);
   })) allRegistered = false;
+
+  // Fixed interview action. The renderer ignores it outside an active interview.
+  if (!registerShortcut('Interview Capture', 'Alt+Space', captureInterviewScreen)) allRegistered = false;
 
   // Retry if any shortcut failed (zombie process may still be releasing)
   if (allRegistered) {

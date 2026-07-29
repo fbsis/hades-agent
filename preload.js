@@ -112,6 +112,11 @@ contextBridge.exposeInMainWorld('electron', {
     ipcRenderer.on('stop-susurro', sub);
     return () => ipcRenderer.removeListener('stop-susurro', sub);
   },
+  onInterviewCaptureShortcut: (callback) => {
+    const sub = (_event) => callback();
+    ipcRenderer.on('interview-capture-screen', sub);
+    return () => ipcRenderer.removeListener('interview-capture-screen', sub);
+  },
   askSusurroTranscript: (data) => ipcRenderer.invoke('ask-susurro-transcript', data),
 
   // --- Interview Copilot ---

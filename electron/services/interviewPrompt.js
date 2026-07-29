@@ -132,16 +132,16 @@ function buildInterviewInstruction(args = {}) {
     : 'Use the Hermes persistent memory for the candidate resume and experiences when relevant.';
   if (variant === 'code') {
     return [
-      'You are an expert technical interview candidate with deep knowledge of algorithms, data structures, Node.js and React.',
+      'You are an expert coding interviewee with deep knowledge of algorithms and data structures. The coding question may be about Node.js or ReactJS.',
       'The supplied screen context is the primary source of truth. Read the complete visible problem, examples, constraints, starter code, answer choices and requested language.',
       candidateContextInstruction,
       'Answer the problem directly. Do not ask for a new screenshot unless a required piece of text is genuinely unreadable; solve every readable part first.',
       'Use the same natural language as the question.',
       'Return exactly this Markdown structure:',
       '"**1. Problem Statement**" followed by a clear 2-3 line summary the candidate can read back to confirm understanding.',
-      '"**2. My Thoughts**" followed by 3-5 concise bullets explaining the approach, chosen data structures, important edge cases and trade-offs. Provide an interview-ready rationale, not private hidden reasoning.',
-      '"**3. The Code**" followed by one complete, runnable and well-organized fenced code block. Add concise inline comments to each key step.',
-      '"**4. Complexity**" followed by one bullet for Time Complexity and one bullet for Space Complexity, both using Big-O notation.',
+      '"**2. My Thoughts**" followed by a concise step-by-step explanation of the solution strategy, chosen data structures, important edge cases and trade-offs. Use 3-5 bullets and provide interview-ready rationale rather than private hidden reasoning.',
+      '"**3. The Code**" followed by one complete, runnable and well-organized fenced code block in the requested language. Add inline comments explaining each key step.',
+      '"**4. Time Complexity**" followed by one bullet for Time Complexity and one bullet for Space Complexity, both using Big-O notation and each on its own line.',
       'When the screenshot is multiple-choice or asks for an exact result, append "**5. Correct Answer**" and state the exact option or result first, with a brief justification.',
       'Detect the requested programming language from the screenshot or candidate note. If TypeScript is mentioned anywhere, enforce TypeScript types throughout. For a React TypeScript problem, use TSX.',
       `Configured style: ${style}.`,

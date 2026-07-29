@@ -90,11 +90,11 @@ describe('interview prompt contract', () => {
     expect(gemini).toContain('plausible illustrative example');
     expect(gemini).toContain('opinion');
     expect(gemini).toContain('hypothetical');
-    expect(coding).toContain('expert technical interview candidate');
+    expect(coding).toContain('expert coding interviewee');
     expect(coding).toContain('**1. Problem Statement**');
     expect(coding).toContain('**2. My Thoughts**');
     expect(coding).toContain('**3. The Code**');
-    expect(coding).toContain('**4. Complexity**');
+    expect(coding).toContain('**4. Time Complexity**');
     expect(coding).toContain('**5. Correct Answer**');
     expect(coding).toContain('enforce TypeScript types');
     expect(coding).toContain('React TypeScript problem');

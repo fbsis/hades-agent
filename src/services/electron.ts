@@ -140,6 +140,9 @@ class ElectronService {
   onStopSusurro(callback: () => void) {
     return this.electron?.onStopSusurro(callback) || (() => {});
   }
+  onInterviewCaptureShortcut(callback: () => void) {
+    return this.electron?.onInterviewCaptureShortcut(callback) || (() => {});
+  }
   async askSusurroTranscript(data: { question: string; transcript: string; personaPrompt?: string }) {
     return await this.handleResponse(this.electron?.askSusurroTranscript(data), null, 'askSusurroTranscript');
   }

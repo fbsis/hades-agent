@@ -1,5 +1,8 @@
 import {
+  InterviewAnswerVariant,
+  InterviewSessionStatus,
   InterviewSource,
+  MeetingMode,
   InterviewTranscriptDelta,
   TranscriptTurn
 } from '../types/interview';
@@ -22,6 +25,34 @@ export const isLikelyInterviewQuestion = (text: string): boolean => {
   return QUESTION_PREFIXES.some(pattern => pattern.test(normalized))
     || INTERVIEW_PATTERNS.some(pattern => pattern.test(normalized));
 };
+
+export const selectScreenAnswerVariant = (
+  mode: MeetingMode,
+  programmingQuestionVisible: boolean
+): InterviewAnswerVariant => (
+  mode === 'interview' || programmingQuestionVisible ? 'code' : 'answer'
+);
+
+export const isPlainSpaceShortcut = (event: {
+  code: string;
+  altKey: boolean;
+  ctrlKey: boolean;
+  metaKey: boolean;
+  shiftKey: boolean;
+  repeat: boolean;
+}): boolean => (
+  event.code === 'Space'
+  && !event.altKey
+  && !event.ctrlKey
+  && !event.metaKey
+  && !event.shiftKey
+  && !event.repeat
+);
+
+export const canCaptureInterviewScreenShortcut = (
+  status: InterviewSessionStatus | undefined,
+  mode: MeetingMode | undefined
+): boolean => status === 'active' && mode === 'interview';
 
 export const sourceLabel = (source: InterviewSource): string => ({
   interviewer: 'Entrevistador',

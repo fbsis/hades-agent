@@ -3,7 +3,10 @@ import { InterviewTranscriptDelta, TranscriptTurn } from '../types/interview';
 import {
   applyInterviewTranscriptDelta,
   buildCompactInterviewTranscript,
+  canCaptureInterviewScreenShortcut,
+  isPlainSpaceShortcut,
   isLikelyInterviewQuestion,
+  selectScreenAnswerVariant,
   selectInterviewContextTurns
 } from './interview';
 
@@ -47,6 +50,43 @@ describe('isLikelyInterviewQuestion', () => {
     'We will send the next steps tomorrow.'
   ])('nao marca afirmacoes comuns: %s', text => {
     expect(isLikelyInterviewQuestion(text)).toBe(false);
+  });
+});
+
+describe('selectScreenAnswerVariant', () => {
+  it('always applies the coding prompt to images captured during interviews', () => {
+    expect(selectScreenAnswerVariant('interview', false)).toBe('code');
+    expect(selectScreenAnswerVariant('interview', true)).toBe('code');
+  });
+
+  it('keeps automatic technical detection for regular meetings', () => {
+    expect(selectScreenAnswerVariant('meeting', false)).toBe('answer');
+    expect(selectScreenAnswerVariant('meeting', true)).toBe('code');
+  });
+});
+
+describe('interview keyboard shortcuts', () => {
+  const spaceEvent = {
+    code: 'Space',
+    altKey: false,
+    ctrlKey: false,
+    metaKey: false,
+    shiftKey: false,
+    repeat: false
+  };
+
+  it('uses only an unmodified local Space for quick answers', () => {
+    expect(isPlainSpaceShortcut(spaceEvent)).toBe(true);
+    expect(isPlainSpaceShortcut({ ...spaceEvent, altKey: true })).toBe(false);
+    expect(isPlainSpaceShortcut({ ...spaceEvent, repeat: true })).toBe(false);
+    expect(isPlainSpaceShortcut({ ...spaceEvent, code: 'Enter' })).toBe(false);
+  });
+
+  it('allows the global screen capture only during an active interview', () => {
+    expect(canCaptureInterviewScreenShortcut('active', 'interview')).toBe(true);
+    expect(canCaptureInterviewScreenShortcut('active', 'meeting')).toBe(false);
+    expect(canCaptureInterviewScreenShortcut('pending', 'interview')).toBe(false);
+    expect(canCaptureInterviewScreenShortcut('completed', 'interview')).toBe(false);
   });
 });
 

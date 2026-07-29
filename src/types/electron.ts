@@ -75,6 +75,7 @@ export interface ElectronAPI {
   onToggleSusurroTranscriptionSignal: (callback: () => void) => () => void;
   onStartSusurro: (callback: () => void) => () => void;
   onStopSusurro: (callback: () => void) => () => void;
+  onInterviewCaptureShortcut: (callback: () => void) => () => void;
   generateSuggestion: (data: { transcription: string, personaPrompt: string }) => Promise<IPCResponse<string>>;
   askSusurroTranscript: (data: { question: string; transcript: string; personaPrompt?: string }) => Promise<IPCResponse<{ text: string; provider: string }>>;
   saveSusurroMessage: (msg: any) => Promise<IPCResponse<void>>;
