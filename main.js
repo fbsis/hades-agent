@@ -70,6 +70,10 @@ app.commandLine.appendSwitch('disable-gpu'); // Mica/Transparency stability on W
 
 // 3. Application Lifecycle
 app.whenReady().then(() => {
+  if (process.platform === 'darwin') {
+    app.setActivationPolicy('accessory');
+  }
+
   // Setup Media Permissions
   session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
     const allowed = ['media', 'audioCapture', 'videoCapture'];

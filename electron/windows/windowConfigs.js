@@ -12,9 +12,12 @@ const baseUrl = isPackaged
   : 'http://localhost:3000';
 
 const preloadPath = path.join(__dirname, '../../preload.js');
+const { getMacOverlayOptions } = require('./macPrivacy');
+const macOverlayOptions = getMacOverlayOptions();
 
 const windowConfigs = {
   command: {
+    ...macOverlayOptions,
     width: 730,
     height: 480,
     frame: false,
@@ -40,6 +43,7 @@ const windowConfigs = {
     }
   },
   chat: {
+    ...macOverlayOptions,
     width: 480,
     height: 490,
     frame: false,
@@ -66,6 +70,7 @@ const windowConfigs = {
     }
   },
   voice: {
+    ...macOverlayOptions,
     width: 480,
     height: 420,
     frame: false,
@@ -87,6 +92,7 @@ const windowConfigs = {
     }
   },
   susurroSetup: {
+    ...macOverlayOptions,
     width: 440,
     height: 520,
     frame: false,
@@ -108,6 +114,7 @@ const windowConfigs = {
     }
   },
   susurro: {
+    ...macOverlayOptions,
     width: 940,
     height: 720,
     frame: false,
@@ -132,6 +139,7 @@ const windowConfigs = {
     }
   },
   suggestions: {
+    ...macOverlayOptions,
     width: 600,
     height: 60,
     frame: false,
@@ -155,6 +163,7 @@ const windowConfigs = {
     }
   },
   notification: {
+    ...macOverlayOptions,
     width: 400,
     height: 100,
     frame: false,
@@ -177,6 +186,7 @@ const windowConfigs = {
     }
   },
   floatingHead: {
+    ...macOverlayOptions,
     width: 36,
     height: 36,
     frame: false,
@@ -211,6 +221,7 @@ const windowConfigs = {
     }
   },
   splash: {
+    ...macOverlayOptions,
     width: 720,
     height: 260,
     frame: false,
@@ -242,6 +253,7 @@ const windowConfigs = {
     }
   },
   settings: {
+    ...macOverlayOptions,
     width: 820,
     height: 600,
     frame: false,

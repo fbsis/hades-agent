@@ -1,6 +1,7 @@
 const { BrowserWindow, shell, app, Menu, screen } = require('electron');
 const configs = require('./windowConfigs');
 const { protectWindow } = require('./contentProtection');
+const { configureMacWindowPrivacy } = require('./macPrivacy');
 const log = require('electron-log');
 
 const FLOATING_HEAD_SIZE = 36;
@@ -80,6 +81,7 @@ class WindowManager {
 
     const win = new BrowserWindow(config);
     this.windows[name] = win;
+    configureMacWindowPrivacy(win);
 
     // Load URL or File
     log.info(`[WINDOW_MANAGER] Loading URL for ${name}:`, config.url);
