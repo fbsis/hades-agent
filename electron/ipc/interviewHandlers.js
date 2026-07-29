@@ -26,8 +26,8 @@ function registerInterviewHandlers() {
     googleCloudAuthService.login(projectId)
   )));
 
-  ipcMain.handle('interview-create-session', wrap((event, config) => (
-    interviewService.createSession(config || {})
+  ipcMain.handle('interview-create-session', wrap((event, config, options) => (
+    interviewService.createSession(config || {}, options || {})
   )));
 
   ipcMain.handle('interview-list-sessions', wrap(() => interviewService.listSessions()));
@@ -49,6 +49,12 @@ function registerInterviewHandlers() {
   ipcMain.handle('interview-archive-session', wrap((event, sessionId) => (
     interviewService.archiveSession(sessionId)
   )));
+
+  ipcMain.handle('interview-delete-session', wrap(async (event, sessionId) => {
+    await interviewTranscriptionService.stopSession(sessionId);
+    await interviewRecordingService.stopSession(sessionId);
+    return interviewService.deleteSession(sessionId);
+  }));
 
   ipcMain.handle('interview-summarize-session', wrap((event, sessionId) => (
     interviewService.summarizeSession(sessionId)

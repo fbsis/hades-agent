@@ -10,6 +10,7 @@ import {
   Plus,
   Radio,
   SlidersHorizontal,
+  Trash2,
   Zap
 } from 'lucide-react';
 import { useInterviewCopilot } from '../hooks/useInterviewCopilot';
@@ -33,10 +34,15 @@ const InterviewCopilot: React.FC<InterviewCopilotProps> = ({ embedded = false, o
         <div className="interview-header-title">
           <Radio size={16} />
           <span>{copilot.session?.title || 'Reunião'}</span>
-          {copilot.session && <time>{formatTime(copilot.elapsedSeconds)}</time>}
+          {copilot.session?.status === 'pending' && (
+            <span className="interview-header-status">Pendente</span>
+          )}
+          {copilot.session?.status === 'active' && (
+            <time>{formatTime(copilot.elapsedSeconds)}</time>
+          )}
         </div>
 
-        {copilot.session && (
+        {copilot.session?.status === 'active' && (
           <div className="interview-source-statuses">
             <span
               className={`source-status status-${copilot.sourceStatuses.interviewer?.status || 'idle'}`}
@@ -57,7 +63,22 @@ const InterviewCopilot: React.FC<InterviewCopilotProps> = ({ embedded = false, o
         )}
 
         <div className="interview-header-actions">
-          {copilot.session && (
+          {copilot.session?.status === 'pending' && (
+            <>
+              <button type="button" className="interview-icon-button" onClick={copilot.newSession} title="Nova reunião">
+                <Plus size={15} />
+              </button>
+              <button
+                type="button"
+                className="interview-icon-button danger"
+                onClick={() => copilot.deleteSession(copilot.session!)}
+                title="Cancelar e excluir permanentemente"
+              >
+                <Trash2 size={15} />
+              </button>
+            </>
+          )}
+          {copilot.session && copilot.session.status !== 'pending' && (
             <>
               <button
                 type="button"
@@ -89,9 +110,19 @@ const InterviewCopilot: React.FC<InterviewCopilotProps> = ({ embedded = false, o
               <button type="button" className="interview-icon-button" onClick={copilot.newSession} title="Nova reunião">
                 <Plus size={15} />
               </button>
-              <button type="button" className="interview-icon-button" onClick={copilot.finishSession} title="Finalizar reunião">
-                <Check size={15} />
+              <button
+                type="button"
+                className="interview-icon-button danger"
+                onClick={() => copilot.deleteSession(copilot.session!)}
+                title="Excluir permanentemente"
+              >
+                <Trash2 size={15} />
               </button>
+              {copilot.session.status === 'active' && (
+                <button type="button" className="interview-icon-button" onClick={copilot.finishSession} title="Finalizar reunião">
+                  <Check size={15} />
+                </button>
+              )}
             </>
           )}
           {!embedded && (
@@ -110,19 +141,22 @@ const InterviewCopilot: React.FC<InterviewCopilotProps> = ({ embedded = false, o
         </div>
       </header>
 
-      {!copilot.session ? (
+      {!copilot.session || copilot.session.status === 'pending' ? (
         <InterviewSetup
           config={copilot.config}
           recentSessions={copilot.recentSessions}
           error={copilot.error}
           cloudAuthStatus={copilot.cloudAuthStatus}
           isAuthenticatingCloud={copilot.isAuthenticatingCloud}
+          pendingSession={copilot.session?.status === 'pending' ? copilot.session : null}
           onConfigChange={copilot.setConfig}
           onAuthenticateCloud={copilot.authenticateGoogleCloud}
           onOpenCloudDataLogging={copilot.openCloudDataLogging}
           onStart={copilot.startListening}
+          onSavePending={copilot.savePendingSession}
           onLoadSession={copilot.loadSession}
           onArchiveSession={copilot.archiveSession}
+          onDeleteSession={copilot.deleteSession}
         />
       ) : (
         <>
@@ -168,7 +202,6 @@ const InterviewCopilot: React.FC<InterviewCopilotProps> = ({ embedded = false, o
             <section className="interview-response-pane">
               <div className="interview-pane-heading">
                 <span>Resposta</span>
-                <small>Space para gerar</small>
               </div>
               <InterviewAnswerPane
                 question={copilot.questionDraft}

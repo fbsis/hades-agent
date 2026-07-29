@@ -72,6 +72,7 @@ class JsonStore {
         description: '',
         role: '',
         company: '',
+        topics: '',
         resume: '',
         jobDescription: '',
         language: 'pt-BR',

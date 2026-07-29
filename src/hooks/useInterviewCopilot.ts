@@ -28,7 +28,8 @@ const buildTranscriptionVocabulary = (config: InterviewConfig): string[] => [
   config.role,
   config.resume.split(/\r?\n/).find(line => (
     line.trim().length >= 3 && line.trim().length <= 80
-  )) || ''
+  )) || '',
+  ...config.topics.split(/[,;\n]/).slice(0, 8)
 ].map(value => value.trim()).filter(Boolean);
 
 const isEditableTarget = (target: EventTarget | null) => {
@@ -79,7 +80,21 @@ export const useInterviewCopilot = (options: { embedded?: boolean; onClosePanel?
 
   const refreshSessions = useCallback(async () => {
     const sessions = await electronService.listInterviewSessions();
-    setRecentSessions(sessions.filter(item => item.status !== 'archived').slice(0, 8));
+    const statusOrder: Record<InterviewSession['status'], number> = {
+      pending: 0,
+      active: 1,
+      completed: 2,
+      archived: 3
+    };
+    setRecentSessions(
+      sessions
+        .filter(item => item.status !== 'archived')
+        .sort((a, b) => (
+          statusOrder[a.status] - statusOrder[b.status]
+          || String(b.updatedAt).localeCompare(String(a.updatedAt))
+        ))
+        .slice(0, 12)
+    );
   }, []);
 
   useEffect(() => {
@@ -255,7 +270,15 @@ export const useInterviewCopilot = (options: { embedded?: boolean; onClosePanel?
         setSession(activeSession);
         sessionRef.current = activeSession;
       } else if (activeSession.status !== 'active') {
-        const resumed = await electronService.updateInterviewSession(activeSession.id, { status: 'active' });
+        const sessionConfig = activeSession.status === 'pending' ? config : activeSession.config;
+        const resumed = await electronService.updateInterviewSession(activeSession.id, {
+          status: 'active',
+          startedAt: new Date().toISOString(),
+          endedAt: undefined,
+          hasRecording: false,
+          config: sessionConfig,
+          title: sessionConfig.title || activeSession.title
+        });
         if (resumed) {
           activeSession = resumed;
           setSession(resumed);
@@ -274,6 +297,14 @@ export const useInterviewCopilot = (options: { embedded?: boolean; onClosePanel?
 
       const recorderStarted = await startRecorder(activeSession, 'interviewer');
       if (!recorderStarted) throw new Error('Nao foi possivel capturar o audio do sistema.');
+      const recordingSession = await electronService.updateInterviewSession(activeSession.id, {
+        hasRecording: true
+      });
+      if (recordingSession) {
+        activeSession = recordingSession;
+        setSession(recordingSession);
+        sessionRef.current = recordingSession;
+      }
 
       if (activeSession.config.transcribeMicrophone) {
         const microphoneSourceStarted = await electronService.startInterviewSource({
@@ -354,9 +385,40 @@ export const useInterviewCopilot = (options: { embedded?: boolean; onClosePanel?
       )));
     }
     const finished = await electronService.finishInterviewSession(activeSession.id);
-    if (finished) setSession(finished);
+    if (finished) {
+      setSession(finished);
+      sessionRef.current = finished;
+      if (finished.status === 'pending') {
+        setConfig({ ...DEFAULT_INTERVIEW_CONFIG, ...finished.config });
+      }
+    }
     refreshSessions();
   }, [refreshSessions, stopListening]);
+
+  const savePendingSession = useCallback(async () => {
+    if (config.mode !== 'interview') return;
+    setError('');
+
+    const current = sessionRef.current;
+    const saved = current?.status === 'pending'
+      ? await electronService.updateInterviewSession(current.id, {
+          status: 'pending',
+          title: config.title || current.title,
+          config
+        })
+      : await electronService.createInterviewSession(config, { status: 'pending' });
+
+    if (!saved) {
+      setError('Nao foi possivel salvar a entrevista pendente.');
+      return;
+    }
+
+    setSession(saved);
+    sessionRef.current = saved;
+    setConfig({ ...DEFAULT_INTERVIEW_CONFIG, ...saved.config });
+    setFlowStatus('idle');
+    await refreshSessions();
+  }, [config, refreshSessions]);
 
   const newSession = useCallback(async () => {
     if (sessionRef.current?.status === 'active') await finishSession();
@@ -644,6 +706,43 @@ export const useInterviewCopilot = (options: { embedded?: boolean; onClosePanel?
     refreshSessions();
   }, [newSession, refreshSessions]);
 
+  const deleteSession = useCallback(async (target: InterviewSession) => {
+    const action = target.status === 'pending' ? 'cancelada e excluida' : 'excluida';
+    const confirmed = globalThis.confirm(
+      `"${target.title}" sera ${action} permanentemente.\n\n`
+      + 'Transcricao, respostas, resumo e gravacoes salvas serao apagados. Esta acao nao pode ser desfeita.'
+    );
+    if (!confirmed) return;
+
+    const isCurrent = sessionRef.current?.id === target.id;
+    if (isCurrent) {
+      stopSystemRecording();
+      stopMicrophoneRecording();
+      if (activeAnswerIdRef.current) {
+        await electronService.cancelInterviewAnswer(activeAnswerIdRef.current);
+      }
+    }
+
+    const deleted = await electronService.deleteInterviewSession(target.id);
+    if (!deleted) {
+      setError('Nao foi possivel excluir a entrevista.');
+      return;
+    }
+
+    if (isCurrent) {
+      setSession(null);
+      sessionRef.current = null;
+      setSelectedTurnId(null);
+      setQuestionDraft('');
+      setActiveAnswerId(null);
+      activeAnswerIdRef.current = null;
+      setSourceStatuses({});
+      setFlowStatus('idle');
+      setError('');
+    }
+    await refreshSessions();
+  }, [refreshSessions, stopMicrophoneRecording, stopSystemRecording]);
+
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape' && options.onClosePanel) {
@@ -715,6 +814,7 @@ export const useInterviewCopilot = (options: { embedded?: boolean; onClosePanel?
     startListening,
     stopListening,
     finishSession,
+    savePendingSession,
     newSession,
     selectTurn,
     requestAnswer,
@@ -727,6 +827,7 @@ export const useInterviewCopilot = (options: { embedded?: boolean; onClosePanel?
     captureScreen,
     summarizeSession,
     loadSession,
-    archiveSession
+    archiveSession,
+    deleteSession
   };
 };

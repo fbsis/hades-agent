@@ -8,7 +8,9 @@ import {
   LoaderCircle,
   LogIn,
   Play,
-  Radio
+  Radio,
+  Save,
+  Trash2
 } from 'lucide-react';
 import { GoogleCloudAuthStatus, InterviewConfig, InterviewSession } from '../../types/interview';
 
@@ -18,12 +20,15 @@ interface InterviewSetupProps {
   error: string;
   cloudAuthStatus: GoogleCloudAuthStatus | null;
   isAuthenticatingCloud: boolean;
+  pendingSession?: InterviewSession | null;
   onConfigChange: (config: InterviewConfig) => void;
   onAuthenticateCloud: () => void;
   onOpenCloudDataLogging: () => void;
   onStart: () => void;
+  onSavePending: () => void;
   onLoadSession: (session: InterviewSession) => void;
   onArchiveSession: (sessionId: string) => void;
+  onDeleteSession: (session: InterviewSession) => void;
 }
 
 export const InterviewSetup: React.FC<InterviewSetupProps> = ({
@@ -32,12 +37,15 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({
   error,
   cloudAuthStatus,
   isAuthenticatingCloud,
+  pendingSession,
   onConfigChange,
   onAuthenticateCloud,
   onOpenCloudDataLogging,
   onStart,
+  onSavePending,
   onLoadSession,
-  onArchiveSession
+  onArchiveSession,
+  onDeleteSession
 }) => {
   const update = <K extends keyof InterviewConfig>(key: K, value: InterviewConfig[K]) => {
     onConfigChange({ ...config, [key]: value });
@@ -47,7 +55,9 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({
     <div className="interview-setup">
       <div className="interview-setup-form">
         <div className="interview-section-title">
-          Preparar {config.mode === 'interview' ? 'entrevista' : 'reunião'}
+          {pendingSession
+            ? 'Editar entrevista pendente'
+            : `Preparar ${config.mode === 'interview' ? 'entrevista' : 'reunião'}`}
         </div>
         <div className="interview-mode-selector" role="group" aria-label="Tipo de reunião">
           <button
@@ -121,6 +131,15 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({
 
         {config.mode === 'interview' ? (
           <>
+            <label className="interview-wide-field">
+              <span>Assuntos previstos</span>
+              <textarea
+                value={config.topics}
+                onChange={event => update('topics', event.target.value)}
+                rows={3}
+                placeholder="Ex.: event loop, React hooks, arquitetura, algoritmos e perguntas comportamentais."
+              />
+            </label>
             <label className="interview-wide-field">
               <span>Currículo</span>
               <textarea
@@ -233,10 +252,18 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({
         </div>
 
         {error && <div className="interview-error">{error}</div>}
-        <button className="interview-primary-button" type="button" onClick={onStart}>
-          <Radio size={16} />
-          Iniciar {config.mode === 'interview' ? 'entrevista' : 'reunião'}
-        </button>
+        <div className="interview-setup-actions">
+          {config.mode === 'interview' && (
+            <button className="interview-secondary-button" type="button" onClick={onSavePending}>
+              <Save size={15} />
+              {pendingSession ? 'Atualizar pendente' : 'Salvar como pendente'}
+            </button>
+          )}
+          <button className="interview-primary-button" type="button" onClick={onStart}>
+            <Radio size={16} />
+            Iniciar {config.mode === 'interview' ? 'entrevista' : 'reunião'}
+          </button>
+        </div>
       </div>
 
       <div className="interview-recents">
@@ -246,10 +273,20 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({
           {recentSessions.map(item => (
             <div className="interview-recent-row" key={item.id}>
               <button type="button" className="interview-recent-open" onClick={() => onLoadSession(item)}>
-                <Play size={13} />
+                {item.status === 'pending' ? <Clock3 size={13} /> : <Play size={13} />}
                 <span>
                   <strong>{item.title}</strong>
-                  <small><Clock3 size={10} /> {new Date(item.updatedAt).toLocaleString()}</small>
+                  <small>
+                    <span className={`interview-session-status status-${item.status}`}>
+                      {item.status === 'pending'
+                        ? 'Pendente'
+                        : item.status === 'completed'
+                          ? 'Concluída'
+                          : 'Em andamento'}
+                    </span>
+                    <Clock3 size={10} />
+                    {new Date(item.updatedAt).toLocaleString()}
+                  </small>
                 </span>
               </button>
               <button
@@ -259,6 +296,14 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({
                 title="Arquivar sessao"
               >
                 <Archive size={14} />
+              </button>
+              <button
+                type="button"
+                className="interview-icon-button danger"
+                onClick={() => onDeleteSession(item)}
+                title="Excluir permanentemente"
+              >
+                <Trash2 size={14} />
               </button>
             </div>
           ))}

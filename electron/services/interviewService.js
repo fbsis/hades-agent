@@ -1,4 +1,6 @@
 const crypto = require('node:crypto');
+const fs = require('node:fs');
+const path = require('node:path');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const store = require('../store/jsonStore');
 const hermesService = require('./hermesService');
@@ -11,7 +13,11 @@ const {
   buildInterviewInstruction,
   clip
 } = require('./interviewPrompt');
-const { legacyHistoryToInterviewSession } = require('./interviewData');
+const {
+  buildFinishedSessionPatch,
+  isPathInsideDirectory,
+  legacyHistoryToInterviewSession
+} = require('./interviewData');
 
 function id(prefix) {
   return `${prefix}_${crypto.randomUUID()}`;
@@ -55,19 +61,21 @@ class InterviewService {
     return this.migrateLegacyHistory().find(session => session.id === sessionId) || null;
   }
 
-  createSession(config = {}) {
+  createSession(config = {}, options = {}) {
     const now = new Date().toISOString();
     const normalizedConfig = { ...DEFAULT_CONFIG, ...(config || {}) };
+    const isPending = options.status === 'pending';
     const titleParts = normalizedConfig.mode === 'interview'
       ? [normalizedConfig.company, normalizedConfig.role].filter(Boolean)
       : [];
     const fallbackLabel = normalizedConfig.mode === 'interview' ? 'Entrevista' : 'Reuniao';
     const session = {
       id: id('interview'),
-      status: 'active',
+      status: isPending ? 'pending' : 'active',
       title: normalizedConfig.title || titleParts.join(' - ')
         || `${fallbackLabel} ${new Date().toLocaleDateString('pt-BR')}`,
-      startedAt: now,
+      createdAt: now,
+      ...(isPending ? {} : { startedAt: now }),
       updatedAt: now,
       config: normalizedConfig,
       transcript: [],
@@ -100,14 +108,37 @@ class InterviewService {
   }
 
   finishSession(sessionId) {
-    return this.updateSession(sessionId, {
-      status: 'completed',
-      endedAt: new Date().toISOString()
-    });
+    const session = this.getSession(sessionId);
+    if (!session) throw new Error('Sessao de entrevista nao encontrada.');
+    return this.updateSession(sessionId, buildFinishedSessionPatch(session));
   }
 
   archiveSession(sessionId) {
     return this.updateSession(sessionId, { status: 'archived' });
+  }
+
+  deleteSession(sessionId) {
+    const sessions = this.migrateLegacyHistory();
+    const session = sessions.find(item => item.id === sessionId);
+    if (!session) throw new Error('Sessao de entrevista nao encontrada.');
+
+    for (const [answerId, state] of this.activeAnswers.entries()) {
+      if (state.sessionId === sessionId) this.cancelAnswer(answerId);
+    }
+
+    const audioRoot = path.resolve(store.userDataPath, 'interview-audio');
+    for (const artifact of session.audioArtifacts || []) {
+      const target = path.resolve(String(artifact?.path || ''));
+      if (isPathInsideDirectory(audioRoot, target)) {
+        fs.rmSync(target, { force: true });
+      }
+    }
+
+    if (sessionId === 'legacy-susurro') {
+      store.saveSusurroHistory([]);
+    }
+    store.saveInterviewSessions(sessions.filter(item => item.id !== sessionId));
+    return true;
   }
 
   upsertTurn(sessionId, turn) {

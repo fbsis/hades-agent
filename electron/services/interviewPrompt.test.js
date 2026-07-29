@@ -59,6 +59,20 @@ describe('interview prompt contract', () => {
     expect(context).toContain('at-least-once delivery');
   });
 
+  it('includes planned interview topics in Gemini and Hermes context', () => {
+    const args = {
+      config: {
+        mode: 'interview',
+        topics: 'Node.js event loop, React hooks and system design.'
+      }
+    };
+
+    expect(buildGeminiInterviewPrompt(args)).toContain('<planned_topics>');
+    expect(buildGeminiInterviewPrompt(args)).toContain('React hooks');
+    expect(buildInterviewContext(args)).toContain('Planned topics');
+    expect(buildInterviewContext(args)).toContain('system design');
+  });
+
   it('locks natural spoken and coding response behavior', () => {
     const natural = buildInterviewInstruction({ config: { answerStyle: 'natural' }, variant: 'answer' });
     const gemini = buildInterviewInstruction({ config: { answerStyle: 'natural' }, variant: 'answer', provider: 'gemini' });

@@ -1,6 +1,6 @@
 export type InterviewSource = 'interviewer' | 'candidate' | 'screen' | 'manual';
 export type InterviewFlowStatus = 'idle' | 'starting' | 'listening' | 'answering' | 'stopping' | 'error';
-export type InterviewSessionStatus = 'active' | 'completed' | 'archived';
+export type InterviewSessionStatus = 'pending' | 'active' | 'completed' | 'archived';
 export type InterviewLanguage = 'auto' | 'pt-BR' | 'en-US';
 export type InterviewAnswerStyle = 'natural' | 'concise' | 'star' | 'technical';
 export type MeetingMode = 'meeting' | 'interview';
@@ -19,6 +19,7 @@ export interface InterviewConfig {
   description: string;
   role: string;
   company: string;
+  topics: string;
   resume: string;
   jobDescription: string;
   language: InterviewLanguage;
@@ -72,7 +73,8 @@ export interface InterviewSession {
   id: string;
   status: InterviewSessionStatus;
   title: string;
-  startedAt: string;
+  createdAt?: string;
+  startedAt?: string;
   updatedAt: string;
   endedAt?: string;
   config: InterviewConfig;
@@ -83,6 +85,7 @@ export interface InterviewSession {
   summaryAt?: string;
   summaryProvider?: 'hermes' | 'gemini';
   audioArtifacts?: InterviewAudioArtifact[];
+  hasRecording?: boolean;
 }
 
 export interface InterviewTranscriptDelta {
@@ -135,6 +138,7 @@ export const DEFAULT_INTERVIEW_CONFIG: InterviewConfig = {
   description: '',
   role: '',
   company: '',
+  topics: '',
   resume: '',
   jobDescription: '',
   language: 'pt-BR',

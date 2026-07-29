@@ -4,6 +4,7 @@ const DEFAULT_CONFIG = {
   description: '',
   role: '',
   company: '',
+  topics: '',
   resume: '',
   jobDescription: '',
   language: 'pt-BR',
@@ -66,6 +67,7 @@ function buildGeminiInterviewPrompt(args = {}) {
     config.description ? `<meeting_description>\n${clipDocument(config.description, 3000)}\n</meeting_description>` : '',
     config.role ? `Target role: ${config.role}` : '',
     config.company ? `Company: ${config.company}` : '',
+    config.topics ? `<planned_topics>\n${clipDocument(config.topics, 2000)}\n</planned_topics>` : '',
     config.resume ? `<resume>\n${clipDocument(config.resume, 8000)}\n</resume>` : '<resume>Not provided</resume>',
     config.jobDescription
       ? `<job_description>\n${clipDocument(config.jobDescription, 4000)}\n</job_description>`
@@ -111,6 +113,7 @@ function buildInterviewContext(args = {}) {
     config.description ? `Meeting description: ${clip(config.description, 1200)}` : '',
     config.role ? `Target role: ${config.role}` : '',
     config.company ? `Company: ${config.company}` : '',
+    config.topics ? `Planned topics:\n${clip(config.topics, 1200)}` : '',
     config.resume ? `Candidate resume:\n${clipDocument(config.resume, 2400)}` : '',
     config.jobDescription ? `Job description: ${clip(config.jobDescription, 1200)}` : '',
     config.extraInstructions ? `Candidate instructions: ${clip(config.extraInstructions, 600)}` : '',

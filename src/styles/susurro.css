@@ -107,6 +107,13 @@
 .interview-icon-button:disabled,
 .interview-answer-actions button:disabled { opacity: 0.32; cursor: default; }
 
+.interview-icon-button.danger { color: rgba(248, 113, 113, 0.72); }
+.interview-icon-button.danger:hover:not(:disabled) {
+  border-color: rgba(248, 113, 113, 0.38);
+  background: rgba(127, 29, 29, 0.2);
+  color: #fca5a5;
+}
+
 .interview-listen-button,
 .interview-answer-now-button,
 .interview-quick-answer-button {
@@ -309,7 +316,8 @@
 .interview-cloud-auth-button:disabled { opacity: 0.55; cursor: wait; }
 .interview-cloud-auth-button .spin { animation: spin 0.9s linear infinite; }
 
-.interview-primary-button {
+.interview-primary-button,
+.interview-secondary-button {
   height: 36px;
   display: inline-flex;
   align-items: center;
@@ -324,6 +332,39 @@
   font-weight: 800;
   cursor: pointer;
 }
+
+.interview-secondary-button {
+  border-color: rgb(var(--color-gold-rgb) / 0.55);
+  background: rgb(var(--color-gold-rgb) / 0.12);
+  color: var(--color-gold-light);
+}
+
+.interview-setup-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.interview-header-status,
+.interview-session-status {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  color: var(--color-gold-light);
+  font-size: 8px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.interview-header-status {
+  padding: 2px 5px;
+  border: 1px solid rgb(var(--color-gold-rgb) / 0.34);
+  border-radius: 4px;
+  background: rgb(var(--color-gold-rgb) / 0.08);
+}
+
+.interview-session-status.status-completed { color: #86efac; }
+.interview-session-status.status-active { color: var(--color-primary-light); }
 
 .interview-recent-list { display: flex; flex-direction: column; }
 .interview-recent-row {
@@ -351,7 +392,7 @@
 .interview-recent-open > svg { color: var(--color-primary-light); flex-shrink: 0; }
 .interview-recent-open > span { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
 .interview-recent-open strong { overflow: hidden; color: rgba(255, 255, 255, 0.82); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
-.interview-recent-open small { display: flex; align-items: center; gap: 4px; color: rgba(255, 255, 255, 0.36); font-size: 9px; }
+.interview-recent-open small { display: flex; align-items: center; gap: 5px; color: rgba(255, 255, 255, 0.36); font-size: 9px; }
 .interview-empty-small { color: rgba(255, 255, 255, 0.35); font-size: 11px; }
 
 .interview-context-strip {

@@ -165,8 +165,12 @@ class ElectronService {
       'loginGoogleCloud'
     );
   }
-  async createInterviewSession(config: InterviewConfig) {
-    return await this.handleResponse(this.electron?.createInterviewSession(config), null, 'createInterviewSession');
+  async createInterviewSession(config: InterviewConfig, options?: { status?: 'active' | 'pending' }) {
+    return await this.handleResponse(
+      this.electron?.createInterviewSession(config, options),
+      null,
+      'createInterviewSession'
+    );
   }
   async listInterviewSessions() {
     return await this.handleResponse(this.electron?.listInterviewSessions(), [], 'listInterviewSessions');
@@ -182,6 +186,9 @@ class ElectronService {
   }
   async archiveInterviewSession(sessionId: string) {
     return await this.handleResponse(this.electron?.archiveInterviewSession(sessionId), null, 'archiveInterviewSession');
+  }
+  async deleteInterviewSession(sessionId: string) {
+    return await this.handleResponse(this.electron?.deleteInterviewSession(sessionId), false, 'deleteInterviewSession');
   }
   async summarizeInterviewSession(sessionId: string) {
     return await this.handleResponse(this.electron?.summarizeInterviewSession(sessionId), null, 'summarizeInterviewSession');

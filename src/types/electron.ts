@@ -82,12 +82,16 @@ export interface ElectronAPI {
   // Interview Copilot
   getGoogleCloudAuthStatus: () => Promise<IPCResponse<GoogleCloudAuthStatus>>;
   loginGoogleCloud: (projectId: string) => Promise<IPCResponse<GoogleCloudAuthStatus>>;
-  createInterviewSession: (config: InterviewConfig) => Promise<IPCResponse<InterviewSession>>;
+  createInterviewSession: (
+    config: InterviewConfig,
+    options?: { status?: 'active' | 'pending' }
+  ) => Promise<IPCResponse<InterviewSession>>;
   listInterviewSessions: () => Promise<IPCResponse<InterviewSession[]>>;
   loadInterviewSession: (sessionId: string) => Promise<IPCResponse<InterviewSession | null>>;
   updateInterviewSession: (sessionId: string, patch: Partial<InterviewSession>) => Promise<IPCResponse<InterviewSession>>;
   finishInterviewSession: (sessionId: string) => Promise<IPCResponse<InterviewSession>>;
   archiveInterviewSession: (sessionId: string) => Promise<IPCResponse<InterviewSession>>;
+  deleteInterviewSession: (sessionId: string) => Promise<IPCResponse<boolean>>;
   summarizeInterviewSession: (sessionId: string) => Promise<IPCResponse<InterviewSession>>;
   saveInterviewTurn: (sessionId: string, turn: TranscriptTurn) => Promise<IPCResponse<TranscriptTurn>>;
   startInterviewSource: (options: {
