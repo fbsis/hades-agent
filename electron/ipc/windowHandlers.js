@@ -87,7 +87,9 @@ function registerWindowHandlers() {
     // Snapshot which windows currently have alwaysOnTop, then lower them all
     const allWins = BrowserWindow.getAllWindows();
     const wasAlwaysOnTop = allWins.map(w => ({ win: w, flag: w.isAlwaysOnTop() }));
-    wasAlwaysOnTop.forEach(({ win, flag }) => { if (flag) win.setAlwaysOnTop(false); });
+    wasAlwaysOnTop.forEach(({ win, flag }) => {
+      if (flag) windowManager.applyAlwaysOnTop(win, false);
+    });
     
     const restoreAlwaysOnTop = () => {
       wasAlwaysOnTop.forEach(({ win, flag }) => {
@@ -99,7 +101,7 @@ function registerWindowHandlers() {
         } else if (win === floatingHeadWin) {
           windowManager.applyAlwaysOnTop(win, true, 'pop-up-menu');
         } else {
-          win.setAlwaysOnTop(true, 'pop-up-menu');
+          windowManager.applyAlwaysOnTop(win, true, 'pop-up-menu');
         }
       });
     };

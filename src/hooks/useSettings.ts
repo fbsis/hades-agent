@@ -44,10 +44,6 @@ export function useSettings() {
     setSettings((prev) => {
       if (!prev) return null;
       const nextGeneral = { ...prev.general, ...updates };
-      // Apply stealth mode immediately for preview
-      if (updates.stealthMode !== undefined) {
-        electronService.applyStealthMode(updates.stealthMode);
-      }
       return { ...prev, general: nextGeneral };
     });
   };

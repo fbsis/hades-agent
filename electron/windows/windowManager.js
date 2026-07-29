@@ -1,5 +1,6 @@
 const { BrowserWindow, shell, app, Menu, screen } = require('electron');
 const configs = require('./windowConfigs');
+const { protectWindow } = require('./contentProtection');
 const log = require('electron-log');
 
 const FLOATING_HEAD_SIZE = 36;
@@ -125,6 +126,7 @@ class WindowManager {
     // Add specific event logs for debugging
     win.webContents.on('did-finish-load', () => {
       log.info(`[WINDOW_MANAGER] Window loaded: ${name}`);
+      this.enforceContentProtection(win, name, 'did-finish-load');
     });
 
     win.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
@@ -145,50 +147,20 @@ class WindowManager {
       this.windows[name] = null;
     });
 
-    // Apply stealth mode to newly created windows BEFORE they are shown.
-    // On Windows, setting this AFTER the window is shown on a transparent window fails to apply to the DWM surface.
-    try {
-      if (name !== 'splash') {
-        const store = require('../store/jsonStore');
-        const settings = store.getSettings();
-        const isStealth = !!settings?.general?.stealthMode;
-        console.log(`[WINDOW_MANAGER] Initializing stealth mode for ${name}. isStealth: ${isStealth}, alwaysOnTop: ${win.isAlwaysOnTop()}`);
-        
-        const success = win.setContentProtection(isStealth);
-        console.log(`[WINDOW_MANAGER] Initial stealth mode applied for ${name}: ${success}`);
-      }
-    } catch (e) {
-      console.error(`[WINDOW_MANAGER] Failed to apply initial stealth mode for ${name}:`, e);
-    }
+    // Apply before the window is shown so the initial compositor surface is protected.
+    this.enforceContentProtection(win, name, 'create');
 
-    // Ensure content protection is enforced whenever the window is shown, restored, or focused (prevents OS resets)
-    const enforceStealth = (eventSource) => {
-      const runEnforce = (delay) => {
+    const enforceProtection = (eventSource) => {
+      [50, 200, 500, 1500].forEach(delay => {
         setTimeout(() => {
-          if (win.isDestroyed()) return;
-          try {
-            const store = require('../store/jsonStore');
-            const settings = store.getSettings();
-            const isStealth = !!settings?.general?.stealthMode;
-            
-            const success = win.setContentProtection(isStealth);
-            console.log(`[WINDOW_MANAGER] [Enforce:${eventSource}:${delay}ms] for ${name} (alwaysOnTop: ${win.isAlwaysOnTop()}, visible: ${win.isVisible()}) -> setContentProtection(${isStealth}): ${success}`);
-          } catch (e) {
-            console.error(`[WINDOW_MANAGER] [Enforce:${eventSource}:${delay}ms] Failed for ${name}:`, e);
-          }
+          this.enforceContentProtection(win, name, `${eventSource}:${delay}ms`);
         }, delay);
-      };
-
-      // Run multiple times to ensure OS style changes/composition settle
-      runEnforce(50);
-      runEnforce(200);
-      runEnforce(500);
-      runEnforce(1500);
+      });
     };
 
-    win.on('show', () => enforceStealth('show'));
-    win.on('restore', () => enforceStealth('restore'));
-    win.on('focus', () => enforceStealth('focus'));
+    win.on('show', () => enforceProtection('show'));
+    win.on('restore', () => enforceProtection('restore'));
+    win.on('focus', () => enforceProtection('focus'));
 
     if (name === 'command') {
       win.once('ready-to-show', () => this.enforceCommandAlwaysOnTop('ready-to-show'));
@@ -300,7 +272,7 @@ class WindowManager {
     });
 
     if (showActive) {
-      win.setAlwaysOnTop(true, 'pop-up-menu');
+      this.applyAlwaysOnTop(win, true, 'pop-up-menu');
       win.moveTop();
       win.show();
       win.focus();
@@ -551,6 +523,24 @@ class WindowManager {
     if (enabled && win.isVisible()) {
       win.moveTop();
     }
+
+    this.enforceContentProtection(win, 'window', 'always-on-top');
+    [50, 200].forEach(delay => {
+      setTimeout(() => this.enforceContentProtection(win, 'window', `always-on-top:${delay}ms`), delay);
+    });
+  }
+
+  enforceContentProtection(win, name = 'window', eventSource = 'manual') {
+    if (!win || win.isDestroyed()) return false;
+
+    const protectedSuccessfully = protectWindow(win);
+    const details = `alwaysOnTop=${win.isAlwaysOnTop()}, visible=${win.isVisible()}`;
+    if (protectedSuccessfully) {
+      log.info(`[WINDOW_MANAGER] Content protection applied to ${name} from ${eventSource} (${details})`);
+    } else {
+      log.error(`[WINDOW_MANAGER] Failed to protect ${name} from ${eventSource} (${details})`);
+    }
+    return protectedSuccessfully;
   }
 
   enforceCommandAlwaysOnTop(eventSource = 'manual') {

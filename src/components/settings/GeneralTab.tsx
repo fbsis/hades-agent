@@ -142,16 +142,16 @@ const GeneralTab: React.FC<GeneralTabProps> = ({ settings, updateSettings }) => 
 
       <div className="setting-row">
         <div className="setting-info">
-          <div className="setting-title">Stealth Mode (Modo Furtivo)</div>
-          <div className="setting-desc">Esse modo esconde o aplicativo de gravadores de telas como Discord, OBS e outros.</div>
+          <div className="setting-title">Proteção de captura</div>
+          <div className="setting-desc">Sempre ativa para reduzir a exposição do Metis em capturas e compartilhamentos de tela.</div>
         </div>
         <div className="setting-control">
-          <label className="switch" aria-label="Stealth Mode">
+          <label className="switch" aria-label="Proteção de captura sempre ativa">
             <input 
               type="checkbox" 
-              aria-label="Stealth Mode"
-              checked={settings.stealthMode}
-              onChange={(e) => updateSettings({ stealthMode: e.target.checked })}
+              aria-label="Proteção de captura sempre ativa"
+              checked
+              disabled
             />
             <span className="slider"></span>
           </label>

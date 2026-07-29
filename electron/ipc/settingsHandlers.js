@@ -2,14 +2,14 @@ const { ipcMain, BrowserWindow, globalShortcut } = require('electron');
 const jsonStore = require('../store/jsonStore');
 const logger = require('../services/logger');
 const registerGlobalShortcuts = require('../shortcuts');
+const { protectWindow } = require('../windows/contentProtection');
 
 /**
- * Applies or removes content protection (Stealth Mode) on all active windows.
- * @param {boolean} enabled
+ * Applies mandatory content protection to all active windows.
  */
-function applyStealthMode(enabled) {
+function applyStealthMode() {
   const allWindows = BrowserWindow.getAllWindows();
-  console.log(`[SETTINGS_STEALTH] Applying stealth mode (${enabled}) to ${allWindows.length} windows.`);
+  console.log(`[SETTINGS_STEALTH] Applying mandatory capture protection to ${allWindows.length} windows.`);
   
   allWindows.forEach(win => {
     if (!win.isDestroyed()) {
@@ -17,19 +17,12 @@ function applyStealthMode(enabled) {
       const match = /\?window=([^&]+)/.exec(url);
       const name = match ? match[1] : win.getTitle() || 'unknown';
       
-      // Do not apply stealth mode to the splash screen
-      if (name === 'splash') return;
-      
-      try {
-        const result = win.setContentProtection(enabled);
-        console.log(`[SETTINGS_STEALTH] Window: ${name} (alwaysOnTop: ${win.isAlwaysOnTop()}, visible: ${win.isVisible()}) -> setContentProtection(${enabled}): ${result}`);
-      } catch (err) {
-        console.error(`[SETTINGS_STEALTH] Failed to set content protection on ${name}:`, err);
-      }
+      const protectedSuccessfully = protectWindow(win);
+      console.log(`[SETTINGS_STEALTH] Window: ${name} (alwaysOnTop: ${win.isAlwaysOnTop()}, visible: ${win.isVisible()}) -> protected: ${protectedSuccessfully}`);
     }
   });
 
-  logger.info('SETTINGS', `Stealth mode ${enabled ? 'enabled' : 'disabled'}. Applied to all background windows immediately.`);
+  logger.info('SETTINGS', 'Mandatory capture protection applied to all windows.');
 }
 
 /**
@@ -55,23 +48,10 @@ function registerSettingsHandlers() {
   // Persists all settings and applies side-effects immediately
   ipcMain.handle('save-settings', (event, settings) => {
     try {
-      const oldSettings = jsonStore.getSettings();
-      const oldStealth = !!oldSettings?.general?.stealthMode;
-      const newStealth = !!settings?.general?.stealthMode;
-      const stealthModeChanged = oldStealth !== newStealth;
-
       jsonStore.saveSettings(settings);
       const savedSettings = jsonStore.getSettings();
-      
-      if (stealthModeChanged) {
-        logger.info('SETTINGS', 'Stealth mode changed. Restarting application to apply DWM composition securely.');
-        const { app } = require('electron');
-        app.relaunch();
-        app.exit();
-        return { success: true };
-      }
 
-      applyStealthMode(newStealth);
+      applyStealthMode();
       applyApiKey(savedSettings.general.apiKey);
       
       // Update global shortcuts dynamically on save
@@ -92,10 +72,10 @@ function registerSettingsHandlers() {
     }
   });
 
-  // Standalone stealth mode toggle (used for live preview before save)
-  ipcMain.handle('apply-stealth-mode', (event, enabled) => {
+  // Backward-compatible IPC: callers can request protection, but cannot disable it.
+  ipcMain.handle('apply-stealth-mode', () => {
     try {
-      applyStealthMode(enabled);
+      applyStealthMode();
       return { success: true };
     } catch (err) {
       logger.error('SETTINGS', 'apply-stealth-mode error', err);

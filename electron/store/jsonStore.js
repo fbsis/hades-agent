@@ -40,7 +40,7 @@ class JsonStore {
         minichatModel: 'gemini-2.5-flash',
         sttModel: 'gemini-2.5-flash',
         fullTranscriptionModel: 'gemini-2.5-flash',
-        stealthMode: false,
+        stealthMode: true,
         dreamingEnabled: true,
         dreamingModel: 'gemini-2.5-flash'
       },
@@ -218,12 +218,16 @@ class JsonStore {
       layout: { ...this._defaultSettings.layout, ...(saved.layout || {}) },
       shortcuts: { ...this._defaultSettings.shortcuts, ...(saved.shortcuts || {}) }
     };
+    const captureProtectionNeedsMigration = this.cache.settings.general.stealthMode !== true;
+    this.cache.settings.general.stealthMode = true;
     if (!saved.general?.localWhisperDefaultMigrated) {
       this.cache.settings.interview.transcriptionProvider = 'whisper-local';
       if (this.cache.settings.interview.language === 'auto') {
         this.cache.settings.interview.language = 'pt-BR';
       }
       this.cache.settings.general.localWhisperDefaultMigrated = true;
+      this.safeSaveSettings(this.cache.settings);
+    } else if (captureProtectionNeedsMigration) {
       this.safeSaveSettings(this.cache.settings);
     }
 
@@ -322,6 +326,7 @@ class JsonStore {
       },
       shortcuts: { ...this._defaultSettings.shortcuts, ...(settings.shortcuts || {}) }
     };
+    nextSettings.general.stealthMode = true;
 
     this.cache.settings = nextSettings;
     this.safeSaveSettings(nextSettings);

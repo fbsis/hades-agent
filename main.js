@@ -195,7 +195,7 @@ ipcMain.on('chat-window-ready', () => {
 
     // Show the newly loaded chat window above everything
     log.info('[MAIN] Showing newly loaded chat window');
-    chatWin.setAlwaysOnTop(true, 'pop-up-menu');
+    windowManager.applyAlwaysOnTop(chatWin, true, 'pop-up-menu');
     chatWin.show();
     chatWin.moveTop();
     log.info(`[MAIN] Chat after show: visible=${chatWin.isVisible()} alwaysOnTop=${chatWin.isAlwaysOnTop()}`);
@@ -205,7 +205,7 @@ ipcMain.on('chat-window-ready', () => {
   const cmdWin = windowManager.get('command');
   if (cmdWin?.isVisible()) {
     log.info('[MAIN] Re-raising command bar on top of chat');
-    cmdWin.setAlwaysOnTop(true, 'pop-up-menu');
+    windowManager.applyAlwaysOnTop(cmdWin, true, 'pop-up-menu');
     cmdWin.show();
     cmdWin.moveTop();
     cmdWin.focus();
