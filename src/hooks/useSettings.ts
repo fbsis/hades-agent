@@ -2,10 +2,10 @@ import { useState, useEffect } from 'react';
 import { electronService } from '../services/electron';
 import { SettingsData } from '../types/electron';
 
-export type SettingsTab = 'history' | 'audio' | 'general' | 'hermes' | 'shortcuts';
+export type SettingsTab = 'audio' | 'general' | 'hermes' | 'shortcuts';
 
 export function useSettings() {
-  const [activeTab, setActiveTab] = useState<SettingsTab>('history');
+  const [activeTab, setActiveTab] = useState<SettingsTab>('general');
   const [settings, setSettings] = useState<SettingsData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);

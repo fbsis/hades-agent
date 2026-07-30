@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { ChatMessage } from '../types';
 import { electronService } from '../services/electron';
+import { shouldRotateChatSession } from '../utils/chatSession';
 
 /**
  * Hook to manage chat messages, persistence, and pending state.
@@ -116,18 +117,34 @@ export const useChatState = () => {
    * then clears all local state. This is the canonical way to start a new session.
    * Local state is always cleared even if archiving fails (e.g. API quota errors).
    */
-  const clearHistory = useCallback(() => {
+  const resetLocalHistory = useCallback(() => {
     // Clear local state immediately for better UI experience
     setMessages([]);
     messagesRef.current = [];
     localStorage.removeItem('chat_history');
     localStorage.removeItem('minichat_timer');
+  }, []);
 
-    // Archive in the background
-    electronService.endSession('minichat').catch((err) => {
+  const archiveCurrentHistory = useCallback((history: ChatMessage[]) => {
+    electronService.endSession('minichat', history).catch((err) => {
       console.error('[useChatState] Failed to end session:', err);
     });
   }, []);
+
+  const clearHistory = useCallback(() => {
+    const history = [...messagesRef.current];
+    resetLocalHistory();
+    archiveCurrentHistory(history);
+  }, [archiveCurrentHistory, resetLocalHistory]);
+
+  const rotateStaleSession = useCallback((now = Date.now()) => {
+    const history = [...messagesRef.current];
+    if (!shouldRotateChatSession(history, now)) return false;
+
+    resetLocalHistory();
+    archiveCurrentHistory(history);
+    return true;
+  }, [archiveCurrentHistory, resetLocalHistory]);
 
   return {
     messages,
@@ -138,10 +155,12 @@ export const useChatState = () => {
     pendingMessagesRef,
     isBusy,
     setIsBusy,
+    isLoaded,
     addMessage,
     updateMessage,
     appendMessageText,
     removeMessage,
-    clearHistory
+    clearHistory,
+    rotateStaleSession
   };
 };

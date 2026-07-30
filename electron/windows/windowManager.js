@@ -675,7 +675,7 @@ class WindowManager {
 
   /**
    * Shows the unified command window and opens a specific internal panel.
-   * @param {'command'|'chat'|'settings'|'transcription'|'voice'} panel
+   * @param {'command'|'chat'|'history'|'settings'|'transcription'|'voice'} panel
    * @returns {BrowserWindow}
    */
   showCommandPanel(panel = 'command') {

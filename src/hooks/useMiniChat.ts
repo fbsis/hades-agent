@@ -1,10 +1,11 @@
-import { useState, useEffect, useLayoutEffect, useRef } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
 import { useChatState } from './useChatState';
 import { useGemini } from './useGemini';
 import { useWindowControl } from './useWindowControl';
 import { useClipboard } from './useClipboard';
 import { DEFAULT_MODEL } from '../constants';
 import { electronService } from '../services/electron';
+import { CHAT_SESSION_IDLE_LIMIT_MS, getChatSessionIdleMs } from '../utils/chatSession';
 
 /**
  * Hook to manage the state and logic for the MiniChat component.
@@ -18,11 +19,13 @@ export const useMiniChat = (options: { embedded?: boolean; isActive?: boolean; o
     pendingMessagesRef,
     isBusy,
     setIsBusy,
+    isLoaded,
     addMessage,
     updateMessage,
     appendMessageText,
     removeMessage,
-    clearHistory
+    clearHistory,
+    rotateStaleSession
   } = useChatState();
 
   const [currentModel, setCurrentModel] = useState<string>(DEFAULT_MODEL);
@@ -45,6 +48,39 @@ export const useMiniChat = (options: { embedded?: boolean; isActive?: boolean; o
     return saved ? parseInt(saved, 10) : 0;
   });
   const chatEndRef = useRef<HTMLDivElement>(null);
+
+  const resetSessionCounters = useCallback(() => {
+    setTimer(0);
+    setTokens(0);
+    localStorage.removeItem('minichat_session_tokens');
+  }, []);
+
+  const rotateSessionIfStale = useCallback(() => {
+    if (!isLoaded) return false;
+    const rotated = rotateStaleSession();
+    if (rotated) resetSessionCounters();
+    return rotated;
+  }, [isLoaded, resetSessionCounters, rotateStaleSession]);
+
+  const startNewSession = useCallback(() => {
+    setPendingMessages([]);
+    pendingMessagesRef.current = [];
+    resetSessionCounters();
+    clearHistory();
+  }, [clearHistory, pendingMessagesRef, resetSessionCounters, setPendingMessages]);
+
+  useEffect(() => {
+    if (!isLoaded || messages.length === 0) return;
+
+    const remaining = CHAT_SESSION_IDLE_LIMIT_MS - getChatSessionIdleMs(messages);
+    if (remaining <= 0) {
+      rotateSessionIfStale();
+      return;
+    }
+
+    const timeout = setTimeout(rotateSessionIfStale, remaining);
+    return () => clearTimeout(timeout);
+  }, [isLoaded, messages, rotateSessionIfStale]);
 
   // Load initial settings
   useEffect(() => {
@@ -136,6 +172,7 @@ export const useMiniChat = (options: { embedded?: boolean; isActive?: boolean; o
   useEffect(() => {
     // New message from Command Bar
     const unsubscribeMsg = electronService.onNewChatMessage((msg: string, image?: string) => {
+      rotateSessionIfStale();
       if (isBusyRef.current) {
         setPendingMessages(prev => [...prev, {
           id: `user_${Date.now()}`,
@@ -195,7 +232,15 @@ export const useMiniChat = (options: { embedded?: boolean; isActive?: boolean; o
       if (unsubscribeTask) unsubscribeTask();
       globalThis.removeEventListener('keydown', handleKeyDown);
     };
-  }, [addMessage, handleAIResponse, handleMinimize, options.embedded, options.isActive, options.onClosePanel]); // Removed isBusy, currentModel, messages from dependencies
+  }, [
+    addMessage,
+    handleAIResponse,
+    handleMinimize,
+    options.embedded,
+    options.isActive,
+    options.onClosePanel,
+    rotateSessionIfStale
+  ]); // Removed isBusy, currentModel, messages from dependencies
 
   return {
     messages,
@@ -213,12 +258,7 @@ export const useMiniChat = (options: { embedded?: boolean; isActive?: boolean; o
     togglePin,
     handleMinimize,
     startResizing,
-    clearHistory: () => {
-      setTimer(0);
-      setTokens(0);
-      localStorage.removeItem('minichat_session_tokens');
-      clearHistory();
-    },
+    startNewSession,
     copyToClipboard
   };
 };

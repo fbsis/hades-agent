@@ -5,7 +5,6 @@ import { electronService } from '../services/electron';
 import '../styles/settings.css';
 
 import SettingsSidebar from './settings/SettingsSidebar';
-import HistoryTab from './settings/HistoryTab';
 import AudioTab from './settings/AudioTab';
 import GeneralTab from './settings/GeneralTab';
 import HermesTab from './settings/HermesTab';
@@ -58,14 +57,14 @@ const Settings: React.FC<SettingsProps> = ({ embedded = false, onClosePanel }) =
         </button>
       </div>
 
-      <SettingsSidebar activeTab={activeTab} setActiveTab={setActiveTab} />
+      <SettingsSidebar
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        onQuit={() => electronService.quitApp()}
+      />
 
       <div className="settings-content-wrapper">
         <div className="settings-content">
-          {activeTab === 'history' && (
-            <HistoryTab />
-          )}
-          
           {activeTab === 'audio' && (
             <AudioTab 
               settings={settings.audio} 

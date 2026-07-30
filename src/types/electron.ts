@@ -44,8 +44,8 @@ export interface ElectronAPI {
   showNotification: (text: string) => void;
   onNewChatMessage: (callback: (msg: string, img?: string) => void) => () => void;
   onFocusInput: (callback: () => void) => () => void;
-  onOpenCommandPanel: (callback: (panel: 'command' | 'chat' | 'settings' | 'transcription' | 'voice') => void) => () => void;
-  setActiveCommandPanel: (panel: 'command' | 'chat' | 'settings' | 'transcription' | 'voice') => void;
+  onOpenCommandPanel: (callback: (panel: 'command' | 'chat' | 'history' | 'settings' | 'transcription' | 'voice') => void) => () => void;
+  setActiveCommandPanel: (panel: 'command' | 'chat' | 'history' | 'settings' | 'transcription' | 'voice') => void;
   onNotify: (callback: (message: string) => void) => () => void;
   notifHidden: () => void;
   
@@ -59,7 +59,7 @@ export interface ElectronAPI {
   getChat: () => Promise<IPCResponse<any[]>>;
   saveChat: (history: any[]) => void;
   updateChatStatus: (hasMessages: boolean) => void;
-  endSession: (type?: string) => Promise<IPCResponse<any>>;
+  endSession: (type?: string, history?: any[]) => Promise<IPCResponse<any>>;
   getTotalTokens: () => Promise<IPCResponse<number>>;
   updateTokens: (count: number) => Promise<IPCResponse<number>>;
   commandWindowReady: () => void;
@@ -76,6 +76,7 @@ export interface ElectronAPI {
   onStartSusurro: (callback: () => void) => () => void;
   onStopSusurro: (callback: () => void) => () => void;
   onInterviewCaptureShortcut: (callback: () => void) => () => void;
+  onInterviewQuickAnswerShortcut: (callback: () => void) => () => void;
   generateSuggestion: (data: { transcription: string, personaPrompt: string }) => Promise<IPCResponse<string>>;
   askSusurroTranscript: (data: { question: string; transcript: string; personaPrompt?: string }) => Promise<IPCResponse<{ text: string; provider: string }>>;
   saveSusurroMessage: (msg: any) => Promise<IPCResponse<void>>;
@@ -120,7 +121,7 @@ export interface ElectronAPI {
     sessionSummary?: string;
     quickFragments?: string[];
     variant: InterviewAnswerVariant;
-    provider?: 'hermes' | 'gemini';
+    provider?: 'openai' | 'hermes' | 'gemini';
   }) => Promise<IPCResponse<InterviewAnswer>>;
   cancelInterviewAnswer: (answerId: string) => Promise<IPCResponse<boolean>>;
   onInterviewAnswerEvent: (callback: (event: InterviewAnswerEvent) => void) => () => void;
@@ -207,6 +208,7 @@ export interface AudioSettings {
 
 export interface GeneralSettings {
   apiKey: string;
+  openaiApiKey: string;
   tavilyApiKey: string;
   minichatModel: string;
   sttModel: string;
@@ -214,6 +216,7 @@ export interface GeneralSettings {
   stealthMode: boolean;
   dreamingEnabled: boolean;
   dreamingModel: string;
+  openAiDreamingMigrated?: boolean;
 }
 
 export interface HermesSettings {
@@ -248,6 +251,8 @@ export interface ShortcutsSettings {
   toggleSettings: string;
   toggleSusurro: string;
   toggleVoice: string;
+  interviewQuickAnswer: string;
+  interviewCaptureScreen: string;
 }
 
 export interface WindowBounds {

@@ -15,7 +15,7 @@ export interface ChatMessage {
   id: string;
   text: string;
   sender: 'user' | 'ia';
-  timestamp: Date;
+  timestamp: Date | string;
   status?: 'sent' | 'pending' | 'error';
   image?: string;
 }

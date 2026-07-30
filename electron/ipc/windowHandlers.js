@@ -256,7 +256,7 @@ function registerWindowHandlers() {
   });
 
   ipcMain.on('command-panel-changed', (event, panel) => {
-    const allowedPanels = new Set(['command', 'chat', 'settings', 'transcription', 'voice']);
+    const allowedPanels = new Set(['command', 'chat', 'history', 'settings', 'transcription', 'voice']);
     if (allowedPanels.has(panel)) {
       appState.activeCommandPanel = panel;
     }

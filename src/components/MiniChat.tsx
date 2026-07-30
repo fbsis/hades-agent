@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { ChatHeader } from './chat/ChatHeader';
 import { ChatList } from './chat/ChatList';
 import { useMiniChat } from '../hooks/useMiniChat';
@@ -10,6 +10,8 @@ interface MiniChatProps {
   onClosePanel?: () => void;
   onOpenSettings?: () => void;
   onOpenTranscription?: () => void;
+  onRegisterNewSession?: (handler: () => void) => void;
+  onBusyChange?: (busy: boolean) => void;
 }
 
 /**
@@ -21,11 +23,14 @@ const MiniChat: React.FC<MiniChatProps> = ({
   isActive = true,
   onClosePanel,
   onOpenSettings,
-  onOpenTranscription
+  onOpenTranscription,
+  onRegisterNewSession,
+  onBusyChange
 }) => {
   const {
     messages,
     pendingMessages,
+    isBusy,
     isThinking,
     activeTool,
     isPinned,
@@ -37,9 +42,17 @@ const MiniChat: React.FC<MiniChatProps> = ({
     togglePin,
     handleMinimize,
     startResizing,
-    clearHistory,
+    startNewSession,
     copyToClipboard
   } = useMiniChat({ embedded, isActive, onClosePanel });
+
+  useEffect(() => {
+    onRegisterNewSession?.(startNewSession);
+  }, [onRegisterNewSession, startNewSession]);
+
+  useEffect(() => {
+    onBusyChange?.(isBusy || isThinking);
+  }, [isBusy, isThinking, onBusyChange]);
 
   return (
     <div className={`app-container chat-mode ${embedded ? 'embedded-chat' : ''} ${isResizing ? 'resizing' : ''}`}>
@@ -51,7 +64,7 @@ const MiniChat: React.FC<MiniChatProps> = ({
           togglePin={togglePin}
           onOpenSettings={onOpenSettings || (() => electronService.showSettings())}
           onOpenTranscription={onOpenTranscription || (() => electronService.showSusurro())}
-          onCloseSession={clearHistory}
+          onCloseSession={startNewSession}
           onMinimize={handleMinimize}
         />
       )}

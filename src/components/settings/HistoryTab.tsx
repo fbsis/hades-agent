@@ -154,14 +154,14 @@ const HistoryTab: React.FC = () => {
             onClick={() => setView('minichat')}
           >
             <MessageSquare size={13} style={{ marginRight: 4 }} />
-            Minichat
+            Conversas
           </button>
           <button
             className={`toggle-btn ${view === 'transcriptions' ? 'active' : ''}`}
             onClick={() => setView('transcriptions')}
           >
             <Mic size={13} style={{ marginRight: 4 }} />
-            Susurro
+            Reuniões
           </button>
         </div>
 
@@ -188,7 +188,7 @@ const HistoryTab: React.FC = () => {
           }}>
             {search
               ? 'Nenhuma sessão encontrada.'
-              : 'Nenhuma sessão arquivada ainda.\nInicie uma conversa e clique em + para criar uma nova sessão.'}
+              : 'Nenhuma sessão arquivada ainda.\nConversas encerradas ou inativas por quatro horas aparecerão aqui.'}
           </div>
         ) : (
           dataToDisplay.map((session, index) => {

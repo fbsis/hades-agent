@@ -103,6 +103,16 @@
   border-radius: 0 6px 6px 0;
 }
 
+.sidebar-item.sidebar-quit {
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.sidebar-item.sidebar-quit:hover {
+  background: rgb(var(--color-danger-rgb) / 0.14);
+  border-color: rgb(var(--color-danger-rgb) / 0.3);
+  color: var(--color-danger-light);
+}
+
 /* Content Area */
 .settings-content-wrapper {
   flex: 1;

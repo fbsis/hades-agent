@@ -79,10 +79,10 @@ class ElectronService {
   onFocusInput(callback: () => void) {
     return this.electron?.onFocusInput(callback) || (() => {});
   }
-  onOpenCommandPanel(callback: (panel: 'command' | 'chat' | 'settings' | 'transcription' | 'voice') => void) {
+  onOpenCommandPanel(callback: (panel: 'command' | 'chat' | 'history' | 'settings' | 'transcription' | 'voice') => void) {
     return this.electron?.onOpenCommandPanel(callback) || (() => {});
   }
-  setActiveCommandPanel(panel: 'command' | 'chat' | 'settings' | 'transcription' | 'voice') {
+  setActiveCommandPanel(panel: 'command' | 'chat' | 'history' | 'settings' | 'transcription' | 'voice') {
     this.electron?.setActiveCommandPanel(panel);
   }
   onNotify(callback: (message: string) => void) {
@@ -104,8 +104,8 @@ class ElectronService {
   }
   saveChat(history: any[]) { this.electron?.saveChat(history); }
   updateChatStatus(hasMessages: boolean) { this.electron?.updateChatStatus(hasMessages); }
-  async endSession(type?: string) { 
-    return await this.handleResponse(this.electron?.endSession(type), null, 'endSession'); 
+  async endSession(type?: string, history?: any[]) {
+    return await this.handleResponse(this.electron?.endSession(type, history), null, 'endSession');
   }
   async getTotalTokens() { 
     return await this.handleResponse(this.electron?.getTotalTokens(), 0, 'getTotalTokens'); 
@@ -142,6 +142,9 @@ class ElectronService {
   }
   onInterviewCaptureShortcut(callback: () => void) {
     return this.electron?.onInterviewCaptureShortcut(callback) || (() => {});
+  }
+  onInterviewQuickAnswerShortcut(callback: () => void) {
+    return this.electron?.onInterviewQuickAnswerShortcut(callback) || (() => {});
   }
   async askSusurroTranscript(data: { question: string; transcript: string; personaPrompt?: string }) {
     return await this.handleResponse(this.electron?.askSusurroTranscript(data), null, 'askSusurroTranscript');
@@ -244,7 +247,7 @@ class ElectronService {
     sessionSummary?: string;
     quickFragments?: string[];
     variant: InterviewAnswerVariant;
-    provider?: 'hermes' | 'gemini';
+    provider?: 'openai' | 'hermes' | 'gemini';
   }) {
     return await this.handleResponse(this.electron?.requestInterviewAnswer(args), null, 'requestInterviewAnswer');
   }

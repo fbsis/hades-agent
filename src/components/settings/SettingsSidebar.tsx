@@ -1,25 +1,17 @@
 import React from 'react';
 import { SettingsTab } from '../../hooks/useSettings';
-import { Bot, Clock, Volume2, Settings as SettingsIcon, Keyboard } from 'lucide-react';
+import { Bot, Keyboard, Power, Settings as SettingsIcon, Volume2 } from 'lucide-react';
 
 interface SidebarProps {
   activeTab: SettingsTab;
   setActiveTab: (tab: SettingsTab) => void;
+  onQuit: () => void;
 }
 
-const SettingsSidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => {
+const SettingsSidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, onQuit }) => {
   return (
     <div className="settings-sidebar">
       <div className="sidebar-title">Menu</div>
-      
-      <button 
-        type="button"
-        className={`sidebar-item ${activeTab === 'history' ? 'active' : ''}`}
-        onClick={() => setActiveTab('history')}
-      >
-        <Clock size={16} />
-        <span>Histórico</span>
-      </button>
       
       <button 
         type="button"
@@ -56,6 +48,15 @@ const SettingsSidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) =>
       >
         <Keyboard size={16} />
         <span>Teclas de Atalho</span>
+      </button>
+
+      <button
+        type="button"
+        className="sidebar-item sidebar-quit"
+        onClick={onQuit}
+      >
+        <Power size={16} />
+        <span>Fechar Metis</span>
       </button>
     </div>
   );

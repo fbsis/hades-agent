@@ -16,10 +16,13 @@ function registerChatHandlers() {
     store.saveChatHistory(history);
   });
 
-  ipcMain.handle('end-session', async (event, type) => {
+  ipcMain.handle('end-session', async (event, type, historyOverride) => {
     try {
       const isSusurro = type === 'susurro';
-      const history = isSusurro ? store.getSusurroHistory() : store.getChatHistory();
+      const hasHistoryOverride = Array.isArray(historyOverride);
+      const history = hasHistoryOverride
+        ? historyOverride
+        : (isSusurro ? store.getSusurroHistory() : store.getChatHistory());
 
       if (!history || history.length === 0) {
         return { success: true, data: { message: 'No active session' } };
@@ -27,9 +30,9 @@ function registerChatHandlers() {
 
       // UI clears immediately to avoid delay
       if (isSusurro) {
-        store.saveSusurroHistory([]);
+        if (!hasHistoryOverride) store.saveSusurroHistory([]);
       } else {
-        store.saveChatHistory([]);
+        if (!hasHistoryOverride) store.saveChatHistory([]);
         appState.chatHasMessages = false;
         const windowManager = require('../windows/windowManager');
         const chatWin = windowManager.get('chat');

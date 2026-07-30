@@ -1,11 +1,12 @@
-import React, { useState, useEffect } from 'react';
-import { Camera, Cog, Minus, Paperclip, Pin, PinOff, Power, Users, X } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Camera, Cog, History, MessageCircle, Minus, Paperclip, Pin, PinOff, Plus, Users, X } from 'lucide-react';
 import { CommandPanel, useCommandBar } from '../hooks/useCommandBar';
 import { electronService } from '../services/electron';
 import MiniChat from './MiniChat';
 import Settings from './Settings';
 import Susurro from './Susurro';
 import VoiceRecorder from './VoiceRecorder';
+import HistoryTab from './settings/HistoryTab';
 
 /**
  * CommandBar component - A sleek, minimal input bar for AI commands.
@@ -13,6 +14,8 @@ import VoiceRecorder from './VoiceRecorder';
  */
 const CommandBar: React.FC = () => {
   const [activePanel, setActivePanel] = useState<CommandPanel>('command');
+  const [isChatBusy, setIsChatBusy] = useState(false);
+  const newConversationHandlerRef = useRef<(() => void) | null>(null);
   const {
     query,
     setQuery,
@@ -97,8 +100,18 @@ const CommandBar: React.FC = () => {
     setActivePanel(activePanel === 'chat' ? 'command' : 'chat');
   };
 
+  const handleNewConversation = () => {
+    if (isChatBusy) return;
+    newConversationHandlerRef.current?.();
+    setActivePanel('chat');
+  };
+
   const handleOpenSettings = () => {
     setActivePanel(activePanel === 'settings' ? 'command' : 'settings');
+  };
+
+  const handleOpenHistory = () => {
+    setActivePanel(activePanel === 'history' ? 'command' : 'history');
   };
 
   const handleOpenTranscription = () => {
@@ -107,10 +120,6 @@ const CommandBar: React.FC = () => {
 
   const handleMinimizeToHead = () => {
     electronService.minimizeToHead();
-  };
-
-  const handleQuitApp = () => {
-    electronService.quitApp();
   };
 
   const handleToggleOnTop = () => {
@@ -159,7 +168,7 @@ const CommandBar: React.FC = () => {
             title="Capturar tela"
             aria-label="Capturar tela"
           >
-            <Camera size={15} />
+            <Camera size={14} />
           </button>
         </div>
       </div>
@@ -167,11 +176,34 @@ const CommandBar: React.FC = () => {
       <div className="command-footer">
         <button
           type="button"
-          className={`footer-btn text-btn ${activePanel === 'chat' ? 'active' : ''}`}
+          className={`footer-btn icon-btn ${activePanel === 'chat' ? 'active' : ''}`}
           onClick={handleOpenChat}
-          title="Abrir chat"
+          title="Abrir conversa"
+          aria-label="Abrir conversa"
+          data-tooltip="Conversa"
         >
-          Conversa
+          <MessageCircle size={14} />
+        </button>
+        <button
+          type="button"
+          className="footer-btn icon-btn"
+          onClick={handleNewConversation}
+          disabled={isChatBusy}
+          title={isChatBusy ? 'Aguarde a resposta atual terminar' : 'Criar nova conversa'}
+          aria-label={isChatBusy ? 'Nova conversa indisponível durante a resposta' : 'Criar nova conversa'}
+          data-tooltip={isChatBusy ? 'Resposta em andamento' : 'Nova conversa'}
+        >
+          <Plus size={14} />
+        </button>
+        <button
+          type="button"
+          className={`footer-btn icon-btn ${activePanel === 'history' ? 'active' : ''}`}
+          onClick={handleOpenHistory}
+          title="Histórico de conversas"
+          aria-label="Histórico de conversas"
+          data-tooltip="Histórico"
+        >
+          <History size={14} />
         </button>
 
         <div className="footer-spacer" />
@@ -184,7 +216,7 @@ const CommandBar: React.FC = () => {
           aria-label="Configurações"
           data-tooltip="Configurações"
         >
-          <Cog size={16} />
+          <Cog size={14} />
         </button>
         <button
           type="button"
@@ -194,7 +226,7 @@ const CommandBar: React.FC = () => {
           aria-label="Reunião"
           data-tooltip="Reunião"
         >
-          <Users size={16} />
+          <Users size={14} />
         </button>
         <button
           type="button"
@@ -204,7 +236,7 @@ const CommandBar: React.FC = () => {
           aria-label={isOnTop ? 'Desativar always-on-top' : 'Ativar always-on-top'}
           data-tooltip={isOnTop ? 'Desativar on top' : 'Ativar on top'}
         >
-          {isOnTop ? <PinOff size={16} /> : <Pin size={16} />}
+          {isOnTop ? <PinOff size={14} /> : <Pin size={14} />}
         </button>
         <button
           type="button"
@@ -214,17 +246,7 @@ const CommandBar: React.FC = () => {
           aria-label="Minimizar para bolha"
           data-tooltip="Minimizar"
         >
-          <Minus size={16} />
-        </button>
-        <button
-          type="button"
-          className="footer-btn icon-btn danger"
-          onClick={handleQuitApp}
-          title="Sair do Metis"
-          aria-label="Sair do Metis"
-          data-tooltip="Sair"
-        >
-          <Power size={16} />
+          <Minus size={14} />
         </button>
       </div>
 
@@ -236,8 +258,18 @@ const CommandBar: React.FC = () => {
             onClosePanel={() => setActivePanel('command')}
             onOpenSettings={() => setActivePanel('settings')}
             onOpenTranscription={() => setActivePanel('transcription')}
+            onRegisterNewSession={(handler) => {
+              newConversationHandlerRef.current = handler;
+            }}
+            onBusyChange={setIsChatBusy}
           />
         </div>
+
+        {activePanel === 'history' && (
+          <div className="standalone-history">
+            <HistoryTab />
+          </div>
+        )}
 
         {activePanel === 'settings' && (
           <Settings

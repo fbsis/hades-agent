@@ -58,7 +58,7 @@ contextBridge.exposeInMainWorld('electron', {
   updateChatStatus: (hasMessages) => ipcRenderer.send('chat-status-update', { hasMessages }),
   updateTokens: (count) => ipcRenderer.invoke('update-tokens', count),
   getTotalTokens: () => ipcRenderer.invoke('get-total-tokens'),
-  endSession: (type) => ipcRenderer.invoke('end-session', type),
+  endSession: (type, history) => ipcRenderer.invoke('end-session', type, history),
   commandWindowReady: () => ipcRenderer.send('command-window-ready'),
   chatWindowReady: () => ipcRenderer.send('chat-window-ready'),
 
@@ -116,6 +116,11 @@ contextBridge.exposeInMainWorld('electron', {
     const sub = (_event) => callback();
     ipcRenderer.on('interview-capture-screen', sub);
     return () => ipcRenderer.removeListener('interview-capture-screen', sub);
+  },
+  onInterviewQuickAnswerShortcut: (callback) => {
+    const sub = (_event) => callback();
+    ipcRenderer.on('interview-quick-answer', sub);
+    return () => ipcRenderer.removeListener('interview-quick-answer', sub);
   },
   askSusurroTranscript: (data) => ipcRenderer.invoke('ask-susurro-transcript', data),
 
