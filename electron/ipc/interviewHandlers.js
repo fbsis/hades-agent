@@ -1,9 +1,14 @@
-const { desktopCapturer, ipcMain } = require('electron');
+const { BrowserWindow, desktopCapturer, ipcMain, screen } = require('electron');
 const googleCloudAuthService = require('../services/googleCloudAuthService');
 const interviewRecordingService = require('../services/interviewRecordingService');
 const interviewService = require('../services/interviewService');
 const interviewTranscriptionService = require('../services/interviewTranscriptionService');
 const logger = require('../services/logger');
+const {
+  getDisplayThumbnailSize,
+  selectDisplaySource
+} = require('../services/screenCaptureSelection');
+const windowManager = require('../windows/windowManager');
 
 function wrap(handler) {
   return async (event, ...args) => {
@@ -100,12 +105,31 @@ function registerInterviewHandlers() {
   )));
 
   ipcMain.handle('interview-analyze-screen', wrap(async (event, question) => {
+    const requestingWindow = BrowserWindow.fromWebContents(event.sender);
+    const floatingHead = windowManager.get('floatingHead');
+    const floatingHeadVisible = floatingHead
+      && !floatingHead.isDestroyed()
+      && floatingHead.isVisible();
+    const anchorWindow = requestingWindow && !requestingWindow.isDestroyed() && requestingWindow.isVisible()
+      ? requestingWindow
+      : floatingHeadVisible
+        ? floatingHead
+        : requestingWindow;
+    const displays = screen.getAllDisplays();
+    const targetDisplay = anchorWindow && !anchorWindow.isDestroyed()
+      ? screen.getDisplayMatching(anchorWindow.getBounds())
+      : screen.getDisplayNearestPoint(screen.getCursorScreenPoint());
     const sources = await desktopCapturer.getSources({
       types: ['screen'],
-      thumbnailSize: { width: 2560, height: 1600 }
+      thumbnailSize: getDisplayThumbnailSize(targetDisplay)
     });
-    const images = sources.map(source => source.thumbnail.toDataURL());
-    return interviewService.analyzeScreen(images, question);
+    const source = selectDisplaySource(sources, targetDisplay, displays);
+    if (!source) throw new Error('Nenhuma tela disponivel para captura.');
+    logger.info(
+      'INTERVIEW_IPC',
+      `Capturing display ${targetDisplay.id} from source ${source.id} (${source.name}).`
+    );
+    return interviewService.analyzeScreen([source.thumbnail.toDataURL()], question);
   }));
 
   ipcMain.handle('interview-recording-start', wrap((event, sessionId, source) => (

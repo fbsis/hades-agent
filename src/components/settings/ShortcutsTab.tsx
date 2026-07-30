@@ -12,7 +12,9 @@ const DEFAULTS = {
   toggleCommand: 'Alt+D',
   toggleSettings: 'Alt+S',
   toggleSusurro: 'Alt+B',
-  toggleVoice: 'Alt+V'
+  toggleVoice: 'Alt+V',
+  interviewQuickAnswer: 'F4',
+  interviewCaptureScreen: 'F5'
 };
 
 const ShortcutsTab: React.FC<ShortcutsTabProps> = ({ settings = {}, updateSettings }) => {
@@ -24,7 +26,9 @@ const ShortcutsTab: React.FC<ShortcutsTabProps> = ({ settings = {}, updateSettin
     toggleCommand: settings?.toggleCommand || DEFAULTS.toggleCommand,
     toggleSettings: settings?.toggleSettings || DEFAULTS.toggleSettings,
     toggleSusurro: settings?.toggleSusurro || DEFAULTS.toggleSusurro,
-    toggleVoice: settings?.toggleVoice || DEFAULTS.toggleVoice
+    toggleVoice: settings?.toggleVoice || DEFAULTS.toggleVoice,
+    interviewQuickAnswer: settings?.interviewQuickAnswer || DEFAULTS.interviewQuickAnswer,
+    interviewCaptureScreen: settings?.interviewCaptureScreen || DEFAULTS.interviewCaptureScreen
   };
 
   // Disable global shortcuts when recording, re-enable when stopped or unmounted
@@ -139,6 +143,16 @@ const ShortcutsTab: React.FC<ShortcutsTabProps> = ({ settings = {}, updateSettin
       key: 'toggleVoice' as const,
       title: 'Comando de Voz Direto',
       desc: 'Ativa a captura imediata de comandos de voz sem abrir a barra gráfica.',
+    },
+    {
+      key: 'interviewQuickAnswer' as const,
+      title: 'Entrevista: resposta rápida',
+      desc: 'Gera imediatamente uma resposta rápida para a entrevista ativa.',
+    },
+    {
+      key: 'interviewCaptureScreen' as const,
+      title: 'Entrevista: capturar tela',
+      desc: 'Captura a tela e envia o problema visível para análise durante a entrevista.',
     }
   ];
 

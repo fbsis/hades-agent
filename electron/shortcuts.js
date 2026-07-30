@@ -77,6 +77,12 @@ function captureInterviewScreen() {
   win.webContents.send('interview-capture-screen');
 }
 
+function quickAnswerInterview() {
+  const win = windowManager.get('command');
+  if (!win || win.isDestroyed()) return;
+  win.webContents.send('interview-quick-answer');
+}
+
 function registerShortcut(name, key, handler) {
   try {
     const registered = globalShortcut.register(key, handler);
@@ -101,10 +107,24 @@ function registerGlobalShortcuts(retryCount = 0) {
     toggleCommand: 'Alt+D',
     toggleSettings: 'Alt+S',
     toggleSusurro: 'Alt+B',
-    toggleVoice: 'Alt+V'
+    toggleVoice: 'Alt+V',
+    interviewQuickAnswer: 'F4',
+    interviewCaptureScreen: 'F5'
   };
 
   let allRegistered = true;
+
+  // Interview actions have priority over customizable general shortcuts.
+  if (!registerShortcut(
+    'Interview Quick Answer',
+    shortcuts.interviewQuickAnswer || 'F4',
+    quickAnswerInterview
+  )) allRegistered = false;
+  if (!registerShortcut(
+    'Interview Capture',
+    shortcuts.interviewCaptureScreen || 'F5',
+    captureInterviewScreen
+  )) allRegistered = false;
 
   // Toggle Command Bar & Chat
   if (!registerShortcut('Command', shortcuts.toggleCommand || 'Alt+D', toggleCommandWindow)) allRegistered = false;
@@ -126,9 +146,6 @@ function registerGlobalShortcuts(retryCount = 0) {
       }
     }, 120);
   })) allRegistered = false;
-
-  // Fixed interview action. The renderer ignores it outside an active interview.
-  if (!registerShortcut('Interview Capture', 'Alt+Space', captureInterviewScreen)) allRegistered = false;
 
   // Retry if any shortcut failed (zombie process may still be releasing)
   if (allRegistered) {
