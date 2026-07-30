@@ -1,14 +1,12 @@
 const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
-const { GoogleGenerativeAI } = require('@google/generative-ai');
 const store = require('../store/jsonStore');
 const hermesService = require('./hermesService');
-const logger = require('./logger');
-const { geminiGenerationConfig } = require('./interviewGenerationConfig');
+const openaiResponsesService = require('./openaiResponsesService');
 const {
   DEFAULT_CONFIG,
-  buildGeminiInterviewPrompt,
+  buildOpenAIInterviewPrompt,
   buildInterviewContext,
   buildInterviewInstruction,
   clip
@@ -226,17 +224,20 @@ class InterviewService {
     if (hermesResult.success && hermesResult.text) {
       text = hermesResult.text.trim();
     } else {
-      provider = 'gemini';
+      provider = 'openai';
       const settings = store.getSettings();
-      const apiKey = settings?.general?.apiKey || process.env.VITE_GEMINI_API_KEY;
+      const apiKey = settings?.general?.openaiApiKey || process.env.OPENAI_API_KEY;
       if (!apiKey) throw new Error(hermesResult.error || 'Nenhuma IA configurada para resumir.');
-      const genAI = new GoogleGenerativeAI(apiKey);
-      const model = genAI.getGenerativeModel({
-        model: settings.general.minichatModel || 'gemini-2.5-flash',
-        systemInstruction: instruction
+      const result = await openaiResponsesService.generateText({
+        apiKey,
+        model: 'gpt-5.6-sol',
+        instructions: instruction,
+        input: `Titulo: ${session.title}\n\n${clip(transcript, 16000)}`,
+        maxOutputTokens: 1600,
+        reasoningEffort: 'none',
+        verbosity: 'low'
       });
-      const result = await model.generateContent(`Titulo: ${session.title}\n\n${clip(transcript, 16000)}`);
-      text = result.response.text().trim();
+      text = result.text.trim();
     }
 
     if (!text) throw new Error('A IA nao retornou um resumo.');
@@ -247,87 +248,35 @@ class InterviewService {
     });
   }
 
-  async streamGeminiAnswer(args, instruction, state, emit) {
+  async streamOpenAIAnswer(args, instruction, state, emit) {
     const settings = store.getSettings();
-    const apiKey = settings?.general?.apiKey || process.env.VITE_GEMINI_API_KEY;
-    if (!apiKey) throw new Error('Gemini API key nao configurada.');
+    const apiKey = settings?.general?.openaiApiKey || process.env.OPENAI_API_KEY;
+    if (!apiKey) {
+      throw new Error('OpenAI API key nao configurada. Abra Configuracoes > Configuracao.');
+    }
 
     const controller = new AbortController();
     state.abortController = controller;
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const modelName = settings.general.minichatModel || 'gemini-2.5-flash';
-    const model = genAI.getGenerativeModel({
-      model: modelName,
-      systemInstruction: instruction,
-      generationConfig: geminiGenerationConfig(modelName, args.variant)
-    });
-    const prompt = buildGeminiInterviewPrompt(args);
-    let requestPrompt = prompt;
-    let continuationAttempted = false;
-
-    while (!state.cancelled) {
-      const streamResult = await model.generateContentStream(requestPrompt, {
-        signal: controller.signal
-      });
-
-      for await (const chunk of streamResult.stream) {
-        if (state.cancelled) break;
-        const delta = chunk.text();
-        if (!delta) continue;
+    const result = await openaiResponsesService.generateTextStream({
+      apiKey,
+      model: 'gpt-5.6-sol',
+      instructions: instruction,
+      input: buildOpenAIInterviewPrompt(args),
+      maxOutputTokens: args.variant === 'code' ? 8192 : 4096,
+      reasoningEffort: args.variant === 'code' ? 'low' : 'none',
+      verbosity: args.variant === 'code' ? 'medium' : 'low',
+      signal: controller.signal,
+      onDelta: delta => {
+        if (state.cancelled || !delta) return;
         state.text += delta;
-        emit({ type: 'delta', text: delta, provider: 'gemini' });
+        emit({ type: 'delta', text: delta, provider: 'openai' });
       }
-
-      const response = await streamResult.response;
-      if (!state.cancelled && !state.text.trim()) {
-        const text = response.text().trim();
-        if (text) {
-          state.text = text;
-          emit({ type: 'delta', text, provider: 'gemini' });
-        }
-      }
-
-      const finishReason = response.candidates?.[0]?.finishReason;
-      if (!state.cancelled && finishReason && finishReason !== 'STOP') {
-        logger.warn(
-          'INTERVIEW',
-          `Gemini ${args.variant || 'answer'} finished with ${finishReason} after ${state.text.length} chars`
-        );
-      }
-
-      if (!state.cancelled && finishReason === 'MAX_TOKENS' && !continuationAttempted) {
-        continuationAttempted = true;
-        requestPrompt = [
-          prompt,
-          `<partial_answer>\n${state.text}\n</partial_answer>`,
-          'The previous response reached the output limit.',
-          'Return only the missing continuation, starting exactly where the partial answer stopped.',
-          'Do not repeat any heading, bullet, explanation or code already present.'
-        ].join('\n\n');
-        continue;
-      }
-
-      break;
-    }
-
-    return { success: !state.cancelled, cancelled: state.cancelled, text: state.text };
-  }
-
-  async generateGeminiFallback(args, context, instruction) {
-    const settings = store.getSettings();
-    const apiKey = settings?.general?.apiKey || process.env.VITE_GEMINI_API_KEY;
-    if (!apiKey) throw new Error('Hermes indisponivel e Gemini API key nao configurada.');
-
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({
-      model: settings.general.minichatModel || 'gemini-2.5-flash',
-      systemInstruction: instruction
     });
-    const result = await model.generateContent([
-      context ? `Context:\n${context}` : '',
-      `Interview question:\n${String(args.question || '').trim()}`
-    ].filter(Boolean).join('\n\n'));
-    return result.response.text().trim();
+    if (!state.text.trim() && result.text) {
+      state.text = result.text;
+      emit({ type: 'delta', text: result.text, provider: 'openai' });
+    }
+    return { success: !state.cancelled, cancelled: state.cancelled, text: state.text };
   }
 
   async streamAnswer(args = {}, onEvent = () => {}) {
@@ -336,9 +285,8 @@ class InterviewService {
 
     const answerId = args.answerId || id('answer');
     const sessionId = args.sessionId;
-    const context = this.buildContext(args);
     const instruction = this.buildInstruction(args);
-    const requestedProvider = args.provider === 'gemini' ? 'gemini' : 'hermes';
+    const requestedProvider = 'openai';
     const state = {
       answerId,
       sessionId,
@@ -378,31 +326,7 @@ class InterviewService {
     emit({ type: 'start', provider: requestedProvider });
 
     try {
-      let result = null;
-      if (requestedProvider === 'gemini') {
-        result = await this.streamGeminiAnswer(args, instruction, state, emit);
-      } else {
-        result = await hermesService.askStream({
-          streamId: answerId,
-          prompt: question,
-          context,
-          instruction,
-          mode: 'interview',
-          preferredAnswerStyle: args.variant === 'code' ? 'code_explained' : 'short',
-          includeLocalContext: false,
-          maxOutputTokens: args.variant === 'code' ? 8192 : 4096,
-          timeoutMs: store.getSettings()?.hermes?.timeoutMs || 30000,
-          logType: 'interview_answer',
-          primaryAgent: true
-        }, event => {
-          if (event.type === 'delta' && event.text) {
-            state.text += event.text;
-            emit({ type: 'delta', text: event.text, provider: 'hermes' });
-          } else if (event.type === 'tool') {
-            emit({ type: 'tool', text: event.text, provider: 'hermes' });
-          }
-        });
-      }
+      const result = await this.streamOpenAIAnswer(args, instruction, state, emit);
 
       if (state.cancelled || result?.cancelled) {
         const cancelled = {
@@ -415,34 +339,6 @@ class InterviewService {
         this.upsertAnswer(sessionId, cancelled);
         emit({ type: 'cancelled', text: cancelled.text, provider: state.provider });
         return cancelled;
-      }
-
-      if (requestedProvider === 'hermes') {
-        const nonStreamedHermesText = String(result?.text || '').trim();
-        if (
-          result?.success
-          && !state.text.trim()
-          && nonStreamedHermesText
-          && nonStreamedHermesText !== 'Hermes nao retornou texto.'
-        ) {
-          state.text = nonStreamedHermesText;
-          emit({ type: 'delta', text: state.text, provider: 'hermes' });
-        }
-
-        if (!result?.success && state.text.trim()) {
-          throw new Error(result?.error || 'O stream do Hermes terminou antes de completar a resposta.');
-        }
-
-        if (!state.text.trim()) {
-          state.provider = 'gemini';
-          const fallbackText = await this.generateGeminiFallback(
-            args,
-            context,
-            this.buildInstruction({ ...args, provider: 'gemini' })
-          );
-          state.text = fallbackText;
-          emit({ type: 'delta', text: fallbackText, provider: 'gemini' });
-        }
       }
 
       if (!state.text.trim()) throw new Error(result?.error || 'Nenhuma resposta foi gerada.');
@@ -484,25 +380,17 @@ class InterviewService {
     if (!state) return false;
     state.cancelled = true;
     state.abortController?.abort();
-    hermesService.cancelStream(answerId);
     return true;
   }
 
   async analyzeScreen(images, question = '') {
     const settings = store.getSettings();
-    const apiKey = settings?.general?.apiKey || process.env.VITE_GEMINI_API_KEY;
-    if (!apiKey) throw new Error('Gemini API key nao configurada.');
+    const apiKey = settings?.general?.openaiApiKey || process.env.OPENAI_API_KEY;
+    if (!apiKey) {
+      throw new Error('OpenAI API key nao configurada. Abra Configuracoes > Configuracao.');
+    }
     if (!Array.isArray(images) || images.length === 0) throw new Error('Nenhuma tela disponivel.');
 
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({
-      model: settings.general.minichatModel || 'gemini-2.5-flash',
-      generationConfig: {
-        temperature: 0.1,
-        maxOutputTokens: 3072,
-        responseMimeType: 'application/json'
-      }
-    });
     const prompt = [
       'Read all visible content in these screenshots, including code, terminal output, question text and alternatives.',
       'For a technical test, extract the complete problem statement, examples, constraints, starter code, requested language and all answer choices.',
@@ -511,20 +399,26 @@ class InterviewService {
       question ? `Candidate note: ${question}` : '',
       'Return only valid JSON: {"summary":"","detectedQuestion":"","extractedText":"","programmingQuestionVisible":false,"directAnswer":"","confidence":0}'
     ].filter(Boolean).join('\n');
-    const parts = [
-      prompt,
-      ...images.slice(0, 4).map(dataUrl => {
-        const match = /^data:([^;]+);base64,(.*)$/s.exec(dataUrl || '');
-        return {
-          inlineData: {
-            mimeType: match?.[1] || 'image/png',
-            data: match?.[2] || String(dataUrl).split(',')[1]
-          }
-        };
-      })
-    ];
-    const result = await model.generateContent(parts);
-    const raw = result.response.text();
+    const result = await openaiResponsesService.generateText({
+      apiKey,
+      model: 'gpt-5.6-sol',
+      instructions: 'Analyze the interview screenshot accurately. Return only the requested valid JSON.',
+      input: [{
+        role: 'user',
+        content: [
+          { type: 'input_text', text: prompt },
+          ...images.slice(0, 4).map(imageUrl => ({
+            type: 'input_image',
+            image_url: imageUrl,
+            detail: 'high'
+          }))
+        ]
+      }],
+      maxOutputTokens: 4096,
+      reasoningEffort: 'low',
+      verbosity: 'low'
+    });
+    const raw = result.text;
     const parsed = parseJsonResponse(raw) || {};
     const analysis = {
       summary: String(parsed.summary || raw || '').trim(),

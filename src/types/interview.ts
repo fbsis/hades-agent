@@ -55,7 +55,7 @@ export interface InterviewAnswer {
   question: string;
   text: string;
   status: 'streaming' | 'complete' | 'failed' | 'cancelled';
-  provider: 'hermes' | 'gemini';
+  provider: 'openai' | 'hermes' | 'gemini';
   variant: InterviewAnswerVariant;
   createdAt: string;
   completedAt?: string;
@@ -83,7 +83,7 @@ export interface InterviewSession {
   visualContext?: string;
   summary?: string;
   summaryAt?: string;
-  summaryProvider?: 'hermes' | 'gemini';
+  summaryProvider?: 'openai' | 'hermes' | 'gemini';
   audioArtifacts?: InterviewAudioArtifact[];
   hasRecording?: boolean;
 }
@@ -119,7 +119,7 @@ export interface InterviewAnswerEvent {
   type: 'start' | 'delta' | 'tool' | 'end' | 'error' | 'cancelled';
   text?: string;
   error?: string;
-  provider?: 'hermes' | 'gemini';
+  provider?: 'openai' | 'hermes' | 'gemini';
 }
 
 export interface InterviewScreenAnalysis {

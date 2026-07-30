@@ -33,23 +33,7 @@ export const selectScreenAnswerVariant = (
   mode === 'interview' || programmingQuestionVisible ? 'code' : 'answer'
 );
 
-export const isPlainSpaceShortcut = (event: {
-  code: string;
-  altKey: boolean;
-  ctrlKey: boolean;
-  metaKey: boolean;
-  shiftKey: boolean;
-  repeat: boolean;
-}): boolean => (
-  event.code === 'Space'
-  && !event.altKey
-  && !event.ctrlKey
-  && !event.metaKey
-  && !event.shiftKey
-  && !event.repeat
-);
-
-export const canCaptureInterviewScreenShortcut = (
+export const canUseInterviewActionShortcut = (
   status: InterviewSessionStatus | undefined,
   mode: MeetingMode | undefined
 ): boolean => status === 'active' && mode === 'interview';

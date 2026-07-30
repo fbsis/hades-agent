@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import promptModule from './interviewPrompt.js';
 
 const {
-  buildGeminiInterviewPrompt,
+  buildOpenAIInterviewPrompt,
   buildInterviewContext,
   buildInterviewInstruction,
   selectRecentInterviewTexts
@@ -59,7 +59,7 @@ describe('interview prompt contract', () => {
     expect(context).toContain('at-least-once delivery');
   });
 
-  it('includes planned interview topics in Gemini and Hermes context', () => {
+  it('includes planned interview topics in OpenAI and compact context', () => {
     const args = {
       config: {
         mode: 'interview',
@@ -67,15 +67,15 @@ describe('interview prompt contract', () => {
       }
     };
 
-    expect(buildGeminiInterviewPrompt(args)).toContain('<planned_topics>');
-    expect(buildGeminiInterviewPrompt(args)).toContain('React hooks');
+    expect(buildOpenAIInterviewPrompt(args)).toContain('<planned_topics>');
+    expect(buildOpenAIInterviewPrompt(args)).toContain('React hooks');
     expect(buildInterviewContext(args)).toContain('Planned topics');
     expect(buildInterviewContext(args)).toContain('system design');
   });
 
   it('locks natural spoken and coding response behavior', () => {
     const natural = buildInterviewInstruction({ config: { answerStyle: 'natural' }, variant: 'answer' });
-    const gemini = buildInterviewInstruction({ config: { answerStyle: 'natural' }, variant: 'answer', provider: 'gemini' });
+    const openai = buildInterviewInstruction({ config: { answerStyle: 'natural' }, variant: 'answer', provider: 'openai' });
     const coding = buildInterviewInstruction({ config: { answerStyle: 'technical' }, variant: 'code' });
     expect(natural).toContain('first person');
     expect(natural).toContain('45 to 90 seconds');
@@ -85,11 +85,11 @@ describe('interview prompt contract', () => {
     expect(natural).toContain('**Aprofundamento**');
     expect(natural).toContain('2 to 4 advanced bullet points');
     expect(natural).toContain('Do not write prose paragraphs');
-    expect(gemini).toContain('supplied resume');
-    expect(gemini).not.toContain('Hermes persistent memory');
-    expect(gemini).toContain('plausible illustrative example');
-    expect(gemini).toContain('opinion');
-    expect(gemini).toContain('hypothetical');
+    expect(openai).toContain('supplied resume');
+    expect(openai).not.toContain('Hermes persistent memory');
+    expect(openai).toContain('plausible illustrative example');
+    expect(openai).toContain('opinion');
+    expect(openai).toContain('hypothetical');
     expect(coding).toContain('expert coding interviewee');
     expect(coding).toContain('**1. Problem Statement**');
     expect(coding).toContain('**2. My Thoughts**');
@@ -102,13 +102,13 @@ describe('interview prompt contract', () => {
 
   it('keeps substantially more visual context for coding screenshots', () => {
     const visualContext = `START-${'x'.repeat(3000)}-CENTRAL-CONSTRAINTS-${'x'.repeat(2500)}-END`;
-    const codingPrompt = buildGeminiInterviewPrompt({
+    const codingPrompt = buildOpenAIInterviewPrompt({
       question: 'Solve the visible problem',
       visualContext,
       variant: 'code',
       config: {}
     });
-    const regularPrompt = buildGeminiInterviewPrompt({
+    const regularPrompt = buildOpenAIInterviewPrompt({
       question: 'Answer the visible question',
       visualContext,
       variant: 'answer',
@@ -122,10 +122,10 @@ describe('interview prompt contract', () => {
     expect(regularPrompt).toContain('-END');
   });
 
-  it('builds the Gemini question prompt with resume, job and only five recent texts', () => {
+  it('builds the OpenAI question prompt with resume, job and only five recent texts', () => {
     const turns = Array.from({ length: 8 }, (_, index) => makeTurn(index));
     const recent = selectRecentInterviewTexts(turns);
-    const prompt = buildGeminiInterviewPrompt({
+    const prompt = buildOpenAIInterviewPrompt({
       question: 'turn text 7',
       turns,
       config: {
@@ -152,7 +152,7 @@ describe('interview prompt contract', () => {
   });
 
   it('uses only the latest five live fragments for a compact quick answer', () => {
-    const prompt = buildGeminiInterviewPrompt({
+    const prompt = buildOpenAIInterviewPrompt({
       question: 'fragment 2 fragment 3 fragment 4 fragment 5 fragment 6',
       quickFragments: Array.from({ length: 7 }, (_, index) => `fragment ${index}`),
       variant: 'quick',
@@ -164,7 +164,7 @@ describe('interview prompt contract', () => {
     const instruction = buildInterviewInstruction({
       config: { answerStyle: 'concise' },
       variant: 'quick',
-      provider: 'gemini'
+      provider: 'openai'
     });
 
     expect(prompt).toContain('<latest_live_fragments>');

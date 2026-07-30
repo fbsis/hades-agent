@@ -12,8 +12,7 @@ import {
 } from '../types/interview';
 import {
   applyInterviewTranscriptDelta,
-  canCaptureInterviewScreenShortcut,
-  isPlainSpaceShortcut,
+  canUseInterviewActionShortcut,
   isLikelyInterviewQuestion,
   selectScreenAnswerVariant
 } from '../utils/interview';
@@ -37,11 +36,6 @@ const buildTranscriptionVocabulary = (config: InterviewConfig): string[] => [
   )) || '',
   ...config.topics.split(/[,;\n]/).slice(0, 8)
 ].map(value => value.trim()).filter(Boolean);
-
-const isEditableTarget = (target: EventTarget | null) => {
-  if (!(target instanceof HTMLElement)) return false;
-  return target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName);
-};
 
 export const useInterviewCopilot = (options: { embedded?: boolean; onClosePanel?: () => void } = {}) => {
   const [config, setConfig] = useState<InterviewConfig>(DEFAULT_INTERVIEW_CONFIG);
@@ -489,7 +483,7 @@ export const useInterviewCopilot = (options: { embedded?: boolean; onClosePanel?
     }
 
     const answerId = makeId('answer');
-    const provider = answer?.provider || 'gemini';
+    const provider = 'openai';
     const nextAnswer: InterviewAnswer = {
       id: answerId,
       sessionId: activeSession.id,
@@ -568,7 +562,7 @@ export const useInterviewCopilot = (options: { embedded?: boolean; onClosePanel?
     requestAnswer('answer', {
       question,
       turnId: latestTurn.id,
-      provider: 'gemini'
+      provider: 'openai'
     });
   }, [requestAnswer]);
 
@@ -608,7 +602,7 @@ export const useInterviewCopilot = (options: { embedded?: boolean; onClosePanel?
       await requestAnswer('quick', {
         question,
         turnId: latestTurn.id,
-        provider: 'gemini',
+        provider: 'openai',
         quickFragments
       });
     } finally {
@@ -624,7 +618,7 @@ export const useInterviewCopilot = (options: { embedded?: boolean; onClosePanel?
     const analysis = await electronService.analyzeInterviewScreen(questionDraft);
     if (!analysis) {
       setScreenStatus('error');
-      setError('Gemini nao conseguiu ler a tela.');
+      setError('OpenAI nao conseguiu ler a tela.');
       return;
     }
 
@@ -660,7 +654,7 @@ export const useInterviewCopilot = (options: { embedded?: boolean; onClosePanel?
       {
         question: screenTurn.text,
         turnId: screenTurn.id,
-        provider: 'gemini',
+        provider: 'openai',
         visualContext: analysis.context
       }
     );
@@ -758,25 +752,22 @@ export const useInterviewCopilot = (options: { embedded?: boolean; onClosePanel?
         options.onClosePanel();
         return;
       }
-      const activeSession = sessionRef.current;
-      if (
-        isPlainSpaceShortcut(event)
-        && !isEditableTarget(event.target)
-        && activeSession?.status === 'active'
-      ) {
-        event.preventDefault();
-        quickAnswer();
-      }
     };
     globalThis.addEventListener('keydown', handleKeyDown);
     return () => globalThis.removeEventListener('keydown', handleKeyDown);
-  }, [options.onClosePanel, quickAnswer]);
+  }, [options.onClosePanel]);
 
   useEffect(() => electronService.onInterviewCaptureShortcut(() => {
     const activeSession = sessionRef.current;
-    if (!canCaptureInterviewScreenShortcut(activeSession?.status, activeSession?.config.mode)) return;
+    if (!canUseInterviewActionShortcut(activeSession?.status, activeSession?.config.mode)) return;
     captureScreen();
   }), [captureScreen]);
+
+  useEffect(() => electronService.onInterviewQuickAnswerShortcut(() => {
+    const activeSession = sessionRef.current;
+    if (!canUseInterviewActionShortcut(activeSession?.status, activeSession?.config.mode)) return;
+    quickAnswer();
+  }), [quickAnswer]);
 
   useEffect(() => () => {
     stopSystemRecording();

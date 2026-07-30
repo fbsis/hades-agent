@@ -3,8 +3,7 @@ import { InterviewTranscriptDelta, TranscriptTurn } from '../types/interview';
 import {
   applyInterviewTranscriptDelta,
   buildCompactInterviewTranscript,
-  canCaptureInterviewScreenShortcut,
-  isPlainSpaceShortcut,
+  canUseInterviewActionShortcut,
   isLikelyInterviewQuestion,
   selectScreenAnswerVariant,
   selectInterviewContextTurns
@@ -66,27 +65,11 @@ describe('selectScreenAnswerVariant', () => {
 });
 
 describe('interview keyboard shortcuts', () => {
-  const spaceEvent = {
-    code: 'Space',
-    altKey: false,
-    ctrlKey: false,
-    metaKey: false,
-    shiftKey: false,
-    repeat: false
-  };
-
-  it('uses only an unmodified local Space for quick answers', () => {
-    expect(isPlainSpaceShortcut(spaceEvent)).toBe(true);
-    expect(isPlainSpaceShortcut({ ...spaceEvent, altKey: true })).toBe(false);
-    expect(isPlainSpaceShortcut({ ...spaceEvent, repeat: true })).toBe(false);
-    expect(isPlainSpaceShortcut({ ...spaceEvent, code: 'Enter' })).toBe(false);
-  });
-
-  it('allows the global screen capture only during an active interview', () => {
-    expect(canCaptureInterviewScreenShortcut('active', 'interview')).toBe(true);
-    expect(canCaptureInterviewScreenShortcut('active', 'meeting')).toBe(false);
-    expect(canCaptureInterviewScreenShortcut('pending', 'interview')).toBe(false);
-    expect(canCaptureInterviewScreenShortcut('completed', 'interview')).toBe(false);
+  it('allows global interview actions only during an active interview', () => {
+    expect(canUseInterviewActionShortcut('active', 'interview')).toBe(true);
+    expect(canUseInterviewActionShortcut('active', 'meeting')).toBe(false);
+    expect(canUseInterviewActionShortcut('pending', 'interview')).toBe(false);
+    expect(canUseInterviewActionShortcut('completed', 'interview')).toBe(false);
   });
 });
 

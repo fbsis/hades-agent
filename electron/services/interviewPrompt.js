@@ -47,7 +47,7 @@ function selectRecentInterviewTexts(turns, limit = 5) {
     .slice(-limit);
 }
 
-function buildGeminiInterviewPrompt(args = {}) {
+function buildOpenAIInterviewPrompt(args = {}) {
   const config = { ...DEFAULT_CONFIG, ...(args.config || {}) };
   const question = String(args.question || '').replace(/\s+/g, ' ').trim();
   const quickFragments = (Array.isArray(args.quickFragments) ? args.quickFragments : [])
@@ -120,16 +120,15 @@ function buildInterviewContext(args = {}) {
     config.language !== 'auto' ? `Response language: ${config.language}` : 'Response language: same as the question',
     recentTurns ? `Recent interview context:\n${recentTurns}` : '',
     args.sessionSummary ? `Saved meeting summary:\n${clip(args.sessionSummary, 1600)}` : '',
-    args.visualContext ? `Current screen context from Gemini:\n${clip(args.visualContext, 1600)}` : ''
+    args.visualContext ? `Current screen context from OpenAI:\n${clip(args.visualContext, 1600)}` : ''
   ].filter(Boolean).join('\n\n'), 4800);
 }
 
 function buildInterviewInstruction(args = {}) {
   const style = args.config?.answerStyle || 'natural';
   const variant = args.variant || 'answer';
-  const candidateContextInstruction = args.provider === 'gemini'
-    ? 'Use the supplied resume, job description and recent conversation as the candidate context.'
-    : 'Use the Hermes persistent memory for the candidate resume and experiences when relevant.';
+  const candidateContextInstruction =
+    'Use the supplied resume, job description and recent conversation as the candidate context.';
   if (variant === 'code') {
     return [
       'You are an expert coding interviewee with deep knowledge of algorithms and data structures. The coding question may be about Node.js or ReactJS.',
@@ -185,7 +184,7 @@ function buildInterviewInstruction(args = {}) {
 
 module.exports = {
   DEFAULT_CONFIG,
-  buildGeminiInterviewPrompt,
+  buildOpenAIInterviewPrompt,
   buildInterviewContext,
   buildInterviewInstruction,
   clip,
