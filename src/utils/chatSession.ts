@@ -19,4 +19,3 @@ export const shouldRotateChatSession = (
   messages: Pick<ChatMessage, 'timestamp'>[],
   now = Date.now()
 ) => messages.length > 0 && getChatSessionIdleMs(messages, now) >= CHAT_SESSION_IDLE_LIMIT_MS;
-

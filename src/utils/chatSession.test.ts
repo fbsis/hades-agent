@@ -34,4 +34,3 @@ describe('chat session rotation', () => {
     expect(shouldRotateChatSession([], now)).toBe(false);
   });
 });
-
