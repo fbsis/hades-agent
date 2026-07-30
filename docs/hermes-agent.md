@@ -23,6 +23,25 @@ O fallback Gemini continua existindo para quando Hermes estiver desligado ou fal
 
 Ele tende a chamar `remember_with_hermes` quando o usuario pede para lembrar, salvar, guardar, anotar ou memorizar algo.
 
+## Dreaming
+
+O Dreaming nao usa mais Gemini. O ciclo usa a OpenAI Responses API com
+`gpt-5.6-luna` para extrair no maximo cinco aprendizados reutilizaveis das
+sessoes recentes.
+
+Depois da consolidacao:
+
+1. O Metis salva uma copia de auditoria em `~/.Metis/memory/learnings.json`.
+2. O Metis inicia o prompt do Hermes informando que existem novos aprendizados.
+3. O prompt inclui IDs estaveis, data, modelo, quantidade de sessoes e os bullets.
+4. O Hermes usa a memoria persistente dele para registrar o conhecimento final.
+5. Se o Hermes estiver indisponivel, a entrada permanece `pending` e o Metis
+   tenta novamente em um proximo ciclo sem chamar a OpenAI novamente.
+
+Configure a chave em `Configuracoes > Configuracoes > OpenAI`. A chave e salva
+no arquivo de configuracoes criptografado do Metis. A requisicao usa
+`store: false`, baixa verbosidade e esforco de raciocinio `none`.
+
 ## Transcricoes e reunioes
 
 A transcricao ao vivo do Susurro continua usando Gemini Live, porque precisa ser o caminho mais rapido.

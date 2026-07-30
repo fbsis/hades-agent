@@ -9,6 +9,7 @@ interface GeneralTabProps {
 
 const GeneralTab: React.FC<GeneralTabProps> = ({ settings, updateSettings }) => {
   const [showKey, setShowKey] = useState(false);
+  const [showOpenAIKey, setShowOpenAIKey] = useState(false);
   const [showTavilyKey, setShowTavilyKey] = useState(false);
 
   return (
@@ -16,6 +17,62 @@ const GeneralTab: React.FC<GeneralTabProps> = ({ settings, updateSettings }) => 
       <div className="tab-header">
         <h2 className="tab-title">Configurações</h2>
         <p className="tab-subtitle">Ajuste privacidade, memória e chaves de acesso.</p>
+      </div>
+
+      <div className="setting-row">
+        <div className="setting-info">
+          <div className="setting-title">OpenAI</div>
+          <div className="setting-desc">Usada nas respostas e capturas da entrevista e para consolidar os aprendizados do Dreaming.</div>
+        </div>
+        <div className="setting-control" style={{ position: 'relative' }}>
+          <input
+            type={showOpenAIKey ? 'text' : 'password'}
+            className="settings-input"
+            aria-label="API Key da OpenAI"
+            placeholder="Insira sua API Key da OpenAI..."
+            value={!showOpenAIKey && settings.openaiApiKey ? "••••••••••••••••••••••••••••••••••••••••" : (settings.openaiApiKey || '')}
+            onChange={(e) => {
+              const val = e.target.value;
+              const MASK = "••••••••••••••••••••••••••••••••••••••••";
+              if (showOpenAIKey || !settings.openaiApiKey) {
+                updateSettings({ openaiApiKey: val });
+                return;
+              }
+              if (val === MASK) return;
+              if (!val.includes("•")) {
+                updateSettings({ openaiApiKey: val });
+                return;
+              }
+              const newChars = val.replaceAll('•', '');
+              if (newChars.length === 0) {
+                updateSettings({ openaiApiKey: '' });
+              } else if (val.startsWith(MASK)) {
+                updateSettings({ openaiApiKey: settings.openaiApiKey + newChars });
+              } else {
+                updateSettings({ openaiApiKey: newChars });
+              }
+            }}
+            style={{ paddingRight: '40px' }}
+          />
+          <button
+            type="button"
+            aria-label={showOpenAIKey ? 'Ocultar chave OpenAI' : 'Mostrar chave OpenAI'}
+            onClick={() => setShowOpenAIKey(!showOpenAIKey)}
+            style={{
+              position: 'absolute',
+              right: '10px',
+              background: 'transparent',
+              border: 'none',
+              color: 'rgba(255,255,255,0.5)',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}
+          >
+            {showOpenAIKey ? <EyeOff size={16} /> : <Eye size={16} />}
+          </button>
+        </div>
       </div>
 
       <div className="section-header">
@@ -160,14 +217,14 @@ const GeneralTab: React.FC<GeneralTabProps> = ({ settings, updateSettings }) => 
 
       <div className="section-header">
         <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <Moon size={16} /> Sistema de Dreaming (Memória e Aprendizado)
+          <Moon size={16} /> Dreaming (OpenAI + Hermes)
         </span>
       </div>
 
       <div className="setting-row">
         <div className="setting-info">
           <div className="setting-title">Ativar Dreaming</div>
-          <div className="setting-desc">Permite que o Metis consolide aprendizados das conversas e interações em segundo plano.</div>
+          <div className="setting-desc">A OpenAI consolida as sessões em segundo plano e o Hermes registra os novos aprendizados na memória persistente.</div>
         </div>
         <div className="setting-control">
           <label className="switch" aria-label="Ativar Dreaming">

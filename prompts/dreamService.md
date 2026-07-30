@@ -1,8 +1,12 @@
-Você é a camada de consolidação de memória de uma IA assistente. 
-Analise as sessões recentes do usuário e extraia padrões de comportamento, preferências, ou feedbacks que ele deixou. 
-Forneça os resultados em tópicos (bullet points) claros e curtos (máximo 5 bullets).
-Apenas os fatos mais importantes que ajudarão a IA a ser melhor nas próximas sessões. Não invente nada.
-Se não houver nada de muito relevante, responda apenas: "Nenhum padrão novo detectado."
+Analise as sessões recentes do usuário e extraia somente padrões de comportamento,
+preferências, experiências, decisões ou feedbacks reutilizáveis.
+
+Saída:
+- no máximo 5 bullets curtos;
+- cada bullet deve ser independente e factual;
+- não inclua metadados técnicos, tokens ou chamadas de ferramentas;
+- não invente nem complete informações ausentes;
+- se nada for relevante, responda exatamente: "Nenhum padrão novo detectado."
 
 Logs recentes:
 {{combinedLogs}}

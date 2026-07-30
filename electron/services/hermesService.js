@@ -564,6 +564,49 @@ class HermesService {
     });
   }
 
+  async rememberDreamLearnings(entries = []) {
+    const config = this.getConfig();
+    if (!config.enabled || !config.useForMemory) {
+      return { success: false, skipped: true, reason: 'Hermes/memoria desativado.' };
+    }
+
+    const normalizedEntries = (Array.isArray(entries) ? entries : [entries])
+      .filter(Boolean)
+      .map(entry => [
+        `ID: ${entry.id || 'dream-sem-id'}`,
+        `Data: ${entry.date || new Date().toISOString()}`,
+        `Sessoes analisadas: ${entry.processedSessions || 0}`,
+        `Provedor de consolidacao: ${entry.provider || 'openai'}`,
+        `Modelo: ${entry.model || 'desconhecido'}`,
+        'Aprendizados:',
+        ...(Array.isArray(entry.insights) ? entry.insights : [entry.insights || ''])
+      ].join('\n'))
+      .join('\n\n---\n\n');
+
+    if (!normalizedEntries.trim()) {
+      return { success: false, skipped: true, reason: 'Nenhum aprendizado para sincronizar.' };
+    }
+
+    return this.ask({
+      prompt: [
+        'O Metis tem novos aprendizados consolidados sobre o usuario.',
+        'Use o identificador de cada bloco para evitar duplicar memorias ja registradas.',
+        '',
+        normalizedEntries
+      ].join('\n'),
+      instruction: [
+        'Revise estes novos aprendizados e use a memoria persistente propria do Hermes para registrar o conhecimento final.',
+        'Salve apenas fatos, preferencias, experiencias, decisoes e padroes reutilizaveis.',
+        'Nao invente informacoes e nao memorize o texto de controle ou os metadados como preferencias do usuario.',
+        'Se um ID ja tiver sido processado, nao duplique a memoria.'
+      ].join(' '),
+      includeLocalContext: false,
+      maxOutputTokens: 600,
+      logType: 'dream_memory',
+      primaryAgent: true
+    });
+  }
+
   buildTranscript(messages = [], maxChars = 12000) {
     const transcript = messages.map((message, index) => {
       const timestamp = message.timestamp

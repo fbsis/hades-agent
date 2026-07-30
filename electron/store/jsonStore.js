@@ -36,13 +36,14 @@ class JsonStore {
       },
       general: {
         apiKey: '',
+        openaiApiKey: '',
         tavilyApiKey: '',
         minichatModel: 'gemini-2.5-flash',
         sttModel: 'gemini-2.5-flash',
         fullTranscriptionModel: 'gemini-2.5-flash',
         stealthMode: true,
         dreamingEnabled: true,
-        dreamingModel: 'gemini-2.5-flash'
+        dreamingModel: 'gpt-5.6-luna'
       },
       hermes: {
         enabled: false,
@@ -92,7 +93,9 @@ class JsonStore {
         toggleCommand: 'Alt+D',
         toggleSettings: 'Alt+S',
         toggleSusurro: 'Alt+B',
-        toggleVoice: 'Alt+V'
+        toggleVoice: 'Alt+V',
+        interviewQuickAnswer: 'F4',
+        interviewCaptureScreen: 'F5'
       }
     };
 
@@ -226,6 +229,14 @@ class JsonStore {
         this.cache.settings.interview.language = 'pt-BR';
       }
       this.cache.settings.general.localWhisperDefaultMigrated = true;
+      this.safeSaveSettings(this.cache.settings);
+    }
+
+    if (!saved.general?.openAiDreamingMigrated) {
+      if (!saved.general?.dreamingModel || String(saved.general.dreamingModel).startsWith('gemini-')) {
+        this.cache.settings.general.dreamingModel = 'gpt-5.6-luna';
+      }
+      this.cache.settings.general.openAiDreamingMigrated = true;
       this.safeSaveSettings(this.cache.settings);
     } else if (captureProtectionNeedsMigration) {
       this.safeSaveSettings(this.cache.settings);

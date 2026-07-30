@@ -3,8 +3,15 @@ const path = require('node:path');
 const logger = require('./logger');
 const sessionLogger = require('./sessionLogger');
 const { getMetisDataPath } = require('./metisDataPath');
-const { GoogleGenAI } = require('@google/genai');
+const openaiResponsesService = require('./openaiResponsesService');
 const jsonStore = require('../store/jsonStore');
+
+const MAX_SYNCED_DREAM_CYCLES = 10;
+const HERMES_SYNC_BATCH_SIZE = 3;
+
+function needsHermesSync(entry) {
+  return !['synced', 'skipped'].includes(entry.hermesSync?.status);
+}
 
 /**
  * DreamService processes accumulated user sessions (conversations, tool calls)
@@ -20,6 +27,84 @@ class DreamService {
     }
   }
 
+  getLearningsPath() {
+    return path.join(this.memoryDir, 'learnings.json');
+  }
+
+  loadLearningEntries() {
+    const learningsPath = this.getLearningsPath();
+    if (!fs.existsSync(learningsPath)) return [];
+
+    try {
+      const entries = JSON.parse(fs.readFileSync(learningsPath, 'utf-8'));
+      if (!Array.isArray(entries)) return [];
+
+      return entries.map((entry, index) => ({
+        ...entry,
+        id: entry.id || `legacy-dream-${entry.date || index}`,
+        provider: entry.provider || 'legacy',
+        hermesSync: entry.hermesSync || { status: 'pending', attempts: 0 }
+      }));
+    } catch (error) {
+      logger.error('DreamService', 'Error parsing learnings.json', error);
+      return [];
+    }
+  }
+
+  saveLearningEntries(entries) {
+    const pending = entries.filter(needsHermesSync);
+    const synced = entries
+      .filter(entry => !needsHermesSync(entry))
+      .slice(-MAX_SYNCED_DREAM_CYCLES);
+    const retained = [...pending, ...synced]
+      .sort((left, right) => String(left.date || '').localeCompare(String(right.date || '')));
+
+    fs.writeFileSync(this.getLearningsPath(), JSON.stringify(retained, null, 2), 'utf-8');
+    return retained;
+  }
+
+  async syncPendingLearnings(entries) {
+    const pending = entries.filter(needsHermesSync);
+    if (pending.length === 0) return entries;
+
+    const hermesService = require('./hermesService');
+    for (let index = 0; index < pending.length; index += HERMES_SYNC_BATCH_SIZE) {
+      const batch = pending.slice(index, index + HERMES_SYNC_BATCH_SIZE);
+      let result;
+
+      try {
+        result = await hermesService.rememberDreamLearnings(batch);
+      } catch (error) {
+        result = { success: false, error: error.message };
+      }
+
+      const attemptedAt = new Date().toISOString();
+      batch.forEach(entry => {
+        const attempts = Number(entry.hermesSync?.attempts || 0) + 1;
+        entry.hermesSync = result?.success
+          ? {
+              status: 'synced',
+              attempts,
+              syncedAt: attemptedAt,
+              response: String(result.text || '').slice(0, 500)
+            }
+          : {
+              status: 'pending',
+              attempts,
+              lastAttemptAt: attemptedAt,
+              error: result?.error || result?.reason || 'Hermes indisponivel.'
+            };
+      });
+
+      if (!result?.success) {
+        logger.warn('DreamService', `Hermes memory sync pending: ${result?.error || result?.reason || 'unavailable'}`);
+        break;
+      }
+    }
+
+    return entries;
+  }
+
   async runDreamCycle() {
     logger.info('DreamService', 'Starting dream cycle...');
     const settings = jsonStore.getSettings();
@@ -30,6 +115,10 @@ class DreamService {
       return;
     }
 
+    let currentLearnings = this.loadLearningEntries();
+    currentLearnings = await this.syncPendingLearnings(currentLearnings);
+    currentLearnings = this.saveLearningEntries(currentLearnings);
+
     const sessions = sessionLogger.getUnprocessedSessions();
     if (sessions.length === 0) {
       logger.info('DreamService', 'No new sessions to process.');
@@ -37,14 +126,13 @@ class DreamService {
     }
 
     try {
-      const apiKey = settings?.general?.apiKey;
+      const apiKey = settings?.general?.openaiApiKey || process.env.OPENAI_API_KEY;
       if (!apiKey) {
-        logger.warn('DreamService', 'API Key missing in settings. Cannot run dream analysis.');
+        logger.warn('DreamService', 'OpenAI API key missing. Cannot run dream analysis.');
         return;
       }
 
       logger.info('DreamService', `Analyzing ${sessions.length} sessions...`);
-      const client = new GoogleGenAI({ apiKey });
       
       // Combine session logs for analysis
       let combinedLogs = '';
@@ -66,67 +154,72 @@ class DreamService {
       const promptTemplate = fs.readFileSync(path.join(__dirname, '../../prompts/dreamService.md'), 'utf-8');
       const prompt = promptTemplate.replace('{{combinedLogs}}', combinedLogs);
 
-      const dreamingModel = settings?.general?.dreamingModel || 'gemini-2.5-flash';
+      const dreamingModel = settings?.general?.dreamingModel || 'gpt-5.6-luna';
       logger.info('DreamService', `Generating dream insights using model: ${dreamingModel}`);
 
-      const response = await client.models.generateContent({
+      const response = await openaiResponsesService.generateText({
+        apiKey,
         model: dreamingModel,
-        contents: prompt,
-        config: {
-          temperature: 0.2
-        }
+        instructions: [
+          'Consolide memoria de um assistente desktop.',
+          'Use somente fatos presentes nos logs.',
+          'Retorne no maximo cinco bullets curtos e reutilizaveis.',
+          'Se nada for relevante, retorne exatamente: Nenhum padrão novo detectado.'
+        ].join(' '),
+        input: prompt,
+        maxOutputTokens: 700
       });
 
-      let insightsText = response.text || "Nenhum padrão novo detectado.";
-      
-      const learningsPath = path.join(this.memoryDir, 'learnings.json');
-      let currentLearnings = [];
-      if (fs.existsSync(learningsPath)) {
-         try {
-           currentLearnings = JSON.parse(fs.readFileSync(learningsPath, 'utf-8'));
-         } catch(e) {
-           logger.error('DreamService', 'Error parsing learnings.json', e);
-           currentLearnings = [];
-         }
-      }
-      
-      currentLearnings.push({
-         date: new Date().toISOString(),
+      const insightsText = response.text || 'Nenhum padrão novo detectado.';
+      const insights = insightsText.split('\n').map(item => item.trim()).filter(Boolean);
+      const hasNewLearnings = insights.some(item => (
+        item.toLocaleLowerCase('pt-BR') !== 'nenhum padrão novo detectado.'
+      ));
+      const date = new Date().toISOString();
+      const entry = {
+         id: `dream-${date.replace(/[:.]/g, '-')}`,
+         date,
          processedSessions: sessions.length,
-         insights: insightsText.split('\n').filter(i => i.trim() !== '')
-      });
-      
-      // Keep only last 10 dream cycles to avoid bloated memory file
-      if (currentLearnings.length > 10) {
-        currentLearnings = currentLearnings.slice(-10);
+         provider: 'openai',
+         model: response.model || dreamingModel,
+         responseId: response.responseId,
+         usage: response.usage,
+         insights,
+         hermesSync: hasNewLearnings
+           ? { status: 'pending', attempts: 0 }
+           : { status: 'skipped', attempts: 0, reason: 'Nenhum aprendizado novo.' }
+      };
+      currentLearnings.push(entry);
+      currentLearnings = this.saveLearningEntries(currentLearnings);
+
+      currentLearnings = await this.syncPendingLearnings(currentLearnings);
+      currentLearnings = this.saveLearningEntries(currentLearnings);
+
+      if (entry.hermesSync?.status === 'pending') {
+        logger.warn('DreamService', 'Dream insights saved locally and queued for Hermes memory retry.');
+      } else if (entry.hermesSync?.status === 'synced') {
+        logger.info('DreamService', 'Dream insights synchronized with Hermes persistent memory.');
+      } else {
+        logger.info('DreamService', 'No reusable insights found; Hermes sync skipped.');
       }
-      
-      fs.writeFileSync(learningsPath, JSON.stringify(currentLearnings, null, 2), 'utf-8');
-      
-      // Mark as processed
-      sessions.forEach(s => sessionLogger.markSessionAsProcessed(s.file));
-      logger.info('DreamService', `Dream cycle completed successfully. Found insights.`);
+
+      sessions.forEach(session => sessionLogger.markSessionAsProcessed(session.file));
+      logger.info('DreamService', 'Dream cycle completed successfully.');
     } catch (error) {
       logger.error('DreamService', 'Error during dream cycle', error);
     }
   }
 
   getLearnings() {
-     const learningsPath = path.join(this.memoryDir, 'learnings.json');
-     if (fs.existsSync(learningsPath)) {
-        try {
-            const data = JSON.parse(fs.readFileSync(learningsPath, 'utf-8'));
-            if (data.length > 0) {
-               // Combine the last 3 learnings to provide recent context
-               const recentLearnings = data.slice(-3);
-               const allInsights = recentLearnings.flatMap(l => l.insights);
-               if (allInsights.length > 0) {
-                 return allInsights.join('\n');
-               }
-            }
-        } catch(e) {
-            logger.error('DreamService', 'Error reading learnings.json in getLearnings', e);
-        }
+     const currentLearnings = this.loadLearningEntries();
+     if (currentLearnings.length > 0) {
+       const recentLearnings = currentLearnings.slice(-3);
+       const allInsights = recentLearnings
+         .flatMap(learning => learning.insights || [])
+         .filter(insight => insight.toLocaleLowerCase('pt-BR') !== 'nenhum padrão novo detectado.');
+       if (allInsights.length > 0) {
+         return allInsights.join('\n');
+       }
      }
      return 'Nenhuma memória consolidada ainda.';
   }
