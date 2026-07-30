@@ -30,7 +30,7 @@
 </tr>
 <tr>
   <td><b>🎙️ Interview Copilot (Alt+B)</b></td>
-  <td>Capture system audio with bundled, local <strong>whisper.cpp</strong> transcription by default, optionally switch to Gemini Live or Google Cloud, and stream an interview answer from <strong>Gemini</strong> when you click <strong>Answer question</strong> or press <code>Space</code>.</td>
+  <td>Capture system audio with bundled, local <strong>whisper.cpp</strong> transcription by default, optionally switch to Gemini Live or Google Cloud, and stream interview answers from <strong>OpenAI</strong> when you use the answer controls or shortcuts.</td>
 </tr>
 <tr>
   <td><b>⚡ Spotlight Command Bar</b></td>
@@ -42,15 +42,15 @@
 </tr>
 <tr>
   <td><b>🧠 Dream Memory Consolidation</b></td>
-  <td>Scheduled background AI cycles synthesize recent session logs into a <strong>compressed <code>learnings.json</code> memory profile</strong> — similar to how the brain consolidates long-term memory during sleep. Runs fully offline.</td>
+  <td>Scheduled background cycles use the OpenAI Responses API to compress recent session logs, keep a local audit cache in <code>learnings.json</code>, and forward reusable knowledge to <strong>Hermes persistent memory</strong>.</td>
 </tr>
 <tr>
   <td><b>🤖 Hermes Primary Agent</b></td>
-  <td>Metis can use a local <strong>Hermes Agent</strong> server as the main brain for MiniChat, memory, web/API/CLI, research, suggestions, and multi-step work while keeping latency-sensitive interview responses and fallback on Gemini.</td>
+  <td>Metis can use a local <strong>Hermes Agent</strong> server as the main brain for MiniChat, memory, web/API/CLI, research, suggestions, and multi-step work while OpenAI handles latency-sensitive interview questions and screenshots.</td>
 </tr>
 <tr>
-  <td><b>👁️ Gemini Visual Context</b></td>
-  <td>Images are read by Gemini first. Metis extracts text, code, UI state, and visible answers, then either answers directly or forwards compact visual context to Hermes.</td>
+  <td><b>👁️ Visual Context</b></td>
+  <td>OpenAI reads screenshots captured during interviews, extracts the visible question, code and alternatives, and produces the interview answer from that visual context.</td>
 </tr>
 <tr>
   <td><b>🫧 Floating Bubble Mode</b></td>
@@ -142,6 +142,20 @@ Open **Settings > Agent**, enable Hermes, keep **Use Hermes as primary agent** o
 
 See [docs/hermes-agent.md](docs/hermes-agent.md) for memory behavior, low-token routing, modes, resume/interview workflow and the recommended Hermes setup.
 
+### Dreaming
+
+Dreaming runs ten seconds after startup and then every 24 hours. Configure an OpenAI API key under **Settings > Configuration** and keep Hermes memory enabled.
+
+The consolidation flow is:
+
+1. Metis collects completed assistant turns in `~/.Metis/sessions`.
+2. OpenAI `gpt-5.6-luna` extracts up to five reusable learnings through the Responses API with low verbosity, no reasoning overhead, and `store: false`.
+3. Metis stores a local audit entry in `~/.Metis/memory/learnings.json`.
+4. Metis tells Hermes that new learnings are available and asks the agent to commit them to its own persistent memory.
+5. Failed Hermes syncs remain pending and are retried during later Dreaming cycles.
+
+Gemini is no longer used by Dreaming or interview answers. It remains available for Gemini Live transcription, session titles, and non-interview features that explicitly use it.
+
 ### Interview Copilot
 
 Open **Options > Interview** or press `Alt+B`. Before listening, set the target role, company, resume, job description, language, answer style, and optional instructions.
@@ -158,11 +172,11 @@ Open **Options > Interview** or press `Alt+B`. Before listening, set the target 
 - System audio is transcribed locally by default. Microphone transcription is optional and remains a separate source so speakers stay separated.
 - If ADC is unavailable, expired, or rejected, Metis automatically falls back to Gemini Live. Gemini Live remains functional but does not guarantee continuous interim transcript updates.
 - The latest likely interviewer question is highlighted locally without an LLM request. Every finalized interviewer turn still has an explicit **Answer** action.
-- Click **Answer question** or press `Space` outside an input to send the latest five conversation texts, resume, job description, and interview instructions to a separate Gemini stream. The transcript continues while Gemini responds.
-- Click **Quick answer** to flush the current Gemini Live audio stream, infer the question from the latest five transcription fragments, and stream a short summary followed by at most five speaking points.
+- Use the answer field or press `F4` to send the latest five conversation texts, resume, job description, and interview instructions to a separate OpenAI Responses stream. The transcript continues while OpenAI responds.
+- Click **Quick answer** to flush the active transcription stream, infer the question from the latest five transcription fragments, and stream a short summary followed by speaking points.
 - Use the answer toolbar to stop, copy, shorten, expand, rewrite as STAR, generate code, or retry.
-- Screen capture is manual. Gemini extracts the visible question, code, and terminal context and keeps only compact visual context for the next interview answer.
-- Each Gemini interview answer sends only the latest five conversation texts, session metadata, the configured resume and job description, and optional screen context.
+- Screen capture is manual. OpenAI Vision reads the current display, extracts the visible question, code, alternatives, and terminal context, then answers with the technical interview prompt.
+- Each OpenAI interview answer sends only the latest five conversation texts, session metadata, the configured resume and job description, and optional screen context. Requests use `store: false`.
 - Transcripts and answers are stored in `interview_sessions.json`. Audio recording is off by default; when enabled, WAV artifacts are stored under the app's local `interview-audio` directory.
 
 ---
@@ -229,7 +243,9 @@ graph TD
     SSoT -->|Electron Event Handlers| Main
     Main -->|Reads/Writes AES-256 Secrets| Store
     Main -->|Schedules AI Consolidation| Dream
-    Dream -->|Persists Insights| Store
+    Dream -->|Consolidates session logs| OpenAI[OpenAI Responses API]
+    Dream -->|Caches and audits insights| Store
+    Dream -->|Commits new learnings| Hermes
     Main -->|Delegates memory, web/API/CLI and multi-step tasks| Hermes
     
     Main -->|Two-second 16kHz PCM windows| Whisper
