@@ -65,7 +65,7 @@ class InterviewService {
     const isPending = options.status === 'pending';
     const titleParts = normalizedConfig.mode === 'interview'
       ? [normalizedConfig.company, normalizedConfig.role].filter(Boolean)
-      : [];
+      : [normalizedConfig.company].filter(Boolean);
     const fallbackLabel = normalizedConfig.mode === 'interview' ? 'Entrevista' : 'Reuniao';
     const session = {
       id: id('interview'),

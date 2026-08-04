@@ -3,7 +3,6 @@ import type {
   InterviewAnswerEvent,
   InterviewAnswerVariant,
   InterviewConfig,
-  GoogleCloudAuthStatus,
   InterviewScreenAnalysis,
   InterviewSession,
   InterviewTranscriptDelta,
@@ -43,6 +42,8 @@ export interface ElectronAPI {
   sendMessage: (text: string, image?: string | null) => void;
   showNotification: (text: string) => void;
   onNewChatMessage: (callback: (msg: string, img?: string) => void) => () => void;
+  askOpenAIChatStream: (args: OpenAIChatInput & { streamId: string }) => Promise<IPCResponse<OpenAIChatResult>>;
+  onOpenAIChatStreamEvent: (callback: (event: OpenAIChatStreamEvent) => void) => () => void;
   onFocusInput: (callback: () => void) => () => void;
   onOpenCommandPanel: (callback: (panel: 'command' | 'chat' | 'history' | 'settings' | 'transcription' | 'voice') => void) => () => void;
   setActiveCommandPanel: (panel: 'command' | 'chat' | 'history' | 'settings' | 'transcription' | 'voice') => void;
@@ -82,8 +83,6 @@ export interface ElectronAPI {
   saveSusurroMessage: (msg: any) => Promise<IPCResponse<void>>;
 
   // Interview Copilot
-  getGoogleCloudAuthStatus: () => Promise<IPCResponse<GoogleCloudAuthStatus>>;
-  loginGoogleCloud: (projectId: string) => Promise<IPCResponse<GoogleCloudAuthStatus>>;
   createInterviewSession: (
     config: InterviewConfig,
     options?: { status?: 'active' | 'pending' }
@@ -100,7 +99,7 @@ export interface ElectronAPI {
     sessionId: string;
     source: 'interviewer' | 'candidate';
     language: string;
-    provider: 'whisper-local' | 'gemini-live' | 'google-cloud';
+    provider: 'whisper-local';
     customVocabulary?: string[];
   }) => Promise<IPCResponse<boolean>>;
   stopInterviewSource: (sessionId: string, source: 'interviewer' | 'candidate') => Promise<IPCResponse<boolean>>;
@@ -121,7 +120,6 @@ export interface ElectronAPI {
     sessionSummary?: string;
     quickFragments?: string[];
     variant: InterviewAnswerVariant;
-    provider?: 'openai' | 'hermes' | 'gemini';
   }) => Promise<IPCResponse<InterviewAnswer>>;
   cancelInterviewAnswer: (answerId: string) => Promise<IPCResponse<boolean>>;
   onInterviewAnswerEvent: (callback: (event: InterviewAnswerEvent) => void) => () => void;
@@ -186,6 +184,7 @@ export interface ElectronAPI {
   // --- Settings ---
   getSettings: () => Promise<SettingsData>;
   saveSettings: (settings: SettingsData) => Promise<IPCResponse<void>>;
+  setWindowOpacity: (opacity: number) => Promise<IPCResponse<number>>;
   applyStealthMode: (enabled: boolean) => Promise<IPCResponse<void>>;
   getHistoryData: () => Promise<IPCResponse<{ susurroHistory: any[], chatHistory: any[] }>>;
   onSettingsUpdated: (callback: (settings: SettingsData) => void) => () => void;
@@ -206,17 +205,37 @@ export interface AudioSettings {
   systemAudioVolume: number;
 }
 
+export interface OpenAIChatInput {
+  prompt: string;
+  history: Array<{ sender?: string; role?: string; text?: string; content?: string }>;
+  image?: string;
+  codingQuestion?: boolean;
+  mode?: string;
+  preferredAnswerStyle?: string;
+}
+
+export interface OpenAIChatResult {
+  text: string;
+  model?: string;
+  usage?: Record<string, unknown> | null;
+  responseId?: string | null;
+}
+
+export interface OpenAIChatStreamEvent {
+  streamId: string;
+  type: 'delta' | 'end';
+  text?: string;
+}
+
 export interface GeneralSettings {
-  apiKey: string;
   openaiApiKey: string;
   tavilyApiKey: string;
-  minichatModel: string;
-  sttModel: string;
-  fullTranscriptionModel: string;
   stealthMode: boolean;
+  windowOpacity: number;
   dreamingEnabled: boolean;
   dreamingModel: string;
   openAiDreamingMigrated?: boolean;
+  retainAudioDefaultEnabledMigrated?: boolean;
 }
 
 export interface HermesSettings {

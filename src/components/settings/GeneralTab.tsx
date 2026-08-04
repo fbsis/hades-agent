@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { SettingsData } from '../../types/electron';
-import { Eye, EyeOff, Key, Shield, Moon } from 'lucide-react';
+import { Eye, EyeOff, Key, Shield, Moon, Blend } from 'lucide-react';
+import { electronService } from '../../services/electron';
 
 interface GeneralTabProps {
   settings: SettingsData['general'];
@@ -8,9 +9,15 @@ interface GeneralTabProps {
 }
 
 const GeneralTab: React.FC<GeneralTabProps> = ({ settings, updateSettings }) => {
-  const [showKey, setShowKey] = useState(false);
   const [showOpenAIKey, setShowOpenAIKey] = useState(false);
   const [showTavilyKey, setShowTavilyKey] = useState(false);
+  const opacityPercent = Math.round((settings.windowOpacity ?? 0.9) * 100);
+
+  const handleOpacityChange = (value: string) => {
+    const windowOpacity = Number.parseInt(value, 10) / 100;
+    updateSettings({ windowOpacity });
+    void electronService.setWindowOpacity(windowOpacity);
+  };
 
   return (
     <div>
@@ -83,61 +90,6 @@ const GeneralTab: React.FC<GeneralTabProps> = ({ settings, updateSettings }) => 
 
       <div className="setting-row">
         <div className="setting-info">
-          <div className="setting-title">Google AI Studio</div>
-        </div>
-        <div className="setting-control" style={{ position: 'relative' }}>
-          <input 
-            type={showKey ? "text" : "password"}
-            className="settings-input"
-            aria-label="API Key do Google"
-            placeholder="Insira sua API Key do Google..."
-            value={!showKey && settings.apiKey ? "••••••••••••••••••••••••••••••••••••••••" : (settings.apiKey || '')}
-            onChange={(e) => {
-              const val = e.target.value;
-              const MASK = "••••••••••••••••••••••••••••••••••••••••";
-              if (showKey || !settings.apiKey) {
-                updateSettings({ apiKey: val });
-                return;
-              }
-              if (val === MASK) return;
-              if (!val.includes("•")) {
-                updateSettings({ apiKey: val });
-                return;
-              }
-              const newChars = val.replaceAll('•', '');
-              if (newChars.length === 0) {
-                updateSettings({ apiKey: '' });
-              } else if (val.startsWith(MASK)) {
-                updateSettings({ apiKey: settings.apiKey + newChars });
-              } else {
-                updateSettings({ apiKey: newChars });
-              }
-            }}
-            style={{ paddingRight: '40px' }}
-          />
-          <button 
-            type="button"
-            aria-label={showKey ? "Ocultar chave" : "Mostrar chave"}
-            onClick={() => setShowKey(!showKey)}
-            style={{
-              position: 'absolute',
-              right: '10px',
-              background: 'transparent',
-              border: 'none',
-              color: 'rgba(255,255,255,0.5)',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}
-          >
-            {showKey ? <EyeOff size={16} /> : <Eye size={16} />}
-          </button>
-        </div>
-      </div>
-
-      <div className="setting-row">
-        <div className="setting-info">
           <div className="setting-title">Tavily Search API</div>
         </div>
         <div className="setting-control" style={{ position: 'relative' }}>
@@ -199,6 +151,28 @@ const GeneralTab: React.FC<GeneralTabProps> = ({ settings, updateSettings }) => 
 
       <div className="setting-row">
         <div className="setting-info">
+          <div className="setting-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Blend size={15} /> Opacidade da janela
+          </div>
+          <div className="setting-desc">Reduza para enxergar o conteúdo atrás do Metis. A bolha flutuante permanece nítida.</div>
+        </div>
+        <div className="setting-control">
+          <span className="opacity-value">{opacityPercent}%</span>
+          <input
+            type="range"
+            aria-label="Opacidade da janela"
+            min="50"
+            max="100"
+            step="5"
+            value={opacityPercent}
+            onChange={(event) => handleOpacityChange(event.target.value)}
+            style={{ width: '140px' }}
+          />
+        </div>
+      </div>
+
+      <div className="setting-row">
+        <div className="setting-info">
           <div className="setting-title">Proteção de captura</div>
           <div className="setting-desc">Sempre ativa para reduzir a exposição do Metis em capturas e compartilhamentos de tela.</div>
         </div>
@@ -224,7 +198,7 @@ const GeneralTab: React.FC<GeneralTabProps> = ({ settings, updateSettings }) => 
       <div className="setting-row">
         <div className="setting-info">
           <div className="setting-title">Ativar Dreaming</div>
-          <div className="setting-desc">A OpenAI consolida as sessões em segundo plano e o Hermes registra os novos aprendizados na memória persistente.</div>
+          <div className="setting-desc">A OpenAI consolida conversas e todas as reuniões gravadas são enviadas diretamente ao Hermes para memória persistente.</div>
         </div>
         <div className="setting-control">
           <label className="switch" aria-label="Ativar Dreaming">

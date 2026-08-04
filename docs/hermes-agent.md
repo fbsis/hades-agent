@@ -4,16 +4,17 @@ Metis agora pode usar o Hermes como agente principal.
 
 O objetivo desta integracao e manter o Metis leve:
 
-- Metis cuida da UI desktop, audio, transcricao, janela flutuante e fallback.
+- Metis cuida da UI desktop, audio, transcricao local, janela flutuante e OpenAI.
 - Hermes cuida do MiniChat, sugestoes, memoria persistente, contexto pessoal, web atual, APIs externas, CLI e tarefas multi-step.
-- Gemini fica no caminho rapido de transcricao ao vivo e nos titulos de sessao.
+- OpenAI cuida de capturas de tela, respostas de entrevista, titulos de sessao, Dreaming e transcricao de voz avulsa.
+- Whisper local cuida da transcricao continua de entrevistas e reunioes, sem fallback remoto.
 - Metis envia apenas contexto compacto para economizar tokens.
 
 ## Como o roteamento funciona
 
 Quando Hermes esta ativo como agente principal, o MiniChat envia o turno direto para o Hermes.
 
-O fallback Gemini continua existindo para quando Hermes estiver desligado ou falhar. Nesse fallback, o Metis tende a chamar `ask_hermes` quando o pedido envolve:
+Quando Hermes estiver desligado ou falhar, o MiniChat usa a OpenAI. O Metis tende a chamar `ask_hermes` quando o pedido envolve:
 
 - clima/tempo, web atual ou Google
 - APIs externas, CLI, terminal ou ferramentas fora do Metis
@@ -25,9 +26,8 @@ Ele tende a chamar `remember_with_hermes` quando o usuario pede para lembrar, sa
 
 ## Dreaming
 
-O Dreaming nao usa mais Gemini. O ciclo usa a OpenAI Responses API com
-`gpt-5.6-luna` para extrair no maximo cinco aprendizados reutilizaveis das
-sessoes recentes.
+O Dreaming usa a OpenAI Responses API com `gpt-5.6-luna` para extrair no
+maximo cinco aprendizados reutilizaveis das sessoes recentes.
 
 Depois da consolidacao:
 
@@ -38,22 +38,33 @@ Depois da consolidacao:
 5. Se o Hermes estiver indisponivel, a entrada permanece `pending` e o Metis
    tenta novamente em um proximo ciclo sem chamar a OpenAI novamente.
 
+Reunioes e entrevistas gravadas nao passam por essa compactacao da OpenAI.
+Cada sessao concluida e enviada diretamente ao Hermes com um ID estavel,
+metadados, empresa ou pessoa, resumo existente e transcricao compacta. O estado
+`pending` ou `synced` fica salvo na propria sessao, evitando envios duplicados.
+
 Configure a chave em `Configuracoes > Configuracoes > OpenAI`. A chave e salva
 no arquivo de configuracoes criptografado do Metis. A requisicao usa
 `store: false`, baixa verbosidade e esforco de raciocinio `none`.
 
 ## Transcricoes e reunioes
 
-A transcricao ao vivo do Susurro continua usando Gemini Live, porque precisa ser o caminho mais rapido.
+A transcricao continua usa apenas o `whisper.cpp` local com o modelo
+`large-v3-turbo-q5_0`. O processo e carregado quando uma sessao comeca e e
+encerrado quando a ultima fonte de audio para. Nao existe fallback remoto.
 
-Quando uma sessao de transcricao e fechada, o Metis arquiva a reuniao e dispara uma chamada ao Hermes em background:
+Respostas e capturas de tela da entrevista usam OpenAI. O curriculo, a vaga e o
+contexto configurado sao enviados diretamente em cada resposta de entrevista.
 
-- gera resumo em portugues
-- extrai decisoes, tarefas, riscos e perguntas abertas
-- pede ao Hermes para salvar fatos, compromissos e preferencias reutilizaveis na memoria persistente
-- grava o resultado em `hermesSummary` dentro do historico da sessao
+Quando uma sessao com gravacao e concluida, o Metis dispara o Dreaming em background:
 
-Essa chamada usa a skill interna `hades_meeting_summary`.
+- salva a transcricao final mesmo quando o controle separado de transcricao estiver desligado
+- envia titulo, data, empresa ou pessoa, contexto, resumo e transcricao ao Hermes
+- exige uma memoria-base da reuniao e memorias reutilizaveis de decisoes, tarefas, pessoas, projetos, compromissos e preferencias
+- repete a sincronizacao em ciclos futuros se o Hermes estiver indisponivel
+- nao reenvia uma sessao cujo ID ja esteja marcado como sincronizado
+
+Essa chamada usa o tipo `recorded_meeting_memory` no historico de uso do Hermes.
 
 ## Configuracao do Hermes
 
@@ -91,7 +102,7 @@ Abra `Settings > Agente` e configure:
 - `Modelo`: identificador do modelo OpenAI-compatible exposto pelo Hermes.
 - `Contexto max`: limite de caracteres enviados pelo Metis em cada chamada.
 - `Resumo reuniao max`: limite de caracteres enviados ao Hermes ao fechar uma transcricao.
-- `Hermes como agente principal`: faz o MiniChat usar Hermes para tudo, com Gemini para transcricao rapida, titulos de sessao e fallback.
+- `Hermes como agente principal`: faz o MiniChat usar Hermes para o raciocinio principal, com OpenAI para imagens e fallback.
 
 Use `Testar Hermes` para validar a conexao.
 
@@ -136,6 +147,6 @@ Fluxo recomendado:
 2. Defina `Modo ativo` como `Entrevista`.
 3. Defina `Formato preferido` como `Codigo` ou `Codigo + explicacao` se a entrevista for tecnica.
 
-Quando aparecer uma pergunta de entrevista, o Metis pode chamar o Hermes para recuperar contexto do curriculo e montar uma resposta.
+Quando aparecer uma pergunta de entrevista, o Metis envia a pergunta e o contexto configurado para a OpenAI montar a resposta.
 
 Para perguntas tecnicas, o prompt permite resposta com codigo quando isso for util.

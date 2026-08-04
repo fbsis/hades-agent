@@ -146,13 +146,13 @@ const ShortcutsTab: React.FC<ShortcutsTabProps> = ({ settings = {}, updateSettin
     },
     {
       key: 'interviewQuickAnswer' as const,
-      title: 'Entrevista: resposta rápida',
-      desc: 'Gera imediatamente uma resposta rápida para a entrevista ativa.',
+      title: 'Reunião: resposta rápida',
+      desc: 'Gera imediatamente uma resposta rápida para a reunião ou entrevista ativa.',
     },
     {
       key: 'interviewCaptureScreen' as const,
-      title: 'Entrevista: capturar tela',
-      desc: 'Captura a tela e envia o problema visível para análise durante a entrevista.',
+      title: 'Reunião: capturar tela',
+      desc: 'Captura a tela e envia o conteúdo visível para análise durante a reunião ou entrevista.',
     }
   ];
 

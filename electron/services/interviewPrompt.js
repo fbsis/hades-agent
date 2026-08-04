@@ -10,11 +10,10 @@ const DEFAULT_CONFIG = {
   language: 'pt-BR',
   answerStyle: 'natural',
   transcriptionProvider: 'whisper-local',
-  googleCloudProjectId: '',
   extraInstructions: '',
   transcribeMicrophone: false,
   saveTranscript: true,
-  retainAudio: false
+  retainAudio: true
 };
 
 const SOURCE_LABELS = {
@@ -47,8 +46,31 @@ function selectRecentInterviewTexts(turns, limit = 5) {
     .slice(-limit);
 }
 
+function getResponseLanguageContract(language) {
+  if (language === 'en-US') {
+    return {
+      instruction: 'Respond only in English, including every heading, bullet, code comment, and explanation.',
+      summaryHeading: '**Summary**',
+      detailHeading: '**Deep Dive**'
+    };
+  }
+  if (language === 'pt-BR') {
+    return {
+      instruction: 'Respond only in Brazilian Portuguese, including every heading, bullet, code comment, and explanation.',
+      summaryHeading: '**Resumo**',
+      detailHeading: '**Aprofundamento**'
+    };
+  }
+  return {
+    instruction: 'Respond in the same language as the current question and localize every heading, bullet, code comment, and explanation to that language.',
+    summaryHeading: 'the localized Markdown heading for "Summary"',
+    detailHeading: 'the localized Markdown heading for "Deep Dive"'
+  };
+}
+
 function buildOpenAIInterviewPrompt(args = {}) {
   const config = { ...DEFAULT_CONFIG, ...(args.config || {}) };
+  const language = getResponseLanguageContract(config.language);
   const question = String(args.question || '').replace(/\s+/g, ' ').trim();
   const quickFragments = (Array.isArray(args.quickFragments) ? args.quickFragments : [])
     .map(fragment => String(fragment || '').replace(/\s+/g, ' ').trim())
@@ -63,10 +85,13 @@ function buildOpenAIInterviewPrompt(args = {}) {
   return [
     '<meeting_context>',
     `Mode: ${config.mode}`,
+    `Selected response language: ${config.language}. ${language.instruction}`,
     config.title ? `Meeting title: ${config.title}` : '',
     config.description ? `<meeting_description>\n${clipDocument(config.description, 3000)}\n</meeting_description>` : '',
     config.role ? `Target role: ${config.role}` : '',
-    config.company ? `Company: ${config.company}` : '',
+    config.company
+      ? `${config.mode === 'meeting' ? 'Organization or participant' : 'Company'}: ${config.company}`
+      : '',
     config.topics ? `<planned_topics>\n${clipDocument(config.topics, 2000)}\n</planned_topics>` : '',
     config.resume ? `<resume>\n${clipDocument(config.resume, 8000)}\n</resume>` : '<resume>Not provided</resume>',
     config.jobDescription
@@ -112,7 +137,9 @@ function buildInterviewContext(args = {}) {
     config.title ? `Meeting title: ${config.title}` : '',
     config.description ? `Meeting description: ${clip(config.description, 1200)}` : '',
     config.role ? `Target role: ${config.role}` : '',
-    config.company ? `Company: ${config.company}` : '',
+    config.company
+      ? `${config.mode === 'meeting' ? 'Organization or participant' : 'Company'}: ${config.company}`
+      : '',
     config.topics ? `Planned topics:\n${clip(config.topics, 1200)}` : '',
     config.resume ? `Candidate resume:\n${clipDocument(config.resume, 2400)}` : '',
     config.jobDescription ? `Job description: ${clip(config.jobDescription, 1200)}` : '',
@@ -125,8 +152,10 @@ function buildInterviewContext(args = {}) {
 }
 
 function buildInterviewInstruction(args = {}) {
-  const style = args.config?.answerStyle || 'natural';
+  const config = { ...DEFAULT_CONFIG, ...(args.config || {}) };
+  const style = config.answerStyle;
   const variant = args.variant || 'answer';
+  const language = getResponseLanguageContract(config.language);
   const candidateContextInstruction =
     'Use the supplied resume, job description and recent conversation as the candidate context.';
   if (variant === 'code') {
@@ -135,7 +164,7 @@ function buildInterviewInstruction(args = {}) {
       'The supplied screen context is the primary source of truth. Read the complete visible problem, examples, constraints, starter code, answer choices and requested language.',
       candidateContextInstruction,
       'Answer the problem directly. Do not ask for a new screenshot unless a required piece of text is genuinely unreadable; solve every readable part first.',
-      'Use the same natural language as the question.',
+      language.instruction,
       'Return exactly this Markdown structure:',
       '"**1. Problem Statement**" followed by a clear 2-3 line summary the candidate can read back to confirm understanding.',
       '"**2. My Thoughts**" followed by a concise step-by-step explanation of the solution strategy, chosen data structures, important edge cases and trade-offs. Use 3-5 bullets and provide interview-ready rationale rather than private hidden reasoning.',
@@ -151,7 +180,8 @@ function buildInterviewInstruction(args = {}) {
   const variantInstruction = {
     quick: [
       'Infer the current question from the latest live fragments, even when the last fragment ends mid-word.',
-      'Answer the inferred question directly using the mandatory two-level bullet format.'
+      'Answer the inferred question directly using the mandatory two-level bullet format.',
+      `Write exactly 7 concise bullets under ${language.summaryHeading} and exactly 7 concise bullets under ${language.detailHeading}. Keep all 14 bullets useful, distinct, and free of repetition or filler.`
     ].join(' '),
     shorter: 'Rewrite as a much shorter answer that takes at most 30 seconds to say.',
     detail: 'Add useful concrete detail while keeping the answer easy to speak.',
@@ -161,18 +191,23 @@ function buildInterviewInstruction(args = {}) {
   }[variant] || '';
 
   return [
-    args.config?.mode === 'meeting'
+    config.mode === 'meeting'
       ? 'Act as a real-time meeting copilot for the participant.'
       : 'Act as a real-time interview copilot for the candidate.',
     'Answer in first person as words the participant can naturally say aloud.',
+    language.instruction,
     candidateContextInstruction,
     'When the supplied context lacks a relevant documented experience, you may create a plausible illustrative example, but frame it explicitly as an opinion, hypothetical approach, or what the candidate would do rather than as a verified past event.',
     variant === 'quick'
       ? ''
       : 'Default length is 45 to 90 seconds. Keep the response easy to scan while the candidate is speaking.',
     'Always use this exact two-level Markdown structure for every answer, regardless of question type:',
-    '"**Resumo**" followed by 2 to 4 short bullet points using "- " that give the direct, essential answer.',
-    '"**Aprofundamento**" followed by 2 to 4 advanced bullet points using "- " that demonstrate deeper knowledge through relevant details, trade-offs, edge cases, architecture, or concrete examples.',
+    variant === 'quick'
+      ? `"${language.summaryHeading}" followed by exactly 7 short bullet points using "- " that give the direct, essential answer.`
+      : `"${language.summaryHeading}" followed by 2 to 4 short bullet points using "- " that give the direct, essential answer.`,
+    variant === 'quick'
+      ? `"${language.detailHeading}" followed by exactly 7 advanced bullet points using "- " that demonstrate deeper knowledge through relevant details, trade-offs, edge cases, architecture, or concrete examples.`
+      : `"${language.detailHeading}" followed by 2 to 4 advanced bullet points using "- " that demonstrate deeper knowledge through relevant details, trade-offs, edge cases, architecture, or concrete examples.`,
     'Keep each bullet independently readable while the candidate is speaking. Do not write prose paragraphs, introductions, or conclusions outside the bullets.',
     'For behavioral questions, distribute a compact STAR flow across the summary and advanced bullets without naming the STAR sections.',
     'For coding questions, use the summary and advanced bullets for the approach and trade-offs, then provide a Markdown code block after the bullets.',
@@ -187,6 +222,7 @@ module.exports = {
   buildOpenAIInterviewPrompt,
   buildInterviewContext,
   buildInterviewInstruction,
+  getResponseLanguageContract,
   clip,
   selectRecentInterviewTexts
 };

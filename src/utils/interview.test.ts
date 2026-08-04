@@ -67,8 +67,9 @@ describe('selectScreenAnswerVariant', () => {
 describe('interview keyboard shortcuts', () => {
   it('allows global interview actions only during an active interview', () => {
     expect(canUseInterviewActionShortcut('active', 'interview')).toBe(true);
-    expect(canUseInterviewActionShortcut('active', 'meeting')).toBe(false);
+    expect(canUseInterviewActionShortcut('active', 'meeting')).toBe(true);
     expect(canUseInterviewActionShortcut('pending', 'interview')).toBe(false);
+    expect(canUseInterviewActionShortcut('pending', 'meeting')).toBe(false);
     expect(canUseInterviewActionShortcut('completed', 'interview')).toBe(false);
   });
 });

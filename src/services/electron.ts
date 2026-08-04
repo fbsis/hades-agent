@@ -7,11 +7,11 @@ import {
   IPCResponse,
   SettingsData
 } from '../types/electron';
+import type { OpenAIChatInput, OpenAIChatResult, OpenAIChatStreamEvent } from '../types/electron';
 import type {
   InterviewAnswerEvent,
   InterviewAnswerVariant,
   InterviewConfig,
-  GoogleCloudAuthStatus,
   InterviewSession,
   InterviewTranscriptDelta,
   InterviewTranscriptionStatus,
@@ -75,6 +75,21 @@ class ElectronService {
   showNotification(text: string) { this.electron?.showNotification(text); }
   onNewChatMessage(callback: (msg: string, img?: string) => void) {
     return this.electron?.onNewChatMessage(callback) || (() => {});
+  }
+  async askOpenAIChatStream(args: OpenAIChatInput, onEvent: (event: OpenAIChatStreamEvent) => void) {
+    const streamId = `openai_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    const unsubscribe = this.electron?.onOpenAIChatStreamEvent(event => {
+      if (event.streamId === streamId) onEvent(event);
+    });
+    try {
+      return await this.handleResponse<OpenAIChatResult>(
+        this.electron?.askOpenAIChatStream({ ...args, streamId }),
+        null as unknown as OpenAIChatResult,
+        'askOpenAIChatStream'
+      );
+    } finally {
+      unsubscribe?.();
+    }
   }
   onFocusInput(callback: () => void) {
     return this.electron?.onFocusInput(callback) || (() => {});
@@ -157,20 +172,6 @@ class ElectronService {
   }
 
   // --- Interview Copilot ---
-  async getGoogleCloudAuthStatus() {
-    return await this.handleResponse<GoogleCloudAuthStatus>(
-      this.electron?.getGoogleCloudAuthStatus(),
-      { authenticated: false, error: 'Google Cloud ainda nao esta conectado.' },
-      'getGoogleCloudAuthStatus'
-    );
-  }
-  async loginGoogleCloud(projectId: string) {
-    return await this.handleResponse<GoogleCloudAuthStatus>(
-      this.electron?.loginGoogleCloud(projectId),
-      { authenticated: false, error: 'Nao foi possivel abrir o login do Google Cloud.' },
-      'loginGoogleCloud'
-    );
-  }
   async createInterviewSession(config: InterviewConfig, options?: { status?: 'active' | 'pending' }) {
     return await this.handleResponse(
       this.electron?.createInterviewSession(config, options),
@@ -206,7 +207,7 @@ class ElectronService {
     sessionId: string;
     source: 'interviewer' | 'candidate';
     language: string;
-    provider: 'whisper-local' | 'gemini-live' | 'google-cloud';
+    provider: 'whisper-local';
     customVocabulary?: string[];
   }) {
     return await this.handleResponse(this.electron?.startInterviewSource(options), false, 'startInterviewSource');
@@ -247,7 +248,6 @@ class ElectronService {
     sessionSummary?: string;
     quickFragments?: string[];
     variant: InterviewAnswerVariant;
-    provider?: 'openai' | 'hermes' | 'gemini';
   }) {
     return await this.handleResponse(this.electron?.requestInterviewAnswer(args), null, 'requestInterviewAnswer');
   }
@@ -338,6 +338,9 @@ class ElectronService {
     }
   }
   async saveSettings(settings: any) { return await this.handleResponse(this.electron?.saveSettings(settings), undefined, 'saveSettings'); }
+  async setWindowOpacity(opacity: number) {
+    return await this.handleResponse(this.electron?.setWindowOpacity(opacity), opacity, 'setWindowOpacity');
+  }
   async applyStealthMode(enabled: boolean) { return await this.handleResponse(this.electron?.applyStealthMode(enabled), undefined, 'applyStealthMode'); }
   async getHistoryData() { return await this.handleResponse(this.electron?.getHistoryData(), null, 'getHistoryData'); }
   onSettingsUpdated(callback: (settings: SettingsData) => void) {

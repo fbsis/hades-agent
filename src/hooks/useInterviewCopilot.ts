@@ -5,7 +5,6 @@ import {
   InterviewAnswerVariant,
   InterviewConfig,
   InterviewFlowStatus,
-  GoogleCloudAuthStatus,
   InterviewSession,
   InterviewTranscriptionStatus,
   TranscriptTurn
@@ -50,8 +49,6 @@ export const useInterviewCopilot = (options: { embedded?: boolean; onClosePanel?
   const [screenStatus, setScreenStatus] = useState<'idle' | 'reading' | 'error'>('idle');
   const [error, setError] = useState('');
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
-  const [cloudAuthStatus, setCloudAuthStatus] = useState<GoogleCloudAuthStatus | null>(null);
-  const [isAuthenticatingCloud, setIsAuthenticatingCloud] = useState(false);
   const [isPreparingQuickAnswer, setIsPreparingQuickAnswer] = useState(false);
   const [isSummarizing, setIsSummarizing] = useState(false);
 
@@ -69,6 +66,9 @@ export const useInterviewCopilot = (options: { embedded?: boolean; onClosePanel?
   const activeAnswerIdRef = useRef<string | null>(null);
   const persistedTurnSequencesRef = useRef(new Map<string, number>());
   const answerEventSequencesRef = useRef(new Map<string, number>());
+  const captureScreenShortcutRef = useRef<() => void>(() => {});
+  const quickAnswerShortcutRef = useRef<() => void>(() => {});
+  const shortcutTimestampsRef = useRef({ capture: 0, quick: 0 });
 
   useEffect(() => {
     sessionRef.current = session;
@@ -103,37 +103,6 @@ export const useInterviewCopilot = (options: { embedded?: boolean; onClosePanel?
     });
     refreshSessions();
   }, [refreshSessions]);
-
-  useEffect(() => {
-    if (config.transcriptionProvider !== 'google-cloud' || cloudAuthStatus !== null) return;
-    electronService.getGoogleCloudAuthStatus().then(setCloudAuthStatus);
-  }, [cloudAuthStatus, config.transcriptionProvider]);
-
-  const authenticateGoogleCloud = useCallback(async () => {
-    if (isAuthenticatingCloud) return;
-    setIsAuthenticatingCloud(true);
-    setError('');
-    const projectId = config.googleCloudProjectId.trim();
-    if (!projectId) {
-      setError('Informe o Project ID do Google Cloud antes de conectar.');
-      setIsAuthenticatingCloud(false);
-      return;
-    }
-    const status = await electronService.loginGoogleCloud(projectId);
-    setCloudAuthStatus(status);
-    if (!status.authenticated) {
-      setError(status.error || 'Nao foi possivel conectar ao Google Cloud.');
-    }
-    setIsAuthenticatingCloud(false);
-  }, [config.googleCloudProjectId, isAuthenticatingCloud]);
-
-  const openCloudDataLogging = useCallback(() => {
-    const projectId = cloudAuthStatus?.projectId;
-    const projectQuery = projectId ? `?project=${encodeURIComponent(projectId)}` : '';
-    electronService.openExternal(
-      `https://console.cloud.google.com/apis/api/speech.googleapis.com/overview${projectQuery}`
-    );
-  }, [cloudAuthStatus?.projectId]);
 
   useEffect(() => {
     if (!session?.startedAt) {
@@ -284,6 +253,16 @@ export const useInterviewCopilot = (options: { embedded?: boolean; onClosePanel?
           setSession(resumed);
           sessionRef.current = resumed;
         }
+      } else {
+        const refreshed = await electronService.updateInterviewSession(activeSession.id, {
+          config,
+          title: config.title || activeSession.title
+        });
+        if (refreshed) {
+          activeSession = refreshed;
+          setSession(refreshed);
+          sessionRef.current = refreshed;
+        }
       }
 
       const systemStarted = await electronService.startInterviewSource({
@@ -375,7 +354,7 @@ export const useInterviewCopilot = (options: { embedded?: boolean; onClosePanel?
     if (!activeSession) return;
     if (activeAnswerIdRef.current) await electronService.cancelInterviewAnswer(activeAnswerIdRef.current);
     await stopListening();
-    if (activeSession.config.saveTranscript) {
+    if (activeSession.config.saveTranscript || activeSession.config.retainAudio) {
       await Promise.all((sessionRef.current?.transcript || []).map(turn => (
         electronService.saveInterviewTurn(activeSession.id, {
           ...turn,
@@ -386,13 +365,18 @@ export const useInterviewCopilot = (options: { embedded?: boolean; onClosePanel?
     }
     const finished = await electronService.finishInterviewSession(activeSession.id);
     if (finished) {
-      setSession(finished);
-      sessionRef.current = finished;
-      if (finished.status === 'pending') {
-        setConfig({ ...DEFAULT_INTERVIEW_CONFIG, ...finished.config });
-      }
+      setSession(null);
+      sessionRef.current = null;
+      setConfig({ ...DEFAULT_INTERVIEW_CONFIG, ...finished.config });
+      setSelectedTurnId(null);
+      setQuestionDraft('');
+      setActiveAnswerId(null);
+      activeAnswerIdRef.current = null;
+      setSourceStatuses({});
+      setFlowStatus('idle');
+      setError('');
     }
-    refreshSessions();
+    await refreshSessions();
   }, [refreshSessions, stopListening]);
 
   const savePendingSession = useCallback(async () => {
@@ -441,7 +425,6 @@ export const useInterviewCopilot = (options: { embedded?: boolean; onClosePanel?
   const requestAnswer = useCallback(async (
     variant: InterviewAnswerVariant = 'answer',
     answer?: Pick<InterviewAnswer, 'question' | 'turnId'>
-      & Partial<Pick<InterviewAnswer, 'provider'>>
       & { quickFragments?: string[]; visualContext?: string }
   ) => {
     const activeSession = sessionRef.current;
@@ -517,8 +500,7 @@ export const useInterviewCopilot = (options: { embedded?: boolean; onClosePanel?
         || sessionRef.current?.transcript.find(turn => turn.id === turnId)?.visualContext,
       sessionSummary: activeSession.summary,
       quickFragments: answer?.quickFragments,
-      variant,
-      provider
+      variant
     });
 
     if (!result) {
@@ -561,8 +543,7 @@ export const useInterviewCopilot = (options: { embedded?: boolean; onClosePanel?
     setActiveAnswerId(latestTurn.answerId || null);
     requestAnswer('answer', {
       question,
-      turnId: latestTurn.id,
-      provider: 'openai'
+      turnId: latestTurn.id
     });
   }, [requestAnswer]);
 
@@ -602,7 +583,6 @@ export const useInterviewCopilot = (options: { embedded?: boolean; onClosePanel?
       await requestAnswer('quick', {
         question,
         turnId: latestTurn.id,
-        provider: 'openai',
         quickFragments
       });
     } finally {
@@ -654,11 +634,26 @@ export const useInterviewCopilot = (options: { embedded?: boolean; onClosePanel?
       {
         question: screenTurn.text,
         turnId: screenTurn.id,
-        provider: 'openai',
         visualContext: analysis.context
       }
     );
   }, [questionDraft, requestAnswer, screenStatus, updateSessionState]);
+
+  captureScreenShortcutRef.current = () => { void captureScreen(); };
+  quickAnswerShortcutRef.current = () => { void quickAnswer(); };
+
+  const invokeInterviewShortcut = useCallback((action: 'capture' | 'quick') => {
+    const activeSession = sessionRef.current;
+    if (!canUseInterviewActionShortcut(activeSession?.status, activeSession?.config.mode)) return false;
+
+    const now = Date.now();
+    if (now - shortcutTimestampsRef.current[action] < 300) return true;
+    shortcutTimestampsRef.current[action] = now;
+
+    if (action === 'capture') captureScreenShortcutRef.current();
+    else quickAnswerShortcutRef.current();
+    return true;
+  }, []);
 
   const summarizeSession = useCallback(async () => {
     const activeSession = sessionRef.current;
@@ -752,22 +747,26 @@ export const useInterviewCopilot = (options: { embedded?: boolean; onClosePanel?
         options.onClosePanel();
         return;
       }
+      if (event.repeat) return;
+
+      const key = event.key.toUpperCase();
+      const action = key === 'F4' ? 'quick' : key === 'F5' ? 'capture' : null;
+      if (action && invokeInterviewShortcut(action)) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
     };
-    globalThis.addEventListener('keydown', handleKeyDown);
-    return () => globalThis.removeEventListener('keydown', handleKeyDown);
-  }, [options.onClosePanel]);
+    globalThis.addEventListener('keydown', handleKeyDown, true);
+    return () => globalThis.removeEventListener('keydown', handleKeyDown, true);
+  }, [invokeInterviewShortcut, options.onClosePanel]);
 
   useEffect(() => electronService.onInterviewCaptureShortcut(() => {
-    const activeSession = sessionRef.current;
-    if (!canUseInterviewActionShortcut(activeSession?.status, activeSession?.config.mode)) return;
-    captureScreen();
-  }), [captureScreen]);
+    invokeInterviewShortcut('capture');
+  }), [invokeInterviewShortcut]);
 
   useEffect(() => electronService.onInterviewQuickAnswerShortcut(() => {
-    const activeSession = sessionRef.current;
-    if (!canUseInterviewActionShortcut(activeSession?.status, activeSession?.config.mode)) return;
-    quickAnswer();
-  }), [quickAnswer]);
+    invokeInterviewShortcut('quick');
+  }), [invokeInterviewShortcut]);
 
   useEffect(() => () => {
     stopSystemRecording();
@@ -815,10 +814,6 @@ export const useInterviewCopilot = (options: { embedded?: boolean; onClosePanel?
     screenStatus,
     error,
     elapsedSeconds,
-    cloudAuthStatus,
-    isAuthenticatingCloud,
-    authenticateGoogleCloud,
-    openCloudDataLogging,
     isPinned,
     togglePin,
     handleMinimize,

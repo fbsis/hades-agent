@@ -1,9 +1,8 @@
 import { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
 import { useChatState } from './useChatState';
-import { useGemini } from './useGemini';
+import { useAssistant } from './useAssistant';
 import { useWindowControl } from './useWindowControl';
 import { useClipboard } from './useClipboard';
-import { DEFAULT_MODEL } from '../constants';
 import { electronService } from '../services/electron';
 import { CHAT_SESSION_IDLE_LIMIT_MS, getChatSessionIdleMs } from '../utils/chatSession';
 
@@ -28,9 +27,7 @@ export const useMiniChat = (options: { embedded?: boolean; isActive?: boolean; o
     rotateStaleSession
   } = useChatState();
 
-  const [currentModel, setCurrentModel] = useState<string>(DEFAULT_MODEL);
-  const { isThinking, activeTool, handleAIResponse } = useGemini(
-    currentModel,
+  const { isThinking, activeTool, handleAIResponse } = useAssistant(
     addMessage,
     updateMessage,
     appendMessageText,
@@ -82,15 +79,6 @@ export const useMiniChat = (options: { embedded?: boolean; isActive?: boolean; o
     return () => clearTimeout(timeout);
   }, [isLoaded, messages, rotateSessionIfStale]);
 
-  // Load initial settings
-  useEffect(() => {
-    electronService.getSettings().then(settings => {
-      if (settings?.general?.minichatModel) {
-        setCurrentModel(settings.general.minichatModel);
-      }
-    });
-  }, []);
-
   // Timer effect: ticks only when active session exists (messages.length > 0)
   useEffect(() => {
     if (options.embedded || messages.length === 0) {
@@ -109,18 +97,6 @@ export const useMiniChat = (options: { embedded?: boolean; isActive?: boolean; o
 
     return () => clearInterval(timerInterval);
   }, [messages.length, options.embedded]);
-
-  // Listen for live settings updates from the main process
-  useEffect(() => {
-    const unsubscribe = electronService.onSettingsUpdated((settings) => {
-      if (settings?.general?.minichatModel) {
-        setCurrentModel(settings.general.minichatModel);
-      }
-    });
-    return () => {
-      if (unsubscribe) unsubscribe();
-    };
-  }, []);
 
   // Keep Conversation anchored to the latest message, including live streaming deltas.
   useLayoutEffect(() => {

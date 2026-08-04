@@ -3,9 +3,11 @@ import openaiResponsesService from './openaiResponsesService.js';
 
 const {
   OPENAI_RESPONSES_URL,
+  OPENAI_TRANSCRIPTIONS_URL,
   extractResponseText,
   generateText,
-  generateTextStream
+  generateTextStream,
+  transcribeAudio
 } = openaiResponsesService;
 
 describe('openaiResponsesService', () => {
@@ -128,5 +130,31 @@ describe('openaiResponsesService', () => {
       stream: true,
       store: false
     });
+  });
+
+  it('sends one-shot voice audio only to the OpenAI transcription endpoint', async () => {
+    const fetchImpl = vi.fn().mockResolvedValue({
+      ok: true,
+      text: async () => JSON.stringify({ text: 'Explique o event loop.' })
+    });
+
+    const text = await transcribeAudio({
+      apiKey: 'test-key',
+      base64Audio: Buffer.from('wav-data').toString('base64'),
+      fetchImpl
+    });
+
+    expect(text).toBe('Explique o event loop.');
+    expect(fetchImpl).toHaveBeenCalledWith(
+      OPENAI_TRANSCRIPTIONS_URL,
+      expect.objectContaining({
+        method: 'POST',
+        headers: { Authorization: 'Bearer test-key' },
+        body: expect.any(FormData)
+      })
+    );
+    const form = fetchImpl.mock.calls[0][1].body;
+    expect(form.get('model')).toBe('gpt-4o-mini-transcribe');
+    expect(form.get('language')).toBe('pt');
   });
 });

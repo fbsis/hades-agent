@@ -8,7 +8,8 @@ const {
   createWav,
   hasSpeechActivity,
   languageCode,
-  mergeTranscript
+  mergeTranscript,
+  vocabularyForLanguage
 } = whisperLocalModule;
 
 describe('WhisperLocalService utilities', () => {
@@ -26,6 +27,40 @@ describe('WhisperLocalService utilities', () => {
     expect(languageCode('pt-BR')).toBe('pt');
     expect(languageCode('en-US')).toBe('en');
     expect(languageCode('auto')).toBe('auto');
+  });
+
+  it('removes Portuguese prompt phrases from an English transcription', () => {
+    expect(vocabularyForLanguage([
+      'GX2',
+      'Fullstack Developer Mobile Node Senior',
+      'desenvolvedor node e react com ampla experiencia',
+      'React Native',
+      'Experiência com dispositivos inteligentes'
+    ], 'en-US')).toEqual([
+      'GX2',
+      'Fullstack Developer Mobile Node Senior',
+      'React Native'
+    ]);
+  });
+
+  it('overwrites Whisper request language, translation and prompt parameters', async () => {
+    const service = new WhisperLocalService();
+    service.port = 12345;
+    service.fetch = async (_url, options) => {
+      expect(options.body.get('language')).toBe('en');
+      expect(options.body.get('translate')).toBe('false');
+      expect(options.body.get('detect_language')).toBe('false');
+      expect(options.body.get('prompt')).toBe('GX2');
+      return { ok: true, json: async () => ({ text: '' }) };
+    };
+    const record = service.createRecord(null, {
+      sessionId: 'english-session',
+      source: 'interviewer',
+      language: 'en-US',
+      customVocabulary: ['GX2', 'experiência em aplicações e dispositivos']
+    });
+
+    await service.transcribe(record, Buffer.alloc(16000));
   });
 
   it('merges overlapping transcription windows without duplicate words', () => {

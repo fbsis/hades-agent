@@ -3,6 +3,7 @@ const path = require('node:path');
 const fs = require('node:fs');
 const crypto = require('node:crypto');
 const os = require('node:os');
+const { normalizeWindowOpacity } = require('../windows/windowOpacity');
 
 /**
  * JsonStore provides a centralized persistence layer for the application.
@@ -35,13 +36,10 @@ class JsonStore {
         systemAudioVolume: 100
       },
       general: {
-        apiKey: '',
         openaiApiKey: '',
         tavilyApiKey: '',
-        minichatModel: 'gemini-2.5-flash',
-        sttModel: 'gemini-2.5-flash',
-        fullTranscriptionModel: 'gemini-2.5-flash',
         stealthMode: true,
+        windowOpacity: 0.9,
         dreamingEnabled: true,
         dreamingModel: 'gpt-5.6-luna'
       },
@@ -79,11 +77,10 @@ class JsonStore {
         language: 'pt-BR',
         answerStyle: 'natural',
         transcriptionProvider: 'whisper-local',
-        googleCloudProjectId: '',
         extraInstructions: '',
         transcribeMicrophone: false,
         saveTranscript: true,
-        retainAudio: false
+        retainAudio: true
       },
       layout: {
         commandBounds: null,
@@ -223,6 +220,14 @@ class JsonStore {
     };
     const captureProtectionNeedsMigration = this.cache.settings.general.stealthMode !== true;
     this.cache.settings.general.stealthMode = true;
+    this.cache.settings.general.windowOpacity = normalizeWindowOpacity(
+      this.cache.settings.general.windowOpacity
+    );
+    this.cache.settings.interview.transcriptionProvider = 'whisper-local';
+    delete this.cache.settings.general.apiKey;
+    delete this.cache.settings.general.minichatModel;
+    delete this.cache.settings.general.sttModel;
+    delete this.cache.settings.general.fullTranscriptionModel;
     if (!saved.general?.localWhisperDefaultMigrated) {
       this.cache.settings.interview.transcriptionProvider = 'whisper-local';
       if (this.cache.settings.interview.language === 'auto') {
@@ -233,7 +238,7 @@ class JsonStore {
     }
 
     if (!saved.general?.openAiDreamingMigrated) {
-      if (!saved.general?.dreamingModel || String(saved.general.dreamingModel).startsWith('gemini-')) {
+      if (!saved.general?.dreamingModel || !String(saved.general.dreamingModel).startsWith('gpt-')) {
         this.cache.settings.general.dreamingModel = 'gpt-5.6-luna';
       }
       this.cache.settings.general.openAiDreamingMigrated = true;
@@ -242,8 +247,13 @@ class JsonStore {
       this.safeSaveSettings(this.cache.settings);
     }
 
+    if (!saved.general?.retainAudioDefaultEnabledMigrated) {
+      this.cache.settings.interview.retainAudio = true;
+      this.cache.settings.general.retainAudioDefaultEnabledMigrated = true;
+      this.safeSaveSettings(this.cache.settings);
+    }
+
     // Populate env variables from settings for backward compatibility & frontend access
-    process.env.VITE_GEMINI_API_KEY = this.cache.settings.general.apiKey || '';
     process.env.VITE_TAVILY_API_KEY = this.cache.settings.general.tavilyApiKey || '';
   }
 
@@ -338,10 +348,17 @@ class JsonStore {
       shortcuts: { ...this._defaultSettings.shortcuts, ...(settings.shortcuts || {}) }
     };
     nextSettings.general.stealthMode = true;
+    nextSettings.general.windowOpacity = normalizeWindowOpacity(
+      nextSettings.general.windowOpacity
+    );
+    nextSettings.interview.transcriptionProvider = 'whisper-local';
+    delete nextSettings.general.apiKey;
+    delete nextSettings.general.minichatModel;
+    delete nextSettings.general.sttModel;
+    delete nextSettings.general.fullTranscriptionModel;
 
     this.cache.settings = nextSettings;
     this.safeSaveSettings(nextSettings);
-    process.env.VITE_GEMINI_API_KEY = nextSettings.general.apiKey || '';
     process.env.VITE_TAVILY_API_KEY = nextSettings.general.tavilyApiKey || '';
   }
 }

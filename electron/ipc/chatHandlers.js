@@ -2,11 +2,30 @@ const { ipcMain } = require('electron');
 const store = require('../store/jsonStore');
 const appState = require('../appState');
 const logger = require('../services/logger');
+const aiService = require('../services/aiService');
 
 /**
  * Registers IPC handlers for chat-related functionality, including history and token usage.
  */
 function registerChatHandlers() {
+  ipcMain.handle('openai-chat-stream', async (event, args = {}) => {
+    try {
+      const streamId = String(args.streamId || 'openai-chat');
+      const result = await aiService.streamChat(args, delta => {
+        if (!event.sender.isDestroyed()) {
+          event.sender.send('openai-chat-stream-event', { streamId, type: 'delta', text: delta });
+        }
+      });
+      if (!event.sender.isDestroyed()) {
+        event.sender.send('openai-chat-stream-event', { streamId, type: 'end', text: result.text });
+      }
+      return { success: true, data: result };
+    } catch (error) {
+      logger.error('OPENAI_CHAT', 'stream error', error);
+      return { success: false, error: error.message };
+    }
+  });
+
   // --- History ---
   ipcMain.handle('get-chat-history', () => {
     return { success: true, data: store.getChatHistory() };
@@ -66,7 +85,6 @@ function registerChatHandlers() {
         }
       }
 
-      const aiService = require('../services/aiService');
       const title = await aiService.generateSessionTitle(firstMessageContent);
 
       const session = {

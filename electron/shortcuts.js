@@ -71,16 +71,33 @@ function toggleSettingsWindow() {
   windowManager.showCommandPanel('settings');
 }
 
-function captureInterviewScreen() {
+function dispatchInterviewAction(channel, label) {
   const win = windowManager.get('command');
-  if (!win || win.isDestroyed()) return;
-  win.webContents.send('interview-capture-screen');
+  if (!win || win.isDestroyed()) {
+    console.warn(`[SHORTCUTS] ${label} ignored: command window is unavailable.`);
+    return false;
+  }
+
+  const send = () => {
+    if (win.isDestroyed()) return;
+    console.log(`[SHORTCUTS] Dispatching ${label}.`);
+    win.webContents.send(channel, { triggeredAt: Date.now() });
+  };
+
+  if (win.webContents.isLoading()) {
+    win.webContents.once('did-finish-load', () => setTimeout(send, 50));
+  } else {
+    send();
+  }
+  return true;
+}
+
+function captureInterviewScreen() {
+  return dispatchInterviewAction('interview-capture-screen', 'Interview Capture');
 }
 
 function quickAnswerInterview() {
-  const win = windowManager.get('command');
-  if (!win || win.isDestroyed()) return;
-  win.webContents.send('interview-quick-answer');
+  return dispatchInterviewAction('interview-quick-answer', 'Interview Quick Answer');
 }
 
 function registerShortcut(name, key, handler) {
@@ -160,3 +177,4 @@ function registerGlobalShortcuts(retryCount = 0) {
 }
 
 module.exports = registerGlobalShortcuts;
+module.exports.dispatchInterviewAction = dispatchInterviewAction;

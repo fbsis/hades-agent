@@ -534,7 +534,6 @@
 .interview-answer-status { display: flex; align-items: center; gap: 7px; margin-bottom: 10px; color: rgba(255, 255, 255, 0.36); font-size: 9px; }
 .interview-provider { padding: 2px 5px; border-radius: 4px; font-size: 8px; font-weight: 900; text-transform: uppercase; }
 .interview-provider.provider-hermes { background: rgb(var(--color-gold-rgb) / 0.12); color: var(--color-gold-light); }
-.interview-provider.provider-gemini { background: rgb(var(--color-primary-rgb) / 0.12); color: var(--color-primary-light); }
 .interview-provider.provider-openai { background: rgb(var(--color-gold-rgb) / 0.14); color: var(--color-gold); }
 .interview-markdown { color: rgba(255, 255, 255, 0.9); font-size: 13px; line-height: 1.58; overflow-wrap: anywhere; }
 .interview-markdown > :first-child { margin-top: 0; }

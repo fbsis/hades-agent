@@ -4,14 +4,8 @@ export type InterviewSessionStatus = 'pending' | 'active' | 'completed' | 'archi
 export type InterviewLanguage = 'auto' | 'pt-BR' | 'en-US';
 export type InterviewAnswerStyle = 'natural' | 'concise' | 'star' | 'technical';
 export type MeetingMode = 'meeting' | 'interview';
-export type InterviewTranscriptionProvider = 'whisper-local' | 'gemini-live' | 'google-cloud';
+export type InterviewTranscriptionProvider = 'whisper-local';
 export type InterviewAnswerVariant = 'answer' | 'quick' | 'shorter' | 'detail' | 'star' | 'code' | 'retry';
-
-export interface GoogleCloudAuthStatus {
-  authenticated: boolean;
-  projectId?: string;
-  error?: string;
-}
 
 export interface InterviewConfig {
   mode: MeetingMode;
@@ -25,7 +19,6 @@ export interface InterviewConfig {
   language: InterviewLanguage;
   answerStyle: InterviewAnswerStyle;
   transcriptionProvider: InterviewTranscriptionProvider;
-  googleCloudProjectId: string;
   extraInstructions: string;
   transcribeMicrophone: boolean;
   saveTranscript: boolean;
@@ -55,7 +48,7 @@ export interface InterviewAnswer {
   question: string;
   text: string;
   status: 'streaming' | 'complete' | 'failed' | 'cancelled';
-  provider: 'openai' | 'hermes' | 'gemini';
+  provider: 'openai';
   variant: InterviewAnswerVariant;
   createdAt: string;
   completedAt?: string;
@@ -83,9 +76,18 @@ export interface InterviewSession {
   visualContext?: string;
   summary?: string;
   summaryAt?: string;
-  summaryProvider?: 'openai' | 'hermes' | 'gemini';
+  summaryProvider?: 'openai' | 'hermes';
   audioArtifacts?: InterviewAudioArtifact[];
   hasRecording?: boolean;
+  hermesMemory?: {
+    status: 'pending' | 'synced';
+    attempts: number;
+    memoryId?: string;
+    syncedAt?: string;
+    lastAttemptAt?: string;
+    response?: string;
+    error?: string;
+  };
 }
 
 export interface InterviewTranscriptDelta {
@@ -119,7 +121,7 @@ export interface InterviewAnswerEvent {
   type: 'start' | 'delta' | 'tool' | 'end' | 'error' | 'cancelled';
   text?: string;
   error?: string;
-  provider?: 'openai' | 'hermes' | 'gemini';
+  provider?: 'openai';
 }
 
 export interface InterviewScreenAnalysis {
@@ -144,9 +146,8 @@ export const DEFAULT_INTERVIEW_CONFIG: InterviewConfig = {
   language: 'pt-BR',
   answerStyle: 'natural',
   transcriptionProvider: 'whisper-local',
-  googleCloudProjectId: '',
   extraInstructions: '',
   transcribeMicrophone: false,
   saveTranscript: true,
-  retainAudio: false
+  retainAudio: true
 };

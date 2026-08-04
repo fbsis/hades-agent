@@ -199,6 +199,14 @@
   gap: 12px;
 }
 
+.opacity-value {
+  width: 38px;
+  color: #fff;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
 /* Form Controls */
 .settings-input {
   background: rgba(255, 255, 255, 0.05);

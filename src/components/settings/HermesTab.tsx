@@ -109,7 +109,7 @@ const HermesTab: React.FC<HermesTabProps> = ({ hermes, assistant, updateHermes, 
     <div>
       <div className="tab-header">
         <h2 className="tab-title">Hermes Agent</h2>
-        <p className="tab-subtitle">Use Hermes como agente principal do Metis, mantendo Gemini para transcricao rapida e titulos.</p>
+        <p className="tab-subtitle">Use Hermes como agente principal, com OpenAI para imagens e fallback.</p>
       </div>
 
       <div className="agent-status-row">
@@ -178,7 +178,7 @@ const HermesTab: React.FC<HermesTabProps> = ({ hermes, assistant, updateHermes, 
 
       <ToggleRow
         title="Hermes como agente principal"
-        description="Quando ligado, o MiniChat usa Hermes para tudo. Gemini fica para transcrição rápida, títulos e fallback."
+        description="Quando ligado, o MiniChat usa Hermes como agente principal. OpenAI responde imagens e assume quando o Hermes estiver indisponível."
         checked={assistant.delegationEnabled && hermes.useAsPrimaryAgent}
         onChange={(value) => {
           updateAssistant({ delegationEnabled: value });
@@ -252,8 +252,8 @@ const HermesTab: React.FC<HermesTabProps> = ({ hermes, assistant, updateHermes, 
       />
 
       <ToggleRow
-        title="Resumir reuniões automaticamente"
-        description="Ao fechar uma transcrição, envia a reunião para o Hermes resumir e memorizar pontos importantes."
+        title="Memorizar reuniões gravadas"
+        description="Envia toda reunião ou entrevista concluída com gravação ao Hermes, com ID estável, contexto e transcrição, sem duplicar memória."
         checked={hermes.autoSummarizeMeetings}
         onChange={(value) => updateHermes({ autoSummarizeMeetings: value })}
       />

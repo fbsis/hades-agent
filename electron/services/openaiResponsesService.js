@@ -1,4 +1,5 @@
 const OPENAI_RESPONSES_URL = 'https://api.openai.com/v1/responses';
+const OPENAI_TRANSCRIPTIONS_URL = 'https://api.openai.com/v1/audio/transcriptions';
 
 function extractResponseText(data) {
   if (typeof data?.output_text === 'string' && data.output_text.trim()) {
@@ -172,9 +173,52 @@ async function generateTextStream({
   };
 }
 
+async function transcribeAudio({
+  apiKey,
+  base64Audio,
+  model = 'gpt-4o-mini-transcribe',
+  language = 'pt',
+  fetchImpl = globalThis.fetch
+}) {
+  if (!apiKey) throw new Error('OpenAI API key nao configurada.');
+  if (!base64Audio) throw new Error('Audio vazio.');
+  if (typeof fetchImpl !== 'function') throw new Error('fetch nao esta disponivel.');
+
+  const normalized = String(base64Audio).replace(/^data:[^;]+;base64,/, '');
+  const bytes = Buffer.from(normalized, 'base64');
+  const form = new FormData();
+  form.append('file', new Blob([bytes], { type: 'audio/wav' }), 'metis-voice.wav');
+  form.append('model', model);
+  if (language) form.append('language', language);
+  form.append('response_format', 'json');
+
+  const response = await fetchImpl(OPENAI_TRANSCRIPTIONS_URL, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${apiKey}` },
+    body: form
+  });
+  const rawText = await response.text();
+  let data;
+  try {
+    data = rawText ? JSON.parse(rawText) : {};
+  } catch {
+    data = {};
+  }
+  if (!response.ok) {
+    const message = data?.error?.message || rawText || response.statusText;
+    throw new Error(`OpenAI HTTP ${response.status}: ${message}`);
+  }
+
+  const text = String(data.text || '').trim();
+  if (!text) throw new Error('OpenAI nao retornou transcricao.');
+  return text;
+}
+
 module.exports = {
   OPENAI_RESPONSES_URL,
+  OPENAI_TRANSCRIPTIONS_URL,
   extractResponseText,
   generateText,
-  generateTextStream
+  generateTextStream,
+  transcribeAudio
 };

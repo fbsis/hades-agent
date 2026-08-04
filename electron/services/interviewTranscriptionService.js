@@ -1,16 +1,9 @@
-const cloudSpeechService = require('./cloudSpeechService');
-const geminiLiveService = require('./geminiLiveService');
 const whisperLocalService = require('./whisperLocalService');
-const { resolveInterviewTranscriptionProvider } = require('./interviewTranscriptionProvider');
 const logger = require('./logger');
-
-const FALLBACK_REPLAY_CHUNKS = 50;
 
 class InterviewTranscriptionService {
   constructor(options = {}) {
     this.sources = new Map();
-    this.cloudSpeechService = options.cloudSpeechService || cloudSpeechService;
-    this.geminiLiveService = options.geminiLiveService || geminiLiveService;
     this.whisperLocalService = options.whisperLocalService || whisperLocalService;
   }
 
@@ -23,144 +16,55 @@ class InterviewTranscriptionService {
     const source = options.source === 'candidate' ? 'candidate' : 'interviewer';
     const key = this.key(sessionId, source);
     await this.stopSource(sessionId, source);
-
     const state = {
       event,
-      options: { ...options, sessionId, source },
-      provider: '',
-      switching: false,
-      recentChunks: []
+      options: { ...options, sessionId, source, provider: 'whisper-local' }
     };
     this.sources.set(key, state);
 
-    const provider = resolveInterviewTranscriptionProvider(state.options.provider);
-    if (provider === 'gemini-live') {
-      return this.startGeminiFallback(state);
-    }
-    if (provider === 'whisper-local') {
-      try {
-        const started = await this.whisperLocalService.startSource(event, {
-          ...state.options,
-          onUnavailable: error => this.switchToGemini(state, error)
-        });
-        state.provider = 'whisper-local';
-        return started;
-      } catch (error) {
-        logger.warn(
-          'INTERVIEW STT',
-          `Local Whisper unavailable during startup; using Gemini Live: ${error.message}`
-        );
-        return this.startGeminiFallback(state);
-      }
-    }
-
     try {
-      const started = await this.cloudSpeechService.startSource(event, {
+      return await this.whisperLocalService.startSource(event, {
         ...state.options,
-        onUnavailable: error => this.switchToGemini(state, error)
+        onUnavailable: error => {
+          logger.error(
+            'INTERVIEW STT',
+            `Local Whisper unavailable for ${source}; remote fallback is disabled: ${error.message}`
+          );
+        }
       });
-      state.provider = 'google-cloud';
-      return started;
     } catch (error) {
-      logger.warn(
-        'INTERVIEW STT',
-        `Cloud Speech unavailable during startup; using Gemini Live: ${error.message}`
-      );
-      return this.startGeminiFallback(state);
-    }
-  }
-
-  async startGeminiFallback(state) {
-    const started = await this.geminiLiveService.startSource(state.event, state.options);
-    state.provider = 'gemini-live';
-    return started;
-  }
-
-  async switchToGemini(state, error) {
-    const key = this.key(state.options.sessionId, state.options.source);
-    if (this.sources.get(key) !== state || state.switching || state.provider === 'gemini-live') return;
-    state.switching = true;
-    logger.warn(
-      'INTERVIEW STT',
-      `Switching ${state.options.source} to Gemini Live: ${error?.message || error}`
-    );
-
-    try {
-      if (state.provider === 'whisper-local') {
-        await this.whisperLocalService.stopSource(state.options.sessionId, state.options.source);
-      } else {
-        await this.cloudSpeechService.stopSource(state.options.sessionId, state.options.source);
-      }
-      await this.startGeminiFallback(state);
-      const replay = state.recentChunks.splice(0);
-      replay.forEach(chunk => this.geminiLiveService.sendChunk(chunk));
-    } catch (fallbackError) {
-      logger.error('INTERVIEW STT', 'Gemini Live fallback failed', fallbackError);
-    } finally {
-      state.switching = false;
+      this.sources.delete(key);
+      logger.error('INTERVIEW STT', `Local Whisper failed to start for ${source}`, error);
+      throw error;
     }
   }
 
   sendChunk(payload = {}) {
-    const state = this.sources.get(this.key(payload.sessionId, payload.source));
-    if (!state) return false;
-    state.recentChunks.push(payload);
-    if (state.recentChunks.length > FALLBACK_REPLAY_CHUNKS) state.recentChunks.shift();
-    if (state.switching) return false;
-
-    if (state.provider === 'gemini-live') {
-      return this.geminiLiveService.sendChunk(payload);
-    }
-    if (state.provider === 'whisper-local') {
-      return this.whisperLocalService.sendChunk(payload);
-    }
-    return this.cloudSpeechService.sendChunk(payload);
+    if (!this.sources.has(this.key(payload.sessionId, payload.source))) return false;
+    return this.whisperLocalService.sendChunk(payload);
   }
 
   sendAudioStreamEnd(sessionId, source, reason) {
-    const state = this.sources.get(this.key(sessionId, source));
-    if (!state || state.switching) return;
-    if (state.provider === 'gemini-live') {
-      this.geminiLiveService.sendAudioStreamEnd(sessionId, source, reason);
-      return;
-    }
-    if (state.provider === 'whisper-local') {
-      this.whisperLocalService.sendAudioStreamEnd(sessionId, source, reason);
-      return;
-    }
-    this.cloudSpeechService.sendAudioStreamEnd(sessionId, source, reason);
+    if (!this.sources.has(this.key(sessionId, source))) return;
+    this.whisperLocalService.sendAudioStreamEnd(sessionId, source, reason);
   }
 
   async flushForAnswer(sessionId, source) {
-    const state = this.sources.get(this.key(sessionId, source));
-    if (!state || state.switching) return false;
-    if (state.provider === 'gemini-live') {
-      return this.geminiLiveService.flushForAnswer(sessionId, source);
-    }
-    if (state.provider === 'whisper-local') {
-      return this.whisperLocalService.flushForAnswer(sessionId, source);
-    }
-    return true;
+    if (!this.sources.has(this.key(sessionId, source))) return false;
+    return this.whisperLocalService.flushForAnswer(sessionId, source);
   }
 
   async stopSource(sessionId, source) {
     const key = this.key(sessionId, source);
-    const state = this.sources.get(key);
-    if (!state) return false;
+    if (!this.sources.has(key)) return false;
     this.sources.delete(key);
-    if (state.provider === 'gemini-live') {
-      return this.geminiLiveService.stopSource(sessionId, source);
-    }
-    if (state.provider === 'whisper-local') {
-      return this.whisperLocalService.stopSource(sessionId, source);
-    }
-    return this.cloudSpeechService.stopSource(sessionId, source);
+    return this.whisperLocalService.stopSource(sessionId, source);
   }
 
   async stopSession(sessionId) {
-    const states = [...this.sources.entries()]
-      .filter(([, state]) => state.options.sessionId === sessionId);
-    await Promise.all(states.map(([, state]) => (
+    const states = [...this.sources.values()]
+      .filter(state => state.options.sessionId === sessionId);
+    await Promise.all(states.map(state => (
       this.stopSource(state.options.sessionId, state.options.source)
     )));
     return true;

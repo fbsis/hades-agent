@@ -3,6 +3,16 @@ const jsonStore = require('../store/jsonStore');
 const logger = require('../services/logger');
 const registerGlobalShortcuts = require('../shortcuts');
 const { protectWindow } = require('../windows/contentProtection');
+const windowManager = require('../windows/windowManager');
+const { normalizeWindowOpacity } = require('../windows/windowOpacity');
+
+function broadcastSettings(settings) {
+  BrowserWindow.getAllWindows().forEach(win => {
+    if (!win.isDestroyed()) {
+      win.webContents.send('settings-updated', settings);
+    }
+  });
+}
 
 /**
  * Applies mandatory content protection to all active windows.
@@ -26,17 +36,6 @@ function applyStealthMode() {
 }
 
 /**
- * Updates the Gemini API key at runtime so services pick it up immediately.
- * @param {string} key
- */
-function applyApiKey(key) {
-  if (typeof key === 'string' && key.trim()) {
-    process.env.VITE_GEMINI_API_KEY = key.trim();
-    logger.info('SETTINGS', 'API key updated at runtime.');
-  }
-}
-
-/**
  * Registers IPC handlers for application settings (get, save, stealth mode).
  */
 function registerSettingsHandlers() {
@@ -52,22 +51,40 @@ function registerSettingsHandlers() {
       const savedSettings = jsonStore.getSettings();
 
       applyStealthMode();
-      applyApiKey(savedSettings.general.apiKey);
+      windowManager.applyAppWindowOpacity(savedSettings.general.windowOpacity);
       
       // Update global shortcuts dynamically on save
       registerGlobalShortcuts();
 
       // Notify all active windows that settings have been updated
-      const allWindows = BrowserWindow.getAllWindows();
-      allWindows.forEach(win => {
-        if (!win.isDestroyed()) {
-          win.webContents.send('settings-updated', savedSettings);
-        }
-      });
+      broadcastSettings(savedSettings);
       
       return { success: true };
     } catch (err) {
       logger.error('SETTINGS', 'save-settings error', err);
+      return { success: false, error: err.message };
+    }
+  });
+
+  // Persists and previews opacity without waiting for the remaining settings form.
+  ipcMain.handle('set-window-opacity', (event, opacity) => {
+    try {
+      const windowOpacity = normalizeWindowOpacity(opacity);
+      const settings = jsonStore.getSettings();
+      jsonStore.saveSettings({
+        ...settings,
+        general: {
+          ...settings.general,
+          windowOpacity
+        }
+      });
+
+      const savedSettings = jsonStore.getSettings();
+      windowManager.applyAppWindowOpacity(windowOpacity);
+      broadcastSettings(savedSettings);
+      return { success: true, data: windowOpacity };
+    } catch (err) {
+      logger.error('SETTINGS', 'set-window-opacity error', err);
       return { success: false, error: err.message };
     }
   });

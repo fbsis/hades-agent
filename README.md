@@ -19,7 +19,7 @@
 <p align="center" style="margin-top: 20px;">
   <a href="https://github.com/fbsis/hades-agent/releases"><img src="https://img.shields.io/badge/Releases-Download-FF2A2A?style=for-the-badge&logo=github" alt="Releases"></a>
   <a href="https://github.com/fbsis/hades-agent/blob/master/LICENSE"><img src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge" alt="License: MIT"></a>
-  <a href="https://github.com/fbsis/hades-agent"><img src="https://img.shields.io/badge/Built%20With-Gemini%20Live%20API-blueviolet?style=for-the-badge" alt="Built with Gemini Live"></a>
+  <a href="https://github.com/fbsis/hades-agent"><img src="https://img.shields.io/badge/AI-OpenAI%20%2B%20Hermes-0f766e?style=for-the-badge" alt="OpenAI and Hermes"></a>
   <a href="https://github.com/fbsis/hades-agent"><img src="https://img.shields.io/badge/Platform-Windows%20%2F%20macOS-0078D6?style=for-the-badge&logo=apple&logoColor=white" alt="Platform: Windows / macOS"></a>
 </p>
 
@@ -30,7 +30,7 @@
 </tr>
 <tr>
   <td><b>🎙️ Interview Copilot (Alt+B)</b></td>
-  <td>Capture system audio with bundled, local <strong>whisper.cpp</strong> transcription by default, optionally switch to Gemini Live or Google Cloud, and stream interview answers from <strong>OpenAI</strong> when you use the answer controls or shortcuts.</td>
+  <td>Capture system audio with bundled, local <strong>whisper.cpp</strong> transcription and stream interview answers from <strong>OpenAI</strong> when you use the answer controls or shortcuts. No cloud transcription fallback is used.</td>
 </tr>
 <tr>
   <td><b>⚡ Spotlight Command Bar</b></td>
@@ -38,7 +38,7 @@
 </tr>
 <tr>
   <td><b>💬 Session MiniChat</b></td>
-  <td>A persistent chat HUD that can route most reasoning to <strong>Hermes</strong>, use Gemini for visual context and fallback, display token usage, and keep the active assistant mode close to your workflow.</td>
+  <td>A persistent chat HUD that can route most reasoning to <strong>Hermes</strong>, use OpenAI for visual context and fallback, display token usage, and keep the active assistant mode close to your workflow.</td>
 </tr>
 <tr>
   <td><b>🧠 Dream Memory Consolidation</b></td>
@@ -58,7 +58,7 @@
 </tr>
 <tr>
   <td><b>🎤 Embedded Voice Input</b></td>
-  <td><code>Alt+V</code> opens a one-shot voice recorder inside the same command window, transcribes audio with Gemini, and sends the result back to MiniChat.</td>
+  <td><code>Alt+V</code> opens a one-shot voice recorder inside the same command window, transcribes audio with OpenAI, and sends the result back to MiniChat.</td>
 </tr>
 <tr>
   <td><b>📋 Safe Task Scheduler</b></td>
@@ -80,9 +80,7 @@
 > **Platform:** Metis was originally built for **Windows**, but the repository now includes macOS packaging support via `electron-builder --mac`. Some macOS-specific behavior still needs validation, especially around tray icon presentation and stealth window handling.
 
 > [!IMPORTANT]
-> Metis requires two free API keys to operate:
-> - **[Google Gemini API Key](https://aistudio.google.com/app/apikey)** — for all AI inference and voice streaming.
-> - **[Tavily Search API Key](https://app.tavily.com/)** — for real-time web search grounding.
+> Metis requires an **[OpenAI API key](https://platform.openai.com/api-keys)** for answers, screenshots, titles, Dreaming, and one-shot voice transcription. Continuous interview transcription runs locally and does not require an API key. A **[Tavily Search API key](https://app.tavily.com/)** is optional for direct web search.
 
 ### For Developers (Build from Source)
 
@@ -114,14 +112,16 @@ The first `npm run dev` downloads the quantized multilingual Whisper `large-v3-t
 
 - `npm run package:win` — package a Windows installer
 - `npm run package:mac` — package a macOS `.dmg` and `.zip`
+- `npm run package:mac:arm64` — package only the Apple Silicon macOS `.dmg` and `.zip`
 - `npm run dist:win` — build production assets and package for Windows
 - `npm run dist:mac` — build production assets and package for macOS
+- `npm run dist:mac:arm64` — build production assets and package only for macOS ARM64
 
 ### Hermes Agent
 
 Metis can connect to a local Hermes Agent API server for MiniChat, persistent memory, context-aware interviews, web/API/CLI work, research, suggestions and multi-step tasks.
 
-Metis remains the desktop UI/audio assistant. Hermes becomes the primary agent when enabled. Gemini stays on the fast transcription path, session titles and fallback.
+Metis remains the desktop UI/audio assistant. Hermes becomes the primary agent when enabled. OpenAI handles visual context, session titles, latency-sensitive interview answers, and the fallback when Hermes is unavailable. Metis never falls back to a Google AI service.
 
 Enable the Hermes API server in `~/.hermes/.env`:
 
@@ -154,30 +154,33 @@ The consolidation flow is:
 4. Metis tells Hermes that new learnings are available and asks the agent to commit them to its own persistent memory.
 5. Failed Hermes syncs remain pending and are retried during later Dreaming cycles.
 
-Gemini is no longer used by Dreaming or interview answers. It remains available for Gemini Live transcription, session titles, and non-interview features that explicitly use it.
+Recorded meetings and interviews follow a separate direct path that does not require OpenAI consolidation:
+
+1. Finishing a session with saved audio persists its final transcript and starts a background Dreaming cycle.
+2. Metis sends Hermes a stable memory ID, session metadata, company/person, existing summary, and compact transcript.
+3. Hermes is instructed to always create a base memory for the meeting and retain reusable decisions, commitments, tasks, people, projects, preferences, and experiences.
+4. The session stores a `pending` or `synced` memory status. Pending sessions retry on later Dreaming cycles, while synced IDs are never sent twice.
+
+OpenAI is the only remote model provider used by Metis. Hermes still owns agent workflows and persistent memory when enabled; local Whisper owns continuous interview transcription.
 
 ### Interview Copilot
 
-Open **Options > Interview** or press `Alt+B`. Before listening, set the target role, company, resume, job description, language, answer style, and optional instructions.
+Open **Options > Interview** or press `Alt+B`. A meeting can optionally identify the company or person involved. For interviews, set the target role, company, resume, job description, language, answer style, and optional instructions.
 
 - Local Whisper is the default transcription provider. Metis bundles `whisper.cpp` v1.9.1 and the quantized multilingual `large-v3-turbo-q5_0` model in packaged builds and transcribes two-second PCM windows without an API key or per-minute charge. The model adds about 547 MB before installer compression.
 - The model is loaded only after interview listening starts. System audio and the optional microphone share one server; pausing or finishing the final transcription source terminates that server and releases the model memory.
 - A bundled Silero VAD 6.2 model rejects non-speech segments before inference. Adaptive noise detection, a 240 ms speech pre-roll, and a second PCM activity gate prevent silence hallucinations and preserve quiet word beginnings.
 - Portuguese is the default recognition language to avoid unreliable language detection on short windows. Select English or automatic detection in the interview setup when needed.
 - `npm run whisper:prepare` prepares the current machine explicitly. macOS builds compile a static Metal/Accelerate-enabled server; Windows x64 builds use the official prebuilt runtime. Generated binaries and model files stay outside Git and are copied into the application by `electron-builder`.
-- Gemini Live remains available and uses the Google AI Studio API key already configured in Metis. Gemini 3.1 normally publishes input transcription after a speech boundary; Metis still consumes interim hypotheses when the API provides them.
-- To use Google Cloud instead, select **Google Cloud (continuous transcription)**, enter a project ID, and click **Connect** before the meeting. Metis starts `gcloud auth application-default login`, opens the Google authorization page, sets that project as the ADC quota project, and validates both the token and quota configuration.
-- Metis uses Speech-to-Text V1 for the free monthly allowance and lowest discounted streaming price. **Lower cost** opens the project page where data logging can be enabled after accepting Google's terms. Data logging allows Google to use and retain submitted audio/transcripts for model improvement; enable it only when you have permission from every data originator.
-- The Google Cloud CLI must be installed, billing must be linked to the selected project, `speech.googleapis.com` must be enabled, and the signed-in account must have `serviceusage.services.use` (normally through **Service Usage Consumer**) on that project. See the official [Cloud STT setup](https://cloud.google.com/speech-to-text/docs/setup), [authentication](https://cloud.google.com/speech-to-text/docs/authentication), and [pricing](https://cloud.google.com/speech-to-text/pricing) pages.
 - System audio is transcribed locally by default. Microphone transcription is optional and remains a separate source so speakers stay separated.
-- If ADC is unavailable, expired, or rejected, Metis automatically falls back to Gemini Live. Gemini Live remains functional but does not guarantee continuous interim transcript updates.
+- If local Whisper is unavailable, the interview shows an error instead of sending audio to a remote fallback.
 - The latest likely interviewer question is highlighted locally without an LLM request. Every finalized interviewer turn still has an explicit **Answer** action.
 - Use the answer field or press `F4` to send the latest five conversation texts, resume, job description, and interview instructions to a separate OpenAI Responses stream. The transcript continues while OpenAI responds.
 - Click **Quick answer** to flush the active transcription stream, infer the question from the latest five transcription fragments, and stream a short summary followed by speaking points.
 - Use the answer toolbar to stop, copy, shorten, expand, rewrite as STAR, generate code, or retry.
 - Screen capture is manual. OpenAI Vision reads the current display, extracts the visible question, code, alternatives, and terminal context, then answers with the technical interview prompt.
 - Each OpenAI interview answer sends only the latest five conversation texts, session metadata, the configured resume and job description, and optional screen context. Requests use `store: false`.
-- Transcripts and answers are stored in `interview_sessions.json`. Audio recording is off by default; when enabled, WAV artifacts are stored under the app's local `interview-audio` directory.
+- Transcripts and answers are stored in `interview_sessions.json`. Audio recording is enabled by default and can be disabled per session; WAV artifacts are stored under the app's local `interview-audio` directory. Recorded sessions keep their transcript even if the separate transcript toggle is off, because that text is required for Hermes memory.
 
 ---
 
@@ -232,8 +235,7 @@ graph TD
     end
 
     subgraph Cloud_APIs [Cloud Intelligence Services]
-        Gemini[Gemini Live API]:::external
-        Speech[Google Cloud Speech-to-Text]:::external
+        OpenAI[OpenAI Responses and Audio APIs]:::external
         Tavily[Tavily Search API]:::external
     end
 
@@ -243,14 +245,13 @@ graph TD
     SSoT -->|Electron Event Handlers| Main
     Main -->|Reads/Writes AES-256 Secrets| Store
     Main -->|Schedules AI Consolidation| Dream
-    Dream -->|Consolidates session logs| OpenAI[OpenAI Responses API]
+    Dream -->|Consolidates session logs| OpenAI
     Dream -->|Caches and audits insights| Store
     Dream -->|Commits new learnings| Hermes
     Main -->|Delegates memory, web/API/CLI and multi-step tasks| Hermes
     
     Main -->|Two-second 16kHz PCM windows| Whisper
-    Main -->|Optional continuous streaming| Speech
-    Main <-->|Answers and transcription fallback| Gemini
+    Main <-->|Answers, vision, titles and one-shot voice| OpenAI
     Main <-->|Asynchronous Web Queries| Tavily
 ```
 

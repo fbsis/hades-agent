@@ -1,12 +1,13 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { lazy, Suspense, useState, useEffect, useRef } from 'react';
 import { Camera, Cog, History, MessageCircle, Minus, Paperclip, Pin, PinOff, Plus, Users, X } from 'lucide-react';
 import { CommandPanel, useCommandBar } from '../hooks/useCommandBar';
 import { electronService } from '../services/electron';
-import MiniChat from './MiniChat';
-import Settings from './Settings';
-import Susurro from './Susurro';
-import VoiceRecorder from './VoiceRecorder';
-import HistoryTab from './settings/HistoryTab';
+
+const MiniChat = lazy(() => import('./MiniChat'));
+const Settings = lazy(() => import('./Settings'));
+const Susurro = lazy(() => import('./Susurro'));
+const VoiceRecorder = lazy(() => import('./VoiceRecorder'));
+const HistoryTab = lazy(() => import('./settings/HistoryTab'));
 
 /**
  * CommandBar component - A sleek, minimal input bar for AI commands.
@@ -250,49 +251,51 @@ const CommandBar: React.FC = () => {
         </button>
       </div>
 
-      <div className={`unified-panel ${activePanel === 'command' ? 'hidden' : ''}`}>
-        <div className={`unified-panel-view ${activePanel === 'chat' ? '' : 'hidden'}`}>
-          <MiniChat
-            embedded
-            isActive={activePanel === 'chat'}
-            onClosePanel={() => setActivePanel('command')}
-            onOpenSettings={() => setActivePanel('settings')}
-            onOpenTranscription={() => setActivePanel('transcription')}
-            onRegisterNewSession={(handler) => {
-              newConversationHandlerRef.current = handler;
-            }}
-            onBusyChange={setIsChatBusy}
-          />
-        </div>
-
-        {activePanel === 'history' && (
-          <div className="standalone-history">
-            <HistoryTab />
+      <Suspense fallback={null}>
+        <div className={`unified-panel ${activePanel === 'command' ? 'hidden' : ''}`}>
+          <div className={`unified-panel-view ${activePanel === 'chat' ? '' : 'hidden'}`}>
+            <MiniChat
+              embedded
+              isActive={activePanel === 'chat'}
+              onClosePanel={() => setActivePanel('command')}
+              onOpenSettings={() => setActivePanel('settings')}
+              onOpenTranscription={() => setActivePanel('transcription')}
+              onRegisterNewSession={(handler) => {
+                newConversationHandlerRef.current = handler;
+              }}
+              onBusyChange={setIsChatBusy}
+            />
           </div>
-        )}
 
-        {activePanel === 'settings' && (
-          <Settings
-            embedded
-            onClosePanel={() => setActivePanel('command')}
-          />
-        )}
+          {activePanel === 'history' && (
+            <div className="standalone-history">
+              <HistoryTab />
+            </div>
+          )}
 
-        {activePanel === 'transcription' && (
-          <Susurro
-            embedded
-            onClosePanel={() => setActivePanel('command')}
-          />
-        )}
+          {activePanel === 'settings' && (
+            <Settings
+              embedded
+              onClosePanel={() => setActivePanel('command')}
+            />
+          )}
 
-        {activePanel === 'voice' && (
-          <VoiceRecorder
-            embedded
-            autoStart
-            onClosePanel={() => setActivePanel('command')}
-          />
-        )}
-      </div>
+          <div className={`unified-panel-view ${activePanel === 'transcription' ? '' : 'hidden'}`}>
+            <Susurro
+              embedded
+              onClosePanel={() => setActivePanel('command')}
+            />
+          </div>
+
+          {activePanel === 'voice' && (
+            <VoiceRecorder
+              embedded
+              autoStart
+              onClosePanel={() => setActivePanel('command')}
+            />
+          )}
+        </div>
+      </Suspense>
     </div>
   );
 };

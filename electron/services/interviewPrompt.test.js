@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import promptModule from './interviewPrompt.js';
 
 const {
+  DEFAULT_CONFIG,
   buildOpenAIInterviewPrompt,
   buildInterviewContext,
   buildInterviewInstruction,
@@ -17,6 +18,10 @@ const makeTurn = (index, overrides = {}) => ({
 });
 
 describe('interview prompt contract', () => {
+  it('keeps audio recording enabled by default', () => {
+    expect(DEFAULT_CONFIG.retainAudio).toBe(true);
+  });
+
   it('excludes the selected question and keeps only six finalized context turns', () => {
     const turns = Array.from({ length: 9 }, (_, index) => makeTurn(index));
     const context = buildInterviewContext({
@@ -47,7 +52,8 @@ describe('interview prompt contract', () => {
       config: {
         mode: 'meeting',
         title: 'Architecture review',
-        description: 'Choose the queue strategy.'
+        description: 'Choose the queue strategy.',
+        company: 'Acme'
       },
       sessionSummary: '- The team prefers at-least-once delivery.'
     });
@@ -55,8 +61,17 @@ describe('interview prompt contract', () => {
     expect(context).toContain('Mode: meeting');
     expect(context).toContain('Meeting title: Architecture review');
     expect(context).toContain('Choose the queue strategy.');
+    expect(context).toContain('Organization or participant: Acme');
     expect(context).toContain('Saved meeting summary');
     expect(context).toContain('at-least-once delivery');
+  });
+
+  it('includes the optional meeting company or participant in the OpenAI prompt', () => {
+    const prompt = buildOpenAIInterviewPrompt({
+      config: { mode: 'meeting', company: 'Maria Silva' }
+    });
+
+    expect(prompt).toContain('Organization or participant: Maria Silva');
   });
 
   it('includes planned interview topics in OpenAI and compact context', () => {
@@ -175,10 +190,33 @@ describe('interview prompt contract', () => {
     expect(prompt).not.toContain('<last_five_conversation_texts>');
     expect(instruction).toContain('**Resumo**');
     expect(instruction).toContain('**Aprofundamento**');
-    expect(instruction).toContain('2 to 4 short bullet points');
-    expect(instruction).toContain('2 to 4 advanced bullet points');
+    expect(instruction).toContain('exactly 7 short bullet points');
+    expect(instruction).toContain('exactly 7 advanced bullet points');
+    expect(instruction).toContain('all 14 bullets useful');
     expect(instruction).toContain('mandatory two-level bullet format');
     expect(instruction).not.toContain('120 words');
     expect(instruction).not.toContain('Avoid headings and bullets');
+  });
+
+  it('forces quick interview answers and headings to English when en-US is selected', () => {
+    const prompt = buildOpenAIInterviewPrompt({
+      question: 'Tell me about the Node.js event loop.',
+      quickFragments: ['Tell me about', 'the Node.js event loop'],
+      variant: 'quick',
+      config: { mode: 'interview', language: 'en-US' }
+    });
+    const instruction = buildInterviewInstruction({
+      config: { mode: 'interview', language: 'en-US' },
+      variant: 'quick',
+      provider: 'openai'
+    });
+
+    expect(prompt).toContain('Selected response language: en-US');
+    expect(prompt).toContain('Respond only in English');
+    expect(instruction).toContain('Respond only in English');
+    expect(instruction).toContain('**Summary**');
+    expect(instruction).toContain('**Deep Dive**');
+    expect(instruction).not.toContain('**Resumo**');
+    expect(instruction).not.toContain('**Aprofundamento**');
   });
 });

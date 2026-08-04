@@ -2,9 +2,19 @@ const { BrowserWindow, shell, app, Menu, screen } = require('electron');
 const configs = require('./windowConfigs');
 const { protectWindow } = require('./contentProtection');
 const { configureMacWindowPrivacy } = require('./macPrivacy');
+const { normalizeWindowOpacity } = require('./windowOpacity');
 const log = require('electron-log');
 
 const FLOATING_HEAD_SIZE = 36;
+const OPACITY_WINDOW_NAMES = new Set([
+  'command',
+  'chat',
+  'voice',
+  'susurroSetup',
+  'susurro',
+  'suggestions',
+  'settings'
+]);
 
 /**
  * WindowManager handles the lifecycle and management of all application windows.
@@ -82,6 +92,7 @@ class WindowManager {
     const win = new BrowserWindow(config);
     this.windows[name] = win;
     configureMacWindowPrivacy(win);
+    this.applyConfiguredWindowOpacity(win, name);
 
     // Load URL or File
     log.info(`[WINDOW_MANAGER] Loading URL for ${name}:`, config.url);
@@ -504,6 +515,41 @@ class WindowManager {
       { width: FLOATING_HEAD_SIZE, height: FLOATING_HEAD_SIZE },
       immediate
     );
+  }
+
+  getConfiguredWindowOpacity() {
+    try {
+      const jsonStore = require('../store/jsonStore');
+      return normalizeWindowOpacity(jsonStore.getSettings()?.general?.windowOpacity);
+    } catch (error) {
+      log.warn('[WINDOW_MANAGER] Failed to read window opacity:', error.message);
+      return normalizeWindowOpacity(undefined);
+    }
+  }
+
+  applyWindowOpacity(win, opacity, name = 'window') {
+    if (!win || win.isDestroyed() || typeof win.setOpacity !== 'function') return;
+
+    const normalized = normalizeWindowOpacity(opacity);
+    try {
+      win.setOpacity(normalized);
+      log.info(`[WINDOW_MANAGER] Applied ${Math.round(normalized * 100)}% opacity to ${name}`);
+    } catch (error) {
+      log.warn(`[WINDOW_MANAGER] Failed to apply opacity to ${name}:`, error.message);
+    }
+  }
+
+  applyConfiguredWindowOpacity(win, name) {
+    if (!OPACITY_WINDOW_NAMES.has(name)) return;
+    this.applyWindowOpacity(win, this.getConfiguredWindowOpacity(), name);
+  }
+
+  applyAppWindowOpacity(opacity) {
+    Object.entries(this.windows).forEach(([name, win]) => {
+      if (OPACITY_WINDOW_NAMES.has(name)) {
+        this.applyWindowOpacity(win, opacity, name);
+      }
+    });
   }
 
   applyAlwaysOnTop(win, enabled, level = 'floating') {

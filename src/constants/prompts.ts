@@ -20,7 +20,7 @@ export interface MetisContext {
 
 /**
  * Builds a rich MetisContext object from the current environment.
- * Called in useGemini.ts before each inference.
+ * Used by the assistant before each inference.
  */
 export const buildMetisContext = (
   activeSkills: string = 'Nenhuma skill carregada ainda.',

@@ -1,29 +1,20 @@
 import React from 'react';
 import {
   Archive,
-  BadgeDollarSign,
-  CheckCircle2,
   Clock3,
-  Cloud,
-  LoaderCircle,
-  LogIn,
   Play,
   Radio,
   Save,
   Trash2
 } from 'lucide-react';
-import { GoogleCloudAuthStatus, InterviewConfig, InterviewSession } from '../../types/interview';
+import { InterviewConfig, InterviewSession } from '../../types/interview';
 
 interface InterviewSetupProps {
   config: InterviewConfig;
   recentSessions: InterviewSession[];
   error: string;
-  cloudAuthStatus: GoogleCloudAuthStatus | null;
-  isAuthenticatingCloud: boolean;
   pendingSession?: InterviewSession | null;
   onConfigChange: (config: InterviewConfig) => void;
-  onAuthenticateCloud: () => void;
-  onOpenCloudDataLogging: () => void;
   onStart: () => void;
   onSavePending: () => void;
   onLoadSession: (session: InterviewSession) => void;
@@ -35,12 +26,8 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({
   config,
   recentSessions,
   error,
-  cloudAuthStatus,
-  isAuthenticatingCloud,
   pendingSession,
   onConfigChange,
-  onAuthenticateCloud,
-  onOpenCloudDataLogging,
   onStart,
   onSavePending,
   onLoadSession,
@@ -96,6 +83,16 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({
           </label>
             </>
           )}
+          {config.mode === 'meeting' && (
+            <label>
+              <span>Empresa ou pessoa (opcional)</span>
+              <input
+                value={config.company}
+                onChange={event => update('company', event.target.value)}
+                placeholder="Ex.: Acme ou Maria Silva"
+              />
+            </label>
+          )}
           <label>
             <span>Idioma</span>
             <select value={config.language} onChange={event => update('language', event.target.value as InterviewConfig['language'])}>
@@ -111,20 +108,6 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({
               <option value="concise">Curta</option>
               <option value="star">STAR</option>
               <option value="technical">Tecnica</option>
-            </select>
-          </label>
-          <label className="interview-transcription-provider-field">
-            <span>Transcricao</span>
-            <select
-              value={config.transcriptionProvider}
-              onChange={event => update(
-                'transcriptionProvider',
-                event.target.value as InterviewConfig['transcriptionProvider']
-              )}
-            >
-              <option value="whisper-local">Whisper local (privado e sem custo)</option>
-              <option value="gemini-live">Gemini Live (apos pausas)</option>
-              <option value="google-cloud">Google Cloud (transcricao continua)</option>
             </select>
           </label>
         </div>
@@ -169,60 +152,6 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({
           <span>Contexto adicional</span>
           <textarea value={config.extraInstructions} onChange={event => update('extraInstructions', event.target.value)} rows={2} />
         </label>
-
-        {config.transcriptionProvider === 'google-cloud' && (
-        <>
-        <label className="interview-wide-field">
-          <span>Google Cloud Project ID</span>
-          <input
-            value={config.googleCloudProjectId}
-            onChange={event => update('googleCloudProjectId', event.target.value)}
-            placeholder="meu-projeto-google-cloud"
-          />
-        </label>
-        <div className={`interview-cloud-auth ${cloudAuthStatus?.authenticated ? 'connected' : ''}`}>
-          <div className="interview-cloud-auth-state">
-            {cloudAuthStatus?.authenticated ? <CheckCircle2 size={16} /> : <Cloud size={16} />}
-            <span>
-              <strong>Google Cloud Speech-to-Text</strong>
-              <small>
-                {cloudAuthStatus === null
-                  ? 'Verificando'
-                  : cloudAuthStatus.authenticated
-                    ? cloudAuthStatus.projectId || 'Conectado'
-                    : cloudAuthStatus.error || 'Nao conectado'}
-              </small>
-            </span>
-          </div>
-          <div className="interview-cloud-auth-actions">
-            <button
-              type="button"
-              className="interview-cloud-auth-button discount"
-              onClick={onOpenCloudDataLogging}
-              title="Abrir configuracao de data logging e desconto"
-            >
-              <BadgeDollarSign size={14} />
-              Menor custo
-            </button>
-            <button
-              type="button"
-              className="interview-cloud-auth-button"
-              onClick={onAuthenticateCloud}
-              disabled={isAuthenticatingCloud}
-            >
-              {isAuthenticatingCloud
-                ? <LoaderCircle className="spin" size={14} />
-                : <LogIn size={14} />}
-              {isAuthenticatingCloud
-                ? 'Aguardando login'
-                : cloudAuthStatus?.authenticated
-                  ? 'Reconectar'
-                  : 'Conectar'}
-            </button>
-          </div>
-        </div>
-        </>
-        )}
 
         <div className="interview-toggle-row">
           <label className="interview-toggle">
@@ -284,6 +213,14 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({
                           ? 'Concluída'
                           : 'Em andamento'}
                     </span>
+                    {item.status === 'completed' && item.config.retainAudio && (
+                      <span
+                        className={`interview-session-status status-${item.hermesMemory?.status === 'synced' ? 'completed' : 'pending'}`}
+                        title={item.hermesMemory?.error || 'Memória persistente da reunião no Hermes'}
+                      >
+                        Hermes: {item.hermesMemory?.status === 'synced' ? 'memorizado' : 'pendente'}
+                      </span>
+                    )}
                     <Clock3 size={10} />
                     {new Date(item.updatedAt).toLocaleString()}
                   </small>

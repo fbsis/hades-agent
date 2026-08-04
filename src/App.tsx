@@ -1,12 +1,13 @@
-import React, { useEffect } from 'react'
-import CommandBar from './components/CommandBar'
-import MiniChat from './components/MiniChat'
-import VoiceRecorder from './components/VoiceRecorder'
-import Susurro from './components/Susurro'
-import SuggestionsPopup from './components/SuggestionsPopup'
-import Splash from './components/Splash'
-import Settings from './components/Settings'
-import FloatingHead from './components/FloatingHead'
+import React, { Suspense, lazy, useEffect } from 'react'
+
+const CommandBar = lazy(() => import('./components/CommandBar'))
+const MiniChat = lazy(() => import('./components/MiniChat'))
+const VoiceRecorder = lazy(() => import('./components/VoiceRecorder'))
+const Susurro = lazy(() => import('./components/Susurro'))
+const SuggestionsPopup = lazy(() => import('./components/SuggestionsPopup'))
+const Splash = lazy(() => import('./components/Splash'))
+const Settings = lazy(() => import('./components/Settings'))
+const FloatingHead = lazy(() => import('./components/FloatingHead'))
 
 const App: React.FC = () => {
   const urlParams = new URLSearchParams(globalThis.location.search)
@@ -21,35 +22,17 @@ const App: React.FC = () => {
     console.log('[METIS RENDERER] Document visibilityState:', document.visibilityState)
   }, [windowType])
 
-  if (windowType === 'splash') {
-    return <Splash />
-  }
+  let content: React.ReactNode = <CommandBar />
 
-  if (windowType === 'chat') {
-    return <MiniChat />
-  }
+  if (windowType === 'splash') content = <Splash />
+  if (windowType === 'chat') content = <MiniChat />
+  if (windowType === 'voice') content = <VoiceRecorder />
+  if (windowType === 'susurro') content = <Susurro />
+  if (windowType === 'suggestions') content = <SuggestionsPopup />
+  if (windowType === 'settings') content = <Settings />
+  if (windowType === 'floating-head') content = <FloatingHead />
 
-  if (windowType === 'voice') {
-    return <VoiceRecorder />
-  }
-
-  if (windowType === 'susurro') {
-    return <Susurro />
-  }
-
-  if (windowType === 'suggestions') {
-    return <SuggestionsPopup />
-  }
-
-  if (windowType === 'settings') {
-    return <Settings />
-  }
-
-  if (windowType === 'floating-head') {
-    return <FloatingHead />
-  }
-
-  return <CommandBar />
+  return <Suspense fallback={null}>{content}</Suspense>
 }
 
 export default App

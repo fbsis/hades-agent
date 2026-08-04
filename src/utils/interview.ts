@@ -36,7 +36,7 @@ export const selectScreenAnswerVariant = (
 export const canUseInterviewActionShortcut = (
   status: InterviewSessionStatus | undefined,
   mode: MeetingMode | undefined
-): boolean => status === 'active' && mode === 'interview';
+): boolean => status === 'active' && (mode === 'interview' || mode === 'meeting');
 
 export const sourceLabel = (source: InterviewSource): string => ({
   interviewer: 'Entrevistador',

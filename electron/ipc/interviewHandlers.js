@@ -1,5 +1,4 @@
 const { BrowserWindow, desktopCapturer, ipcMain, screen } = require('electron');
-const googleCloudAuthService = require('../services/googleCloudAuthService');
 const interviewRecordingService = require('../services/interviewRecordingService');
 const interviewService = require('../services/interviewService');
 const interviewTranscriptionService = require('../services/interviewTranscriptionService');
@@ -23,14 +22,6 @@ function wrap(handler) {
 }
 
 function registerInterviewHandlers() {
-  ipcMain.handle('google-cloud-auth-status', wrap(() => (
-    googleCloudAuthService.getStatus()
-  )));
-
-  ipcMain.handle('google-cloud-auth-login', wrap((event, projectId) => (
-    googleCloudAuthService.login(projectId)
-  )));
-
   ipcMain.handle('interview-create-session', wrap((event, config, options) => (
     interviewService.createSession(config || {}, options || {})
   )));
@@ -48,7 +39,16 @@ function registerInterviewHandlers() {
   ipcMain.handle('interview-finish-session', wrap(async (event, sessionId) => {
     await interviewTranscriptionService.stopSession(sessionId);
     await interviewRecordingService.stopSession(sessionId);
-    return interviewService.finishSession(sessionId);
+    const finished = interviewService.finishSession(sessionId);
+    if (finished.status === 'completed') {
+      const timer = setTimeout(() => {
+        require('../services/dreamService').runDreamCycle().catch(error => {
+          logger.error('INTERVIEW_IPC', 'Recorded meeting Dreaming cycle failed', error);
+        });
+      }, 250);
+      timer.unref?.();
+    }
+    return finished;
   }));
 
   ipcMain.handle('interview-archive-session', wrap((event, sessionId) => (

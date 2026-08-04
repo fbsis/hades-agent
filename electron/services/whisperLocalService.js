@@ -25,6 +25,18 @@ function languageCode(language) {
   return 'auto';
 }
 
+const PORTUGUESE_VOCABULARY_PATTERN = /(?:[áàâãéêíóôõúç]|\b(?:a|ao|aos|as|com|da|das|de|do|dos|e|em|esta|para|por|que|uma|um)\b)/i;
+
+function vocabularyForLanguage(vocabulary, language) {
+  const normalized = (Array.isArray(vocabulary) ? vocabulary : [])
+    .map(value => String(value || '').replace(/\s+/g, ' ').trim())
+    .filter(Boolean);
+  if (language !== 'en-US') return normalized.slice(0, 8);
+  return normalized
+    .filter(value => !PORTUGUESE_VOCABULARY_PATTERN.test(value))
+    .slice(0, 8);
+}
+
 function createWav(pcm) {
   const header = Buffer.alloc(44);
   header.write('RIFF', 0);
@@ -351,11 +363,12 @@ class WhisperLocalService {
     form.append('file', new Blob([createWav(pcm)], { type: 'audio/wav' }), 'audio.wav');
     form.append('response_format', 'json');
     form.append('language', languageCode(record.language));
+    form.append('translate', 'false');
+    form.append('detect_language', 'false');
     form.append('temperature', '0.0');
     form.append('no_speech_thold', '0.6');
-    if (record.customVocabulary.length) {
-      form.append('prompt', record.customVocabulary.slice(0, 8).join(', '));
-    }
+    // whisper-server reuses request parameters, so an empty prompt must overwrite stale context.
+    form.append('prompt', vocabularyForLanguage(record.customVocabulary, record.language).join(', '));
 
     const response = await this.fetch(`http://127.0.0.1:${this.port}/inference`, {
       method: 'POST',
@@ -446,6 +459,7 @@ module.exports = new WhisperLocalService();
 module.exports.WhisperLocalService = WhisperLocalService;
 module.exports.createWav = createWav;
 module.exports.languageCode = languageCode;
+module.exports.vocabularyForLanguage = vocabularyForLanguage;
 module.exports.mergeTranscript = mergeTranscript;
 module.exports.MODEL_FILE = MODEL_FILE;
 module.exports.VAD_MODEL_FILE = VAD_MODEL_FILE;

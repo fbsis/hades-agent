@@ -5,6 +5,7 @@ const sessionLogger = require('./sessionLogger');
 const { getMetisDataPath } = require('./metisDataPath');
 const openaiResponsesService = require('./openaiResponsesService');
 const jsonStore = require('../store/jsonStore');
+const { shouldSyncRecordedMeeting } = require('./recordedMeetingMemory');
 
 const MAX_SYNCED_DREAM_CYCLES = 10;
 const HERMES_SYNC_BATCH_SIZE = 3;
@@ -25,6 +26,7 @@ class DreamService {
     if (!fs.existsSync(this.memoryDir)) {
       fs.mkdirSync(this.memoryDir, { recursive: true });
     }
+    this.activeCycle = null;
   }
 
   getLearningsPath() {
@@ -105,7 +107,72 @@ class DreamService {
     return entries;
   }
 
+  async syncRecordedMeetings() {
+    const candidates = jsonStore.getInterviewSessions().filter(shouldSyncRecordedMeeting);
+    if (candidates.length === 0) return 0;
+
+    const hermesService = require('./hermesService');
+    logger.info('DreamService', `Synchronizing ${candidates.length} recorded meeting(s) with Hermes memory...`);
+
+    let synced = 0;
+    for (const candidate of candidates) {
+      let result;
+      try {
+        result = await hermesService.rememberRecordedMeeting(candidate);
+      } catch (error) {
+        result = { success: false, error: error.message };
+      }
+
+      const sessions = jsonStore.getInterviewSessions();
+      const index = sessions.findIndex(session => session.id === candidate.id);
+      if (index < 0) continue;
+
+      const attemptedAt = new Date().toISOString();
+      const attempts = Number(sessions[index].hermesMemory?.attempts || 0) + 1;
+      sessions[index] = {
+        ...sessions[index],
+        hermesMemory: result?.success
+          ? {
+              status: 'synced',
+              attempts,
+              memoryId: result.memoryId || `metis-recorded-session:${candidate.id}`,
+              syncedAt: attemptedAt,
+              response: String(result.text || '').slice(0, 4000)
+            }
+          : {
+              status: 'pending',
+              attempts,
+              lastAttemptAt: attemptedAt,
+              error: result?.error || result?.reason || 'Hermes indisponivel.'
+            }
+      };
+      jsonStore.saveInterviewSessions(sessions);
+
+      if (result?.success) {
+        synced += 1;
+        logger.info('DreamService', `Recorded meeting ${candidate.id} synchronized with Hermes.`);
+      } else {
+        logger.warn(
+          'DreamService',
+          `Recorded meeting ${candidate.id} remains pending: ${result?.error || result?.reason || 'unavailable'}`
+        );
+      }
+    }
+
+    return synced;
+  }
+
   async runDreamCycle() {
+    if (this.activeCycle) return this.activeCycle;
+    this.activeCycle = this.executeDreamCycle();
+    try {
+      return await this.activeCycle;
+    } finally {
+      this.activeCycle = null;
+    }
+  }
+
+  async executeDreamCycle() {
     logger.info('DreamService', 'Starting dream cycle...');
     const settings = jsonStore.getSettings();
     
@@ -118,6 +185,8 @@ class DreamService {
     let currentLearnings = this.loadLearningEntries();
     currentLearnings = await this.syncPendingLearnings(currentLearnings);
     currentLearnings = this.saveLearningEntries(currentLearnings);
+
+    await this.syncRecordedMeetings();
 
     const sessions = sessionLogger.getUnprocessedSessions();
     if (sessions.length === 0) {

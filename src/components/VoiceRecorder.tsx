@@ -4,7 +4,7 @@ import { useVoiceRecorder } from '../hooks/useVoiceRecorder';
 import { electronService } from '../services/electron';
 
 /**
- * VoiceRecorder: One-shot voice command recorder with Gemini transcription.
+ * VoiceRecorder: One-shot voice command recorder with OpenAI transcription.
  * Optimized with useVoiceRecorder hook and shared audio utilities.
  */
 interface VoiceRecorderProps {

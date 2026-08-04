@@ -9,8 +9,8 @@ describe('resolveInterviewTranscriptionProvider', () => {
     expect(resolveInterviewTranscriptionProvider('unknown')).toBe('whisper-local');
   });
 
-  it('keeps explicitly selected remote providers', () => {
-    expect(resolveInterviewTranscriptionProvider('google-cloud')).toBe('google-cloud');
-    expect(resolveInterviewTranscriptionProvider('gemini-live')).toBe('gemini-live');
+  it('migrates saved remote providers to local Whisper', () => {
+    expect(resolveInterviewTranscriptionProvider('legacy-remote')).toBe('whisper-local');
+    expect(resolveInterviewTranscriptionProvider('unknown-provider')).toBe('whisper-local');
   });
 });

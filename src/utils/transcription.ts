@@ -13,7 +13,7 @@ export const updateMessageWithDeltas = (
   let msg = { ...newMessages[index] };
 
   deltas.forEach(delta => {
-    // The Gemini Live API sends text segments that include their own leading/trailing spaces.
+    // Streaming transcription segments may include their own leading/trailing spaces.
     // We must concatenate them directly without adding extra spaces or aggressive trimming.
     const currentFullText = (msg.text || "") + (msg.pendingText || "");
     const updatedText = currentFullText + delta.text;

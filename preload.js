@@ -13,6 +13,12 @@ contextBridge.exposeInMainWorld('electron', {
     ipcRenderer.on('new-message', sub);
     return () => ipcRenderer.removeListener('new-message', sub);
   },
+  askOpenAIChatStream: (args) => ipcRenderer.invoke('openai-chat-stream', args),
+  onOpenAIChatStreamEvent: (callback) => {
+    const sub = (_event, payload) => callback(payload);
+    ipcRenderer.on('openai-chat-stream-event', sub);
+    return () => ipcRenderer.removeListener('openai-chat-stream-event', sub);
+  },
   onFocusInput: (callback) => {
     const sub = (_event) => callback();
     ipcRenderer.on('focus-input', sub);
@@ -125,8 +131,6 @@ contextBridge.exposeInMainWorld('electron', {
   askSusurroTranscript: (data) => ipcRenderer.invoke('ask-susurro-transcript', data),
 
   // --- Interview Copilot ---
-  getGoogleCloudAuthStatus: () => ipcRenderer.invoke('google-cloud-auth-status'),
-  loginGoogleCloud: (projectId) => ipcRenderer.invoke('google-cloud-auth-login', projectId),
   createInterviewSession: (config, options) => ipcRenderer.invoke('interview-create-session', config, options),
   listInterviewSessions: () => ipcRenderer.invoke('interview-list-sessions'),
   loadInterviewSession: (sessionId) => ipcRenderer.invoke('interview-load-session', sessionId),
@@ -225,6 +229,7 @@ contextBridge.exposeInMainWorld('electron', {
   // --- Settings ---
   getSettings: () => ipcRenderer.invoke('get-settings'),
   saveSettings: (settings) => ipcRenderer.invoke('save-settings', settings),
+  setWindowOpacity: (opacity) => ipcRenderer.invoke('set-window-opacity', opacity),
   applyStealthMode: (enabled) => ipcRenderer.invoke('apply-stealth-mode', enabled),
   getHistoryData: () => ipcRenderer.invoke('get-history-data'),
   onSettingsUpdated: (callback) => {

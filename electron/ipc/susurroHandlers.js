@@ -2,7 +2,6 @@ const { ipcMain } = require('electron');
 const store = require('../store/jsonStore');
 const aiService = require('../services/aiService');
 const translationService = require('../services/translationService');
-const geminiLiveService = require('../services/geminiLiveService');
 const windowManager = require('../windows/windowManager');
 const logger = require('../services/logger');
 
@@ -84,7 +83,6 @@ function registerSusurroHandlers() {
     }
   });
   
-  // --- Real-time Transcription (Gemini Live) ---
   ipcMain.on('toggle-mic', (event, enabled) => {
     logger.info('IPC', `Microphone toggled: ${enabled}`);
   });
@@ -93,33 +91,6 @@ function registerSusurroHandlers() {
     logger.info('IPC', `System audio toggled: ${enabled}`);
   });
 
-  ipcMain.on('susurro-send-chunk', (event, chunk, seq) => {
-    geminiLiveService.sendLegacyChunk(chunk, seq);
-  });
-
-  ipcMain.on('susurro-audio-stream-end', () => {
-    geminiLiveService.sendLegacyAudioStreamEnd('renderer_pause');
-  });
-
-  ipcMain.handle('susurro-start-live', async (event, personaPrompt) => {
-    try {
-      const started = await geminiLiveService.start(event, personaPrompt);
-      return { success: started, data: started };
-    } catch (error) {
-      logger.error('IPC', 'susurro-start-live error', error);
-      return { success: false, error: error.message };
-    }
-  });
-
-  ipcMain.handle('susurro-stop-live', async () => {
-    try {
-      geminiLiveService.stop();
-      return { success: true, data: true };
-    } catch (error) {
-      logger.error('IPC', 'susurro-stop-live error', error);
-      return { success: false, error: error.message };
-    }
-  });
 }
 
 module.exports = registerSusurroHandlers;

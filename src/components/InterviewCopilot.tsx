@@ -46,11 +46,7 @@ const InterviewCopilot: React.FC<InterviewCopilotProps> = ({ embedded = false, o
           <div className="interview-source-statuses">
             <span
               className={`source-status status-${copilot.sourceStatuses.interviewer?.status || 'idle'}`}
-              title={copilot.sourceStatuses.interviewer?.provider === 'google-cloud'
-                ? 'Google Cloud Speech-to-Text com resultados intermediarios'
-                : copilot.sourceStatuses.interviewer?.provider === 'whisper-local'
-                  ? 'Whisper local, privado e sem custo de API'
-                  : 'Gemini Live'}
+              title="Whisper local, privado e sem custo de API"
             >
               <Headphones size={12} /> Sistema
             </span>
@@ -93,7 +89,7 @@ const InterviewCopilot: React.FC<InterviewCopilotProps> = ({ embedded = false, o
                 className="interview-quick-answer-button"
                 onClick={copilot.quickAnswer}
                 disabled={copilot.isPreparingQuickAnswer}
-                title="Atualizar a transcricao e gerar um resumo com ate cinco topicos"
+                title="Atualizar a transcrição e gerar uma resposta rápida"
               >
                 <Zap size={14} />
                 {copilot.isPreparingQuickAnswer ? 'Preparando' : 'Resposta rapida'}
@@ -146,12 +142,8 @@ const InterviewCopilot: React.FC<InterviewCopilotProps> = ({ embedded = false, o
           config={copilot.config}
           recentSessions={copilot.recentSessions}
           error={copilot.error}
-          cloudAuthStatus={copilot.cloudAuthStatus}
-          isAuthenticatingCloud={copilot.isAuthenticatingCloud}
           pendingSession={copilot.session?.status === 'pending' ? copilot.session : null}
           onConfigChange={copilot.setConfig}
-          onAuthenticateCloud={copilot.authenticateGoogleCloud}
-          onOpenCloudDataLogging={copilot.openCloudDataLogging}
           onStart={copilot.startListening}
           onSavePending={copilot.savePendingSession}
           onLoadSession={copilot.loadSession}
@@ -166,6 +158,9 @@ const InterviewCopilot: React.FC<InterviewCopilotProps> = ({ embedded = false, o
               <span><strong>Título</strong>{copilot.session.config.title || copilot.session.title}</span>
               {copilot.session.config.mode === 'interview' && (
                 <span><strong>Cargo / Empresa</strong>{[copilot.session.config.role, copilot.session.config.company].filter(Boolean).join(' / ') || 'Nao informado'}</span>
+              )}
+              {copilot.session.config.mode === 'meeting' && copilot.session.config.company && (
+                <span><strong>Empresa / pessoa</strong>{copilot.session.config.company}</span>
               )}
               <span><strong>Idioma</strong>{copilot.session.config.language}</span>
               <span><strong>Estilo</strong>{copilot.session.config.answerStyle}</span>
