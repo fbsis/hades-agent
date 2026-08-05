@@ -5,7 +5,11 @@ const sessionLogger = require('./sessionLogger');
 const { getMetisDataPath } = require('./metisDataPath');
 const openaiResponsesService = require('./openaiResponsesService');
 const jsonStore = require('../store/jsonStore');
-const { shouldSyncRecordedMeeting } = require('./recordedMeetingMemory');
+const {
+  RECORDED_MEETING_SUMMARY_INSTRUCTIONS,
+  buildRecordedMeetingSummaryInput,
+  shouldSyncRecordedMeeting
+} = require('./recordedMeetingMemory');
 
 const MAX_SYNCED_DREAM_CYCLES = 10;
 const HERMES_SYNC_BATCH_SIZE = 3;
@@ -107,18 +111,105 @@ class DreamService {
     return entries;
   }
 
+  saveRecordedMeetingMemory(sessionId, hermesMemory) {
+    const sessions = jsonStore.getInterviewSessions();
+    const index = sessions.findIndex(session => session.id === sessionId);
+    if (index < 0) return null;
+
+    sessions[index] = { ...sessions[index], hermesMemory };
+    jsonStore.saveInterviewSessions(sessions);
+    return sessions[index];
+  }
+
+  async summarizeRecordedMeeting(session, settings) {
+    const cachedSummary = String(session.hermesMemory?.summary || '').trim();
+    if (cachedSummary) {
+      return {
+        summary: cachedSummary,
+        provider: session.hermesMemory?.summaryProvider || 'existing',
+        model: session.hermesMemory?.summaryModel,
+        responseId: session.hermesMemory?.summaryResponseId,
+        usage: session.hermesMemory?.summaryUsage
+      };
+    }
+
+    const existingSummary = String(session.summary || '').trim();
+    if (existingSummary) {
+      return { summary: existingSummary, provider: 'existing' };
+    }
+
+    const apiKey = settings?.general?.openaiApiKey || process.env.OPENAI_API_KEY;
+    if (!apiKey) throw new Error('OpenAI API key ausente para resumir a reuniao gravada.');
+
+    const maxTranscriptChars = settings?.hermes?.meetingSummaryMaxChars || 12000;
+    const summaryInput = buildRecordedMeetingSummaryInput(session, maxTranscriptChars);
+    if (!summaryInput.transcript) throw new Error('Reuniao gravada sem transcricao para resumir.');
+
+    const model = settings?.general?.dreamingModel || 'gpt-5.6-luna';
+    const response = await openaiResponsesService.generateText({
+      apiKey,
+      model,
+      instructions: RECORDED_MEETING_SUMMARY_INSTRUCTIONS,
+      input: summaryInput.input,
+      maxOutputTokens: 1000,
+      reasoningEffort: 'none',
+      verbosity: 'low'
+    });
+
+    return {
+      summary: response.text.trim(),
+      provider: 'openai',
+      model: response.model || model,
+      responseId: response.responseId,
+      usage: response.usage
+    };
+  }
+
   async syncRecordedMeetings() {
     const candidates = jsonStore.getInterviewSessions().filter(shouldSyncRecordedMeeting);
     if (candidates.length === 0) return 0;
 
+    const settings = jsonStore.getSettings();
     const hermesService = require('./hermesService');
     logger.info('DreamService', `Synchronizing ${candidates.length} recorded meeting(s) with Hermes memory...`);
 
     let synced = 0;
     for (const candidate of candidates) {
+      const attemptedAt = new Date().toISOString();
+      const attempts = Number(candidate.hermesMemory?.attempts || 0) + 1;
+      let summaryResult;
+
+      try {
+        summaryResult = await this.summarizeRecordedMeeting(candidate, settings);
+      } catch (error) {
+        this.saveRecordedMeetingMemory(candidate.id, {
+          ...candidate.hermesMemory,
+          status: 'pending',
+          attempts,
+          lastAttemptAt: attemptedAt,
+          error: error.message
+        });
+        logger.warn('DreamService', `Recorded meeting ${candidate.id} summary pending: ${error.message}`);
+        continue;
+      }
+
+      const pendingMemory = {
+        status: 'pending',
+        attempts,
+        memoryId: candidate.hermesMemory?.memoryId || `metis-recorded-session:${candidate.id}`,
+        lastAttemptAt: attemptedAt,
+        summary: summaryResult.summary,
+        summaryProvider: summaryResult.provider,
+        summaryModel: summaryResult.model,
+        summaryResponseId: summaryResult.responseId,
+        summaryUsage: summaryResult.usage
+      };
+      const summarizedSession = this.saveRecordedMeetingMemory(candidate.id, pendingMemory)
+        || { ...candidate, hermesMemory: pendingMemory };
+
       let result;
       try {
-        result = await hermesService.rememberRecordedMeeting(candidate);
+        result = await hermesService.rememberRecordedMeeting(summarizedSession);
       } catch (error) {
         result = { success: false, error: error.message };
       }
@@ -127,22 +218,19 @@ class DreamService {
       const index = sessions.findIndex(session => session.id === candidate.id);
       if (index < 0) continue;
 
-      const attemptedAt = new Date().toISOString();
-      const attempts = Number(sessions[index].hermesMemory?.attempts || 0) + 1;
       sessions[index] = {
         ...sessions[index],
         hermesMemory: result?.success
           ? {
+              ...pendingMemory,
               status: 'synced',
-              attempts,
               memoryId: result.memoryId || `metis-recorded-session:${candidate.id}`,
               syncedAt: attemptedAt,
               response: String(result.text || '').slice(0, 4000)
             }
           : {
+              ...pendingMemory,
               status: 'pending',
-              attempts,
-              lastAttemptAt: attemptedAt,
               error: result?.error || result?.reason || 'Hermes indisponivel.'
             }
       };

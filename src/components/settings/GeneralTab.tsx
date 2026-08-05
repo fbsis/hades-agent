@@ -198,7 +198,7 @@ const GeneralTab: React.FC<GeneralTabProps> = ({ settings, updateSettings }) => 
       <div className="setting-row">
         <div className="setting-info">
           <div className="setting-title">Ativar Dreaming</div>
-          <div className="setting-desc">A OpenAI consolida conversas e todas as reuniões gravadas são enviadas diretamente ao Hermes para memória persistente.</div>
+          <div className="setting-desc">A OpenAI filtra conversas e reuniões gravadas; o Hermes recebe somente os resumos úteis para memória persistente.</div>
         </div>
         <div className="setting-control">
           <label className="switch" aria-label="Ativar Dreaming">

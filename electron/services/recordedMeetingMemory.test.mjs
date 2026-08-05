@@ -3,6 +3,7 @@ import memoryModule from './recordedMeetingMemory.js';
 
 const {
   buildRecordedMeetingMemoryPrompt,
+  buildRecordedMeetingSummaryInput,
   clipMeetingText,
   hasSavedRecording,
   shouldSyncRecordedMeeting
@@ -39,13 +40,25 @@ describe('recorded meeting memory', () => {
     })).toBe(false);
   });
 
-  it('builds a stable, contextual prompt for Hermes memory', () => {
-    const result = buildRecordedMeetingMemoryPrompt(recordedSession);
+  it('builds a compact transcript input for OpenAI summarization', () => {
+    const result = buildRecordedMeetingSummaryInput(recordedSession);
+
+    expect(result.input).toContain('Empresa ou pessoa: Acme');
+    expect(result.input).toContain('Outra pessoa: Vamos usar entrega');
+    expect(result.input).toContain('Usuario: Vou documentar');
+  });
+
+  it('sends only the filtered summary to Hermes memory', () => {
+    const result = buildRecordedMeetingMemoryPrompt(
+      recordedSession,
+      '- Decisao: usar entrega pelo menos uma vez.'
+    );
 
     expect(result.memoryId).toBe('metis-recorded-session:meeting-123');
     expect(result.prompt).toContain('Empresa ou pessoa: Acme');
-    expect(result.prompt).toContain('Outra pessoa: Vamos usar entrega');
-    expect(result.prompt).toContain('Usuario: Vou documentar');
+    expect(result.prompt).toContain('Decisao: usar entrega pelo menos uma vez.');
+    expect(result.prompt).not.toContain('Outra pessoa: Vamos usar entrega');
+    expect(result.prompt).not.toContain('<transcricao');
   });
 
   it('preserves the beginning and end when compacting a long transcript', () => {

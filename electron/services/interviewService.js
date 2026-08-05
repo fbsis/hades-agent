@@ -2,8 +2,11 @@ const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
 const store = require('../store/jsonStore');
-const hermesService = require('./hermesService');
 const openaiResponsesService = require('./openaiResponsesService');
+const {
+  RECORDED_MEETING_SUMMARY_INSTRUCTIONS,
+  buildRecordedMeetingSummaryInput
+} = require('./recordedMeetingMemory');
 const {
   DEFAULT_CONFIG,
   buildOpenAIInterviewPrompt,
@@ -198,53 +201,31 @@ class InterviewService {
   async summarizeSession(sessionId) {
     const session = this.getSession(sessionId);
     if (!session) throw new Error('Sessao nao encontrada.');
-    const transcript = (session.transcript || [])
-      .map(turn => `${turn.source}: ${String(turn.text || '').trim()}`)
-      .filter(line => !line.endsWith(':'))
-      .join('\n');
-    if (!transcript.trim()) throw new Error('Nao ha transcricao salva para resumir.');
+    const settings = store.getSettings();
+    const summaryInput = buildRecordedMeetingSummaryInput(
+      session,
+      settings?.hermes?.meetingSummaryMaxChars || 12000
+    );
+    if (!summaryInput.transcript) throw new Error('Nao ha transcricao salva para resumir.');
 
-    const instruction = [
-      'Resuma esta reuniao ou entrevista em Markdown compacto.',
-      'Use as secoes Resumo, Decisoes, Acoes, Perguntas abertas e Contexto.',
-      'Use somente bullets, omita secoes sem conteudo e preserve nomes, numeros e compromissos.',
-      'O resumo sera reutilizado como contexto para responder perguntas futuras.'
-    ].join(' ');
-    let provider = 'hermes';
-    let text = '';
-    const hermesResult = await hermesService.ask({
-      prompt: `Titulo: ${session.title}\n\n${clip(transcript, 16000)}`,
-      instruction,
-      includeLocalContext: false,
-      maxOutputTokens: 1200,
-      logType: 'meeting_summary',
-      primaryAgent: true
+    const apiKey = settings?.general?.openaiApiKey || process.env.OPENAI_API_KEY;
+    if (!apiKey) throw new Error('OpenAI API key nao configurada para resumir.');
+    const result = await openaiResponsesService.generateText({
+      apiKey,
+      model: settings?.general?.dreamingModel || 'gpt-5.6-luna',
+      instructions: RECORDED_MEETING_SUMMARY_INSTRUCTIONS,
+      input: summaryInput.input,
+      maxOutputTokens: 1000,
+      reasoningEffort: 'none',
+      verbosity: 'low'
     });
-
-    if (hermesResult.success && hermesResult.text) {
-      text = hermesResult.text.trim();
-    } else {
-      provider = 'openai';
-      const settings = store.getSettings();
-      const apiKey = settings?.general?.openaiApiKey || process.env.OPENAI_API_KEY;
-      if (!apiKey) throw new Error(hermesResult.error || 'Nenhuma IA configurada para resumir.');
-      const result = await openaiResponsesService.generateText({
-        apiKey,
-        model: 'gpt-5.6-sol',
-        instructions: instruction,
-        input: `Titulo: ${session.title}\n\n${clip(transcript, 16000)}`,
-        maxOutputTokens: 1600,
-        reasoningEffort: 'none',
-        verbosity: 'low'
-      });
-      text = result.text.trim();
-    }
+    const text = result.text.trim();
 
     if (!text) throw new Error('A IA nao retornou um resumo.');
     return this.updateSession(sessionId, {
       summary: text,
       summaryAt: new Date().toISOString(),
-      summaryProvider: provider
+      summaryProvider: 'openai'
     });
   }
 
@@ -263,8 +244,8 @@ class InterviewService {
       instructions: instruction,
       input: buildOpenAIInterviewPrompt(args),
       maxOutputTokens: args.variant === 'code' ? 8192 : 4096,
-      reasoningEffort: args.variant === 'code' ? 'low' : 'none',
-      verbosity: args.variant === 'code' ? 'medium' : 'low',
+      reasoningEffort: 'low',
+      verbosity: 'low',
       signal: controller.signal,
       onDelta: delta => {
         if (state.cancelled || !delta) return;

@@ -87,6 +87,11 @@ export interface InterviewSession {
     lastAttemptAt?: string;
     response?: string;
     error?: string;
+    summary?: string;
+    summaryProvider?: 'openai' | 'existing';
+    summaryModel?: string;
+    summaryResponseId?: string | null;
+    summaryUsage?: Record<string, unknown> | null;
   };
 }
 

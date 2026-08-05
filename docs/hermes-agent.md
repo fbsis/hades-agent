@@ -38,10 +38,12 @@ Depois da consolidacao:
 5. Se o Hermes estiver indisponivel, a entrada permanece `pending` e o Metis
    tenta novamente em um proximo ciclo sem chamar a OpenAI novamente.
 
-Reunioes e entrevistas gravadas nao passam por essa compactacao da OpenAI.
-Cada sessao concluida e enviada diretamente ao Hermes com um ID estavel,
-metadados, empresa ou pessoa, resumo existente e transcricao compacta. O estado
-`pending` ou `synced` fica salvo na propria sessao, evitando envios duplicados.
+Reunioes e entrevistas gravadas usam uma etapa propria de compactacao. A OpenAI
+remove conversa casual, repeticoes, hesitacoes, erros de transcricao e detalhes
+sem valor futuro. O Metis salva esse resumo e envia ao Hermes somente o resumo
+filtrado, metadados essenciais e um ID estavel. A transcricao bruta nunca e
+enviada ao Hermes. O estado `pending` ou `synced` fica salvo na propria sessao,
+evitando envios duplicados e novas chamadas a OpenAI durante retries do Hermes.
 
 Configure a chave em `Configuracoes > Configuracoes > OpenAI`. A chave e salva
 no arquivo de configuracoes criptografado do Metis. A requisicao usa
@@ -59,9 +61,10 @@ contexto configurado sao enviados diretamente em cada resposta de entrevista.
 Quando uma sessao com gravacao e concluida, o Metis dispara o Dreaming em background:
 
 - salva a transcricao final mesmo quando o controle separado de transcricao estiver desligado
-- envia titulo, data, empresa ou pessoa, contexto, resumo e transcricao ao Hermes
+- pede a OpenAI um resumo compacto, factual e reutilizavel da transcricao
+- envia ao Hermes somente titulo, data, empresa ou pessoa, contexto essencial e o resumo filtrado
 - exige uma memoria-base da reuniao e memorias reutilizaveis de decisoes, tarefas, pessoas, projetos, compromissos e preferencias
-- repete a sincronizacao em ciclos futuros se o Hermes estiver indisponivel
+- reutiliza o resumo salvo ao repetir a sincronizacao se o Hermes estiver indisponivel
 - nao reenvia uma sessao cujo ID ja esteja marcado como sincronizado
 
 Essa chamada usa o tipo `recorded_meeting_memory` no historico de uso do Hermes.
@@ -101,7 +104,7 @@ Abra `Settings > Agente` e configure:
 - `Session key`: escopo de memoria do Hermes. Use algo estavel, como `hades-default`.
 - `Modelo`: identificador do modelo OpenAI-compatible exposto pelo Hermes.
 - `Contexto max`: limite de caracteres enviados pelo Metis em cada chamada.
-- `Resumo reuniao max`: limite de caracteres enviados ao Hermes ao fechar uma transcricao.
+- `Transcricao para resumo max`: limite de caracteres da transcricao analisada pela OpenAI; o Hermes recebe somente o resumo resultante.
 - `Hermes como agente principal`: faz o MiniChat usar Hermes para o raciocinio principal, com OpenAI para imagens e fallback.
 
 Use `Testar Hermes` para validar a conexao.

@@ -154,12 +154,13 @@ The consolidation flow is:
 4. Metis tells Hermes that new learnings are available and asks the agent to commit them to its own persistent memory.
 5. Failed Hermes syncs remain pending and are retried during later Dreaming cycles.
 
-Recorded meetings and interviews follow a separate direct path that does not require OpenAI consolidation:
+Recorded meetings and interviews use a summary-first memory path:
 
 1. Finishing a session with saved audio persists its final transcript and starts a background Dreaming cycle.
-2. Metis sends Hermes a stable memory ID, session metadata, company/person, existing summary, and compact transcript.
-3. Hermes is instructed to always create a base memory for the meeting and retain reusable decisions, commitments, tasks, people, projects, preferences, and experiences.
-4. The session stores a `pending` or `synced` memory status. Pending sessions retry on later Dreaming cycles, while synced IDs are never sent twice.
+2. OpenAI filters the transcript into a compact summary containing only reusable context, decisions, commitments, tasks, people, projects, preferences, and experiences.
+3. Metis persists that summary locally, then sends Hermes only the filtered summary, essential session metadata, and a stable memory ID. The raw transcript is never sent to Hermes.
+4. Hermes is instructed to commit the useful facts to its persistent memory.
+5. The session stores a `pending` or `synced` memory status. A pending Hermes retry reuses the saved summary without another OpenAI request, while synced IDs are never sent twice.
 
 OpenAI is the only remote model provider used by Metis. Hermes still owns agent workflows and persistent memory when enabled; local Whisper owns continuous interview transcription.
 
@@ -180,7 +181,7 @@ Open **Options > Interview** or press `Alt+B`. A meeting can optionally identify
 - Use the answer toolbar to stop, copy, shorten, expand, rewrite as STAR, generate code, or retry.
 - Screen capture is manual. OpenAI Vision reads the current display, extracts the visible question, code, alternatives, and terminal context, then answers with the technical interview prompt.
 - Each OpenAI interview answer sends only the latest five conversation texts, session metadata, the configured resume and job description, and optional screen context. Requests use `store: false`.
-- Transcripts and answers are stored in `interview_sessions.json`. Audio recording is enabled by default and can be disabled per session; WAV artifacts are stored under the app's local `interview-audio` directory. Recorded sessions keep their transcript even if the separate transcript toggle is off, because that text is required for Hermes memory.
+- Transcripts and answers are stored in `interview_sessions.json`. Audio recording is enabled by default and can be disabled per session; WAV artifacts are stored under the app's local `interview-audio` directory. Recorded sessions keep their transcript even if the separate transcript toggle is off so OpenAI can create the filtered memory summary; Hermes receives only that summary.
 
 ---
 

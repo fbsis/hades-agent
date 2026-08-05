@@ -227,7 +227,7 @@ const HermesTab: React.FC<HermesTabProps> = ({ hermes, assistant, updateHermes, 
         <Field label="API key" type="password" value={hermes.apiKey} onChange={(value) => updateHermes({ apiKey: value })} />
         <Field label="Timeout ms" type="number" value={String(hermes.timeoutMs)} onChange={(value) => updateHermes({ timeoutMs: numberInput(Number(value), 30000) })} />
         <Field label="Contexto max" type="number" value={String(hermes.maxContextChars)} onChange={(value) => updateHermes({ maxContextChars: numberInput(Number(value), 3200) })} />
-        <Field label="Resumo reunião max" type="number" value={String(hermes.meetingSummaryMaxChars)} onChange={(value) => updateHermes({ meetingSummaryMaxChars: numberInput(Number(value), 12000) })} />
+        <Field label="Transcrição para resumo max" type="number" value={String(hermes.meetingSummaryMaxChars)} onChange={(value) => updateHermes({ meetingSummaryMaxChars: numberInput(Number(value), 12000) })} />
       </div>
 
       <ToggleRow
@@ -253,7 +253,7 @@ const HermesTab: React.FC<HermesTabProps> = ({ hermes, assistant, updateHermes, 
 
       <ToggleRow
         title="Memorizar reuniões gravadas"
-        description="Envia toda reunião ou entrevista concluída com gravação ao Hermes, com ID estável, contexto e transcrição, sem duplicar memória."
+        description="A OpenAI remove trechos descartáveis e envia ao Hermes somente um resumo útil, com ID estável e sem duplicar memória."
         checked={hermes.autoSummarizeMeetings}
         onChange={(value) => updateHermes({ autoSummarizeMeetings: value })}
       />
