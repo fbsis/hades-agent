@@ -119,7 +119,7 @@ const CommandBar: React.FC = () => {
     setActivePanel(activePanel === 'transcription' ? 'command' : 'transcription');
   };
 
-  const handleMinimizeToHead = () => {
+  const handleHideApp = () => {
     electronService.minimizeToHead();
   };
 
@@ -209,6 +209,10 @@ const CommandBar: React.FC = () => {
 
         <div className="footer-spacer" />
 
+        <span className="command-shortcut-hint" title="Use este atalho global para abrir ou esconder o Metis">
+          Abrir <kbd>Alt+D</kbd>
+        </span>
+
         <button
           type="button"
           className={`footer-btn icon-btn ${activePanel === 'settings' ? 'active' : ''}`}
@@ -242,10 +246,10 @@ const CommandBar: React.FC = () => {
         <button
           type="button"
           className="footer-btn icon-btn"
-          onClick={handleMinimizeToHead}
-          title="Minimizar para bolha"
-          aria-label="Minimizar para bolha"
-          data-tooltip="Minimizar"
+          onClick={handleHideApp}
+          title="Ocultar Metis — pressione Alt+D para abrir novamente"
+          aria-label="Ocultar Metis; pressione Alt+D para abrir novamente"
+          data-tooltip="Ocultar · reabrir com Alt+D"
         >
           <Minus size={14} />
         </button>

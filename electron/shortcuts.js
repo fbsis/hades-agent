@@ -35,7 +35,7 @@ function toggleCommandWindow() {
   }
   
   if (win.isVisible()) {
-    console.log('[SHORTCUTS] === ACTION: MINIMIZE TO FLOATING HEAD ===');
+    console.log('[SHORTCUTS] === ACTION: HIDE APP WINDOWS ===');
     windowManager.minimizeToFloatingHead(win);
   } else {
     console.log('[SHORTCUTS] === ACTION: SHOW UNIFIED COMMAND ===');

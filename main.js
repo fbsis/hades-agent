@@ -148,7 +148,7 @@ app.on('before-quit', () => {
 });
 
 app.on('window-all-closed', () => {
-  // Keep the process alive while the floating head is used as the restore affordance.
+  // Keep the process alive so global shortcuts can restore the hidden interface.
 });
 
 app.on('will-quit', () => {

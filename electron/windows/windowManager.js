@@ -702,7 +702,9 @@ class WindowManager {
       this.rememberLayoutBounds('commandBounds', anchorBounds, {}, true);
     }
 
-    this.showFloatingHead(anchorBounds);
+    // Keep Metis available through its global shortcuts without leaving a
+    // persistent floating control on top of the user's other applications.
+    this.hideFloatingHead();
     this.hideAppWindows();
   }
 

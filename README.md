@@ -187,7 +187,7 @@ Open **Options > Interview** or press `Alt+B`. A meeting can optionally identify
 
 ## <img src="https://api.iconify.design/lucide:keyboard.svg?color=%232dd4bf" width="22" height="22" align="center" style="vertical-align: middle; margin-right: 8px;" /> Keyboard Shortcuts
 
-Metis opens as a compact command window by default and can be minimized into a draggable floating bubble:
+Metis opens as a compact command window by default and can be hidden while it remains available through global shortcuts:
 
 | Shortcut | Action |
 | :--- | :--- |
