@@ -189,6 +189,7 @@ export interface ElectronAPI {
   getSettings: () => Promise<SettingsData>;
   saveSettings: (settings: SettingsData) => Promise<IPCResponse<void>>;
   setWindowOpacity: (opacity: number) => Promise<IPCResponse<number>>;
+  setCurrentWindowOpacity: (opacity: number) => Promise<IPCResponse<number>>;
   applyStealthMode: (enabled: boolean) => Promise<IPCResponse<void>>;
   getHistoryData: () => Promise<IPCResponse<{ susurroHistory: any[], chatHistory: any[] }>>;
   onSettingsUpdated: (callback: (settings: SettingsData) => void) => () => void;

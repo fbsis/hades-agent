@@ -41,6 +41,22 @@ const InterviewCopilot: React.FC<InterviewCopilotProps> = ({ embedded = false, o
   useEffect(() => { void refreshDocuments(); }, []);
 
   useEffect(() => {
+    if (embedded) return;
+    let cancelled = false;
+    const applyOpacity = (configuredOpacity: number) => {
+      if (cancelled) return;
+      void electronService.setCurrentWindowOpacity(view === 'live' ? configuredOpacity : 1);
+    };
+    void electronService.getSettings().then(settings => {
+      applyOpacity(settings?.general?.windowOpacity ?? 0.9);
+    });
+    const unsubscribe = electronService.onSettingsUpdated(settings => {
+      applyOpacity(settings.general.windowOpacity ?? 0.9);
+    });
+    return () => { cancelled = true; unsubscribe(); };
+  }, [embedded, view]);
+
+  useEffect(() => {
     if (copilot.session?.status === 'active') setView('live');
     if (copilot.session?.status === 'completed') setView('details');
   }, [copilot.session?.id, copilot.session?.status]);

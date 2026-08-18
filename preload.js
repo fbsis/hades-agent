@@ -233,6 +233,7 @@ contextBridge.exposeInMainWorld('electron', {
   getSettings: () => ipcRenderer.invoke('get-settings'),
   saveSettings: (settings) => ipcRenderer.invoke('save-settings', settings),
   setWindowOpacity: (opacity) => ipcRenderer.invoke('set-window-opacity', opacity),
+  setCurrentWindowOpacity: (opacity) => ipcRenderer.invoke('set-current-window-opacity', opacity),
   applyStealthMode: (enabled) => ipcRenderer.invoke('apply-stealth-mode', enabled),
   getHistoryData: () => ipcRenderer.invoke('get-history-data'),
   onSettingsUpdated: (callback) => {

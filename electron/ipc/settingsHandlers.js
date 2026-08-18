@@ -89,6 +89,20 @@ function registerSettingsHandlers() {
     }
   });
 
+  // Applies a temporary opacity only to the calling window without changing the saved preference.
+  ipcMain.handle('set-current-window-opacity', (event, opacity) => {
+    try {
+      const win = BrowserWindow.fromWebContents(event.sender);
+      if (!win || win.isDestroyed()) return { success: false, error: 'Window not found' };
+      const windowOpacity = normalizeWindowOpacity(opacity);
+      windowManager.applyWindowOpacity(win, windowOpacity, 'current-window');
+      return { success: true, data: windowOpacity };
+    } catch (err) {
+      logger.error('SETTINGS', 'set-current-window-opacity error', err);
+      return { success: false, error: err.message };
+    }
+  });
+
   // Backward-compatible IPC: callers can request protection, but cannot disable it.
   ipcMain.handle('apply-stealth-mode', () => {
     try {

@@ -357,6 +357,9 @@ class ElectronService {
   async setWindowOpacity(opacity: number) {
     return await this.handleResponse(this.electron?.setWindowOpacity(opacity), opacity, 'setWindowOpacity');
   }
+  async setCurrentWindowOpacity(opacity: number) {
+    return await this.handleResponse(this.electron?.setCurrentWindowOpacity(opacity), opacity, 'setCurrentWindowOpacity');
+  }
   async applyStealthMode(enabled: boolean) { return await this.handleResponse(this.electron?.applyStealthMode(enabled), undefined, 'applyStealthMode'); }
   async getHistoryData() { return await this.handleResponse(this.electron?.getHistoryData(), null, 'getHistoryData'); }
   onSettingsUpdated(callback: (settings: SettingsData) => void) {
