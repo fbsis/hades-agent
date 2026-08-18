@@ -1,16 +1,13 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Check,
-  FileText,
   Headphones,
   Mic,
   Minus,
   Pin,
   PinOff,
-  Plus,
   Radio,
   SlidersHorizontal,
-  Trash2,
   Zap
 } from 'lucide-react';
 import { useInterviewCopilot } from '../hooks/useInterviewCopilot';
@@ -19,6 +16,9 @@ import { electronService } from '../services/electron';
 import { InterviewSetup } from './interview/InterviewSetup';
 import { InterviewTranscript } from './interview/InterviewTranscript';
 import { InterviewAnswerPane } from './interview/InterviewAnswerPane';
+import { InterviewList } from './interview/InterviewList';
+import { InterviewDetails } from './interview/InterviewDetails';
+import { DEFAULT_INTERVIEW_CONFIG, InterviewSession } from '../types/interview';
 
 interface InterviewCopilotProps {
   embedded?: boolean;
@@ -27,22 +27,49 @@ interface InterviewCopilotProps {
 
 const InterviewCopilot: React.FC<InterviewCopilotProps> = ({ embedded = false, onClosePanel }) => {
   const copilot = useInterviewCopilot({ embedded, onClosePanel });
+  const [view, setView] = useState<'list' | 'form' | 'live' | 'details'>('list');
   const [isContextOpen, setIsContextOpen] = useState(false);
+  const [startSessionId, setStartSessionId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (copilot.session?.status === 'active') setView('live');
+    if (copilot.session?.status === 'completed') setView('details');
+  }, [copilot.session?.id, copilot.session?.status]);
+
+  useEffect(() => {
+    if (!startSessionId || copilot.session?.id !== startSessionId) return;
+    setStartSessionId(null);
+    void copilot.startListening();
+  }, [copilot.session?.id, copilot.startListening, startSessionId]);
+
+  const openSession = (session: InterviewSession) => {
+    copilot.loadSession(session);
+    setView(session.status === 'completed' ? 'details' : session.status === 'active' ? 'live' : 'form');
+  };
+
+  const createSession = async () => {
+    await copilot.newSession();
+    copilot.setConfig({ ...DEFAULT_INTERVIEW_CONFIG });
+    setView('form');
+  };
+
+  const returnToList = async () => {
+    if (copilot.session?.status !== 'active') await copilot.newSession();
+    setView('list');
+  };
+
   return (
     <div className={`app-container interview-copilot ${embedded ? 'embedded-susurro' : ''}`}>
       <header className="interview-header">
         <div className="interview-header-title">
           <Radio size={16} />
-          <span>{copilot.session?.title || 'Reunião'}</span>
-          {copilot.session?.status === 'pending' && (
-            <span className="interview-header-status">Pendente</span>
-          )}
-          {copilot.session?.status === 'active' && (
+          <span>{view === 'live' ? copilot.session?.title : 'Metis · Reuniões'}</span>
+          {view === 'live' && copilot.session?.status === 'active' && (
             <time>{formatTime(copilot.elapsedSeconds)}</time>
           )}
         </div>
 
-        {copilot.session?.status === 'active' && (
+        {view === 'live' && copilot.session?.status === 'active' && (
           <div className="interview-source-statuses">
             <span
               className={`source-status status-${copilot.sourceStatuses.interviewer?.status || 'idle'}`}
@@ -59,22 +86,7 @@ const InterviewCopilot: React.FC<InterviewCopilotProps> = ({ embedded = false, o
         )}
 
         <div className="interview-header-actions">
-          {copilot.session?.status === 'pending' && (
-            <>
-              <button type="button" className="interview-icon-button" onClick={copilot.newSession} title="Nova reunião">
-                <Plus size={15} />
-              </button>
-              <button
-                type="button"
-                className="interview-icon-button danger"
-                onClick={() => copilot.deleteSession(copilot.session!)}
-                title="Cancelar e excluir permanentemente"
-              >
-                <Trash2 size={15} />
-              </button>
-            </>
-          )}
-          {copilot.session && copilot.session.status !== 'pending' && (
+          {view === 'live' && copilot.session?.status === 'active' && (
             <>
               <button
                 type="button"
@@ -94,31 +106,7 @@ const InterviewCopilot: React.FC<InterviewCopilotProps> = ({ embedded = false, o
                 <Zap size={14} />
                 {copilot.isPreparingQuickAnswer ? 'Preparando' : 'Resposta rapida'}
               </button>
-              <button
-                type="button"
-                className="interview-icon-button"
-                onClick={copilot.summarizeSession}
-                disabled={copilot.isSummarizing || !copilot.session.transcript.length}
-                title={copilot.isSummarizing ? 'Resumindo transcrição' : 'Resumir transcrição'}
-              >
-                <FileText className={copilot.isSummarizing ? 'spin' : ''} size={15} />
-              </button>
-              <button type="button" className="interview-icon-button" onClick={copilot.newSession} title="Nova reunião">
-                <Plus size={15} />
-              </button>
-              <button
-                type="button"
-                className="interview-icon-button danger"
-                onClick={() => copilot.deleteSession(copilot.session!)}
-                title="Excluir permanentemente"
-              >
-                <Trash2 size={15} />
-              </button>
-              {copilot.session.status === 'active' && (
-                <button type="button" className="interview-icon-button" onClick={copilot.finishSession} title="Finalizar reunião">
-                  <Check size={15} />
-                </button>
-              )}
+              <button type="button" className="interview-finish-button" onClick={copilot.finishSession} title="Finalizar reunião"><Check size={15} /> Finalizar</button>
             </>
           )}
           {!embedded && (
@@ -137,20 +125,43 @@ const InterviewCopilot: React.FC<InterviewCopilotProps> = ({ embedded = false, o
         </div>
       </header>
 
-      {!copilot.session || copilot.session.status === 'pending' ? (
+      {view === 'list' && (
+        <InterviewList
+          sessions={copilot.recentSessions}
+          onCreate={createSession}
+          onOpen={openSession}
+          onEdit={openSession}
+          onStart={session => {
+            copilot.loadSession(session);
+            if (session.status === 'active') setView('live');
+            else setStartSessionId(session.id);
+          }}
+          onArchive={copilot.archiveSession}
+          onDelete={copilot.deleteSession}
+        />
+      )}
+      {view === 'form' && (
         <InterviewSetup
           config={copilot.config}
-          recentSessions={copilot.recentSessions}
           error={copilot.error}
-          pendingSession={copilot.session?.status === 'pending' ? copilot.session : null}
+          isEditing={copilot.session?.status === 'pending'}
           onConfigChange={copilot.setConfig}
           onStart={copilot.startListening}
-          onSavePending={copilot.savePendingSession}
-          onLoadSession={copilot.loadSession}
-          onArchiveSession={copilot.archiveSession}
-          onDeleteSession={copilot.deleteSession}
+          onSavePending={async () => { const saved = await copilot.savePendingSession(); if (saved) setView('list'); }}
+          onCancel={returnToList}
         />
-      ) : (
+      )}
+      {view === 'details' && copilot.session?.status === 'completed' && (
+        <InterviewDetails
+          session={copilot.session}
+          isSummarizing={copilot.isSummarizing}
+          onBack={returnToList}
+          onSummarize={copilot.summarizeSession}
+          onArchive={async () => { await copilot.archiveSession(copilot.session!.id); setView('list'); }}
+          onDelete={async () => { const deleted = await copilot.deleteSession(copilot.session!); if (deleted) setView('list'); }}
+        />
+      )}
+      {view === 'live' && copilot.session?.status === 'active' && (
         <>
           {isContextOpen && (
             <div className="interview-context-strip">

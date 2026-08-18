@@ -1,11 +1,32 @@
 import {
   InterviewAnswerVariant,
+  InterviewSession,
   InterviewSessionStatus,
   InterviewSource,
   MeetingMode,
   InterviewTranscriptDelta,
   TranscriptTurn
 } from '../types/interview';
+
+export interface InterviewSessionFilters {
+  query?: string;
+  mode?: 'all' | MeetingMode;
+  status?: 'all' | InterviewSessionStatus;
+}
+
+export const filterInterviewSessions = (
+  sessions: InterviewSession[],
+  filters: InterviewSessionFilters
+): InterviewSession[] => {
+  const query = (filters.query || '').trim().toLocaleLowerCase();
+  return sessions.filter(session => {
+    if (session.status === 'archived') return false;
+    if (filters.mode && filters.mode !== 'all' && session.config.mode !== filters.mode) return false;
+    if (filters.status && filters.status !== 'all' && session.status !== filters.status) return false;
+    return !query || [session.title, session.config.company, session.config.role]
+      .some(value => value?.toLocaleLowerCase().includes(query));
+  });
+};
 
 const QUESTION_PREFIXES = [
   /^(como|qual|quais|quando|onde|por que|porque|quem|quanto|conte|explique|descreva|fale|imagine|diga|poderia|voce pode|você pode|o que|em que|ja teve|já teve|me dê|me de)\b/i,

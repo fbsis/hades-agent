@@ -8,13 +8,15 @@ interface InterviewTranscriptProps {
   selectedTurnId: string | null;
   onSelect: (turn: TranscriptTurn) => void;
   onAnswer: (turn: TranscriptTurn) => void;
+  readOnly?: boolean;
 }
 
 export const InterviewTranscript: React.FC<InterviewTranscriptProps> = ({
   turns,
   selectedTurnId,
   onSelect,
-  onAnswer
+  onAnswer,
+  readOnly = false
 }) => {
   const endRef = useRef<HTMLDivElement>(null);
 
@@ -37,7 +39,7 @@ export const InterviewTranscript: React.FC<InterviewTranscriptProps> = ({
           <div
             key={turn.id}
             className={`interview-turn source-${turn.source} ${selectedTurnId === turn.id ? 'selected' : ''}`}
-            onClick={() => onSelect(turn)}
+            onClick={() => !readOnly && onSelect(turn)}
           >
             <div className="interview-turn-meta">
               <span>{sourceLabel(turn.source)}</span>
@@ -47,7 +49,7 @@ export const InterviewTranscript: React.FC<InterviewTranscriptProps> = ({
             <div className="interview-turn-text">
               {fullText || <span className="interview-listening-text">Ouvindo...</span>}
             </div>
-            {canAnswer && turn.isFinal && fullText && (
+            {!readOnly && canAnswer && turn.isFinal && fullText && (
               <button
                 type="button"
                 className="interview-inline-answer"

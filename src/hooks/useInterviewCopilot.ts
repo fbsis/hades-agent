@@ -88,12 +88,10 @@ export const useInterviewCopilot = (options: { embedded?: boolean; onClosePanel?
     };
     setRecentSessions(
       sessions
-        .filter(item => item.status !== 'archived')
         .sort((a, b) => (
           statusOrder[a.status] - statusOrder[b.status]
           || String(b.updatedAt).localeCompare(String(a.updatedAt))
         ))
-        .slice(0, 12)
     );
   }, []);
 
@@ -229,6 +227,10 @@ export const useInterviewCopilot = (options: { embedded?: boolean; onClosePanel?
   const startListening = useCallback(async () => {
     if (flowStatus === 'starting' || flowStatus === 'listening' || flowStatus === 'answering') return;
     setError('');
+    if (!config.title.trim()) {
+      setError('Informe um título antes de iniciar.');
+      return;
+    }
     setFlowStatus('starting');
 
     try {
@@ -365,8 +367,8 @@ export const useInterviewCopilot = (options: { embedded?: boolean; onClosePanel?
     }
     const finished = await electronService.finishInterviewSession(activeSession.id);
     if (finished) {
-      setSession(null);
-      sessionRef.current = null;
+      setSession(finished);
+      sessionRef.current = finished;
       setConfig({ ...DEFAULT_INTERVIEW_CONFIG, ...finished.config });
       setSelectedTurnId(null);
       setQuestionDraft('');
@@ -380,8 +382,11 @@ export const useInterviewCopilot = (options: { embedded?: boolean; onClosePanel?
   }, [refreshSessions, stopListening]);
 
   const savePendingSession = useCallback(async () => {
-    if (config.mode !== 'interview') return;
     setError('');
+    if (!config.title.trim()) {
+      setError('Informe um título antes de salvar.');
+      return null;
+    }
 
     const current = sessionRef.current;
     const saved = current?.status === 'pending'
@@ -393,8 +398,8 @@ export const useInterviewCopilot = (options: { embedded?: boolean; onClosePanel?
       : await electronService.createInterviewSession(config, { status: 'pending' });
 
     if (!saved) {
-      setError('Nao foi possivel salvar a entrevista pendente.');
-      return;
+      setError('Não foi possível salvar a sessão pendente.');
+      return null;
     }
 
     setSession(saved);
@@ -402,6 +407,7 @@ export const useInterviewCopilot = (options: { embedded?: boolean; onClosePanel?
     setConfig({ ...DEFAULT_INTERVIEW_CONFIG, ...saved.config });
     setFlowStatus('idle');
     await refreshSessions();
+    return saved;
   }, [config, refreshSessions]);
 
   const newSession = useCallback(async () => {
@@ -710,7 +716,7 @@ export const useInterviewCopilot = (options: { embedded?: boolean; onClosePanel?
       `"${target.title}" sera ${action} permanentemente.\n\n`
       + 'Transcricao, respostas, resumo e gravacoes salvas serao apagados. Esta acao nao pode ser desfeita.'
     );
-    if (!confirmed) return;
+    if (!confirmed) return false;
 
     const isCurrent = sessionRef.current?.id === target.id;
     if (isCurrent) {
@@ -724,7 +730,7 @@ export const useInterviewCopilot = (options: { embedded?: boolean; onClosePanel?
     const deleted = await electronService.deleteInterviewSession(target.id);
     if (!deleted) {
       setError('Nao foi possivel excluir a entrevista.');
-      return;
+      return false;
     }
 
     if (isCurrent) {
@@ -739,6 +745,7 @@ export const useInterviewCopilot = (options: { embedded?: boolean; onClosePanel?
       setError('');
     }
     await refreshSessions();
+    return true;
   }, [refreshSessions, stopMicrophoneRecording, stopSystemRecording]);
 
   useEffect(() => {

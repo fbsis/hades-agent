@@ -1,12 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { InterviewTranscriptDelta, TranscriptTurn } from '../types/interview';
+import { DEFAULT_INTERVIEW_CONFIG, InterviewSession, InterviewTranscriptDelta, TranscriptTurn } from '../types/interview';
 import {
   applyInterviewTranscriptDelta,
   buildCompactInterviewTranscript,
   canUseInterviewActionShortcut,
   isLikelyInterviewQuestion,
   selectScreenAnswerVariant,
-  selectInterviewContextTurns
+  selectInterviewContextTurns,
+  filterInterviewSessions
 } from './interview';
 
 const turn = (id: string, text: string, overrides: Partial<TranscriptTurn> = {}): TranscriptTurn => ({
@@ -188,5 +189,22 @@ describe('compact interview context', () => {
       turn('pending', '', { isFinal: false, pendingText: 'ainda falando' })
     ];
     expect(selectInterviewContextTurns(turns)).toEqual([turns[0]]);
+  });
+});
+
+describe('filterInterviewSessions', () => {
+  const session = (id: string, title: string, overrides: Partial<InterviewSession> = {}): InterviewSession => ({
+    id, title, status: 'completed', updatedAt: '2026-08-18T10:00:00.000Z',
+    config: { ...DEFAULT_INTERVIEW_CONFIG }, transcript: [], answers: [], ...overrides
+  });
+
+  it('combina busca, tipo e status e ignora arquivadas', () => {
+    const sessions = [
+      session('1', 'Daily Acme', { status: 'active', config: { ...DEFAULT_INTERVIEW_CONFIG, company: 'Acme' } }),
+      session('2', 'Entrevista backend', { status: 'pending', config: { ...DEFAULT_INTERVIEW_CONFIG, mode: 'interview', role: 'Backend' } }),
+      session('3', 'Antiga', { status: 'archived' })
+    ];
+    expect(filterInterviewSessions(sessions, { query: 'backend', mode: 'interview', status: 'pending' }).map(item => item.id)).toEqual(['2']);
+    expect(filterInterviewSessions(sessions, {}).map(item => item.id)).toEqual(['1', '2']);
   });
 });
