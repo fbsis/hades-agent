@@ -186,12 +186,26 @@ function buildInterviewInstruction(args = {}) {
     ].join(' ');
   }
 
+  if (variant === 'quick') {
+    return [
+      config.mode === 'meeting'
+        ? 'Act as a real-time meeting copilot for the participant.'
+        : 'Act as a real-time interview copilot for the candidate.',
+      'Infer the current question or conversational intent from the latest live fragments, even when the last fragment ends mid-word.',
+      'Answer in first person as words the participant can naturally say aloud.',
+      language.instruction,
+      candidateContextInstruction,
+      'Classify the inferred request and follow exactly one of these three formats:',
+      '1. Behavioral or generic experience question: for prompts such as "tell me about yourself", "tell me about a challenge", conflict, failure, achievement, leadership, teamwork or another request for a real example, tell a concise and convincing story using STAR. Use 5 to 7 independently readable Markdown bullets that clearly cover Situation, Task, Action and Result, adding useful reasoning, decisions or lessons where appropriate. Ground it in the supplied resume or conversation. If no documented example exists, describe a plausible hypothetical approach without presenting invented facts as real experience.',
+      '2. Technical question: explain the concept in exactly 7 concise, independently readable Markdown bullets using "- ". Cover the direct definition, how it works, the most important mechanics, one practical example or application, relevant trade-offs or limitations, a common pitfall, and a strong concluding point. Explain why the details matter so the answer demonstrates understanding instead of merely stating facts. Do not add headings, introductory prose, extra bullets or a conclusion outside those 7 bullets.',
+      '3. Any other conversational statement or request: do not force STAR or a technical explanation. Use 5 to 7 independently readable Markdown bullets that complement what the other person said, reaffirm the central point, explain the reasoning behind it, connect it to the supplied context, and add relevant implications, examples or trade-offs. Make the response persuasive so the participant sounds confident and demonstrates real understanding. Offer natural words the participant can say next; do not merely repeat or agree with the other person.',
+      'Choose only one format. Never combine the three formats.',
+      `Configured style: ${style}.`,
+      'Return only the answer the participant should use.'
+    ].join(' ');
+  }
+
   const variantInstruction = {
-    quick: [
-      'Infer the current question from the latest live fragments, even when the last fragment ends mid-word.',
-      'Answer the inferred question directly using the mandatory two-level bullet format.',
-      `Write exactly 7 concise bullets under ${language.summaryHeading} and exactly 7 concise bullets under ${language.detailHeading}. Keep all 14 bullets useful, distinct, and free of repetition or filler.`
-    ].join(' '),
     shorter: 'Rewrite as a much shorter answer that takes at most 30 seconds to say.',
     detail: 'Add useful concrete detail while keeping the answer easy to speak.',
     star: 'Use a compact STAR structure grounded in the candidate resume or memory.',
@@ -207,16 +221,10 @@ function buildInterviewInstruction(args = {}) {
     language.instruction,
     candidateContextInstruction,
     'When the supplied context lacks a relevant documented experience, you may create a plausible illustrative example, but frame it explicitly as an opinion, hypothetical approach, or what the candidate would do rather than as a verified past event.',
-    variant === 'quick'
-      ? ''
-      : 'Default length is 45 to 90 seconds. Keep the response easy to scan while the candidate is speaking.',
+    'Default length is 45 to 90 seconds. Keep the response easy to scan while the candidate is speaking.',
     'Always use this exact two-level Markdown structure for every answer, regardless of question type:',
-    variant === 'quick'
-      ? `"${language.summaryHeading}" followed by exactly 7 short bullet points using "- " that give the direct, essential answer.`
-      : `"${language.summaryHeading}" followed by 2 to 4 short bullet points using "- " that give the direct, essential answer.`,
-    variant === 'quick'
-      ? `"${language.detailHeading}" followed by exactly 7 advanced bullet points using "- " that demonstrate deeper knowledge through relevant details, trade-offs, edge cases, architecture, or concrete examples.`
-      : `"${language.detailHeading}" followed by 2 to 4 advanced bullet points using "- " that demonstrate deeper knowledge through relevant details, trade-offs, edge cases, architecture, or concrete examples.`,
+    `"${language.summaryHeading}" followed by 2 to 4 short bullet points using "- " that give the direct, essential answer.`,
+    `"${language.detailHeading}" followed by 2 to 4 advanced bullet points using "- " that demonstrate deeper knowledge through relevant details, trade-offs, edge cases, architecture, or concrete examples.`,
     'Keep each bullet independently readable while the candidate is speaking. Do not write prose paragraphs, introductions, or conclusions outside the bullets.',
     'For behavioral questions, distribute a compact STAR flow across the summary and advanced bullets without naming the STAR sections.',
     'For coding questions, use the summary and advanced bullets for the approach and trade-offs, then provide a Markdown code block after the bullets.',
