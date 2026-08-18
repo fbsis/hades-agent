@@ -133,9 +133,12 @@ contextBridge.exposeInMainWorld('electron', {
   // --- Interview Copilot ---
   createInterviewSession: (config, options) => ipcRenderer.invoke('interview-create-session', config, options),
   listInterviewSessions: () => ipcRenderer.invoke('interview-list-sessions'),
+  listInterviewDocuments: () => ipcRenderer.invoke('interview-list-documents'),
+  saveInterviewDocument: (document) => ipcRenderer.invoke('interview-save-document', document),
+  deleteInterviewDocument: (documentId) => ipcRenderer.invoke('interview-delete-document', documentId),
   loadInterviewSession: (sessionId) => ipcRenderer.invoke('interview-load-session', sessionId),
   updateInterviewSession: (sessionId, patch) => ipcRenderer.invoke('interview-update-session', sessionId, patch),
-  finishInterviewSession: (sessionId) => ipcRenderer.invoke('interview-finish-session', sessionId),
+  finishInterviewSession: (sessionId, options) => ipcRenderer.invoke('interview-finish-session', sessionId, options),
   archiveInterviewSession: (sessionId) => ipcRenderer.invoke('interview-archive-session', sessionId),
   deleteInterviewSession: (sessionId) => ipcRenderer.invoke('interview-delete-session', sessionId),
   summarizeInterviewSession: (sessionId) => ipcRenderer.invoke('interview-summarize-session', sessionId),

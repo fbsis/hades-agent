@@ -18,7 +18,9 @@ import { InterviewTranscript } from './interview/InterviewTranscript';
 import { InterviewAnswerPane } from './interview/InterviewAnswerPane';
 import { InterviewList } from './interview/InterviewList';
 import { InterviewDetails } from './interview/InterviewDetails';
-import { DEFAULT_INTERVIEW_CONFIG, InterviewSession } from '../types/interview';
+import { DEFAULT_INTERVIEW_CONFIG, InterviewContextDocument, InterviewSession } from '../types/interview';
+import { InterviewDocuments } from './interview/InterviewDocuments';
+import { getMeetingInactivityState } from '../utils/interview';
 
 interface InterviewCopilotProps {
   embedded?: boolean;
@@ -27,9 +29,16 @@ interface InterviewCopilotProps {
 
 const InterviewCopilot: React.FC<InterviewCopilotProps> = ({ embedded = false, onClosePanel }) => {
   const copilot = useInterviewCopilot({ embedded, onClosePanel });
-  const [view, setView] = useState<'list' | 'form' | 'live' | 'details'>('list');
+  const [view, setView] = useState<'list' | 'form' | 'live' | 'details' | 'documents'>('list');
   const [isContextOpen, setIsContextOpen] = useState(false);
   const [startSessionId, setStartSessionId] = useState<string | null>(null);
+  const [documents, setDocuments] = useState<InterviewContextDocument[]>([]);
+  const [inactivityWarningAt, setInactivityWarningAt] = useState<number | null>(null);
+  const [isAutoFinishing, setIsAutoFinishing] = useState(false);
+
+  const refreshDocuments = async () => setDocuments(await electronService.listInterviewDocuments());
+
+  useEffect(() => { void refreshDocuments(); }, []);
 
   useEffect(() => {
     if (copilot.session?.status === 'active') setView('live');
@@ -57,6 +66,32 @@ const InterviewCopilot: React.FC<InterviewCopilotProps> = ({ embedded = false, o
     if (copilot.session?.status !== 'active') await copilot.newSession();
     setView('list');
   };
+
+  const finishAndReturnToList = async (forceCompleted = false) => {
+    await copilot.finishSession({ forceCompleted });
+    setIsContextOpen(false);
+    setInactivityWarningAt(null);
+    setView('list');
+  };
+
+  useEffect(() => {
+    if (view !== 'live' || copilot.session?.status !== 'active') {
+      setInactivityWarningAt(null);
+      return;
+    }
+    const check = () => {
+      const state = getMeetingInactivityState(copilot.lastSpeechAt, inactivityWarningAt);
+      if (state === 'active' && inactivityWarningAt !== null) setInactivityWarningAt(null);
+      if (state === 'warning' && inactivityWarningAt === null) setInactivityWarningAt(Date.now());
+      if (state === 'finish' && !isAutoFinishing) {
+        setIsAutoFinishing(true);
+        void finishAndReturnToList(true).finally(() => setIsAutoFinishing(false));
+      }
+    };
+    check();
+    const timer = globalThis.setInterval(check, 1000);
+    return () => globalThis.clearInterval(timer);
+  }, [copilot.lastSpeechAt, copilot.session?.status, inactivityWarningAt, isAutoFinishing, view]);
 
   return (
     <div className={`app-container interview-copilot ${embedded ? 'embedded-susurro' : ''}`}>
@@ -106,7 +141,7 @@ const InterviewCopilot: React.FC<InterviewCopilotProps> = ({ embedded = false, o
                 <Zap size={14} />
                 {copilot.isPreparingQuickAnswer ? 'Preparando' : 'Resposta rapida'}
               </button>
-              <button type="button" className="interview-finish-button" onClick={copilot.finishSession} title="Finalizar reunião"><Check size={15} /> Finalizar</button>
+              <button type="button" className="interview-finish-button" onClick={() => finishAndReturnToList()} title="Finalizar reunião"><Check size={15} /> Finalizar</button>
             </>
           )}
           {!embedded && (
@@ -138,8 +173,21 @@ const InterviewCopilot: React.FC<InterviewCopilotProps> = ({ embedded = false, o
           }}
           onArchive={copilot.archiveSession}
           onDelete={copilot.deleteSession}
+          onDocuments={() => setView('documents')}
         />
       )}
+      {view === 'documents' && <InterviewDocuments
+        documents={documents}
+        onBack={() => setView('list')}
+        onSave={async document => {
+          await electronService.saveInterviewDocument(document);
+          await refreshDocuments();
+        }}
+        onDelete={async document => {
+          if (!globalThis.confirm(`Excluir o documento "${document.title}"? As reuniões deixarão de usar este contexto.`)) return;
+          if (await electronService.deleteInterviewDocument(document.id)) await refreshDocuments();
+        }}
+      />}
       {view === 'form' && (
         <InterviewSetup
           config={copilot.config}
@@ -149,6 +197,7 @@ const InterviewCopilot: React.FC<InterviewCopilotProps> = ({ embedded = false, o
           onStart={copilot.startListening}
           onSavePending={async () => { const saved = await copilot.savePendingSession(); if (saved) setView('list'); }}
           onCancel={returnToList}
+          documents={documents}
         />
       )}
       {view === 'details' && copilot.session?.status === 'completed' && (
@@ -163,6 +212,14 @@ const InterviewCopilot: React.FC<InterviewCopilotProps> = ({ embedded = false, o
       )}
       {view === 'live' && copilot.session?.status === 'active' && (
         <>
+          {inactivityWarningAt !== null && <div className="interview-inactivity-backdrop" role="dialog" aria-modal="true" aria-labelledby="inactivity-title">
+            <div className="interview-inactivity-dialog">
+              <span className="interview-inactivity-icon"><Radio size={19} /></span>
+              <h2 id="inactivity-title">Esta reunião ainda está ativa?</h2>
+              <p>Não detectamos nenhuma fala nos últimos 5 minutos. Se não houver fala ou ação nos próximos 5 minutos, a reunião será finalizada automaticamente.</p>
+              <div><button type="button" className="interview-cancel-button" onClick={() => finishAndReturnToList(true)}>Finalizar agora</button><button type="button" className="interview-primary-button" onClick={() => { copilot.markMeetingActive(); setInactivityWarningAt(null); }}>Continuar reunião</button></div>
+            </div>
+          </div>}
           {isContextOpen && (
             <div className="interview-context-strip">
               <span><strong>Tipo</strong>{copilot.session.config.mode === 'interview' ? 'Entrevista' : 'Reunião'}</span>

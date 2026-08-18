@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Archive, Edit3, FolderOpen, Play, Plus, Search, Trash2, X } from 'lucide-react';
+import { Archive, Edit3, FileText, FolderOpen, Play, Plus, Search, Trash2, X } from 'lucide-react';
 import { InterviewSession, InterviewSessionStatus, MeetingMode } from '../../types/interview';
 import { filterInterviewSessions } from '../../utils/interview';
 
@@ -11,6 +11,7 @@ interface InterviewListProps {
   onStart: (session: InterviewSession) => void;
   onArchive: (sessionId: string) => void;
   onDelete: (session: InterviewSession) => void;
+  onDocuments: () => void;
 }
 
 const statusLabel: Record<InterviewSessionStatus, string> = {
@@ -18,7 +19,7 @@ const statusLabel: Record<InterviewSessionStatus, string> = {
 };
 
 export const InterviewList: React.FC<InterviewListProps> = ({
-  sessions, onCreate, onOpen, onEdit, onStart, onArchive, onDelete
+  sessions, onCreate, onOpen, onEdit, onStart, onArchive, onDelete, onDocuments
 }) => {
   const [query, setQuery] = useState('');
   const [mode, setMode] = useState<'all' | MeetingMode>('all');
@@ -37,9 +38,7 @@ export const InterviewList: React.FC<InterviewListProps> = ({
           <h1>Reuniões e entrevistas</h1>
           <p>Organize, retome e consulte suas sessões.</p>
         </div>
-        <button type="button" className="interview-primary-button" onClick={onCreate}>
-          <Plus size={16} /> Nova reunião
-        </button>
+        <div className="interview-crud-primary-actions"><button type="button" className="interview-secondary-button" onClick={onDocuments}><FileText size={15} /> Documentos</button><button type="button" className="interview-primary-button" onClick={onCreate}><Plus size={16} /> Nova reunião</button></div>
       </div>
 
       <div className="interview-list-filters">

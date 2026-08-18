@@ -27,6 +27,9 @@ function registerInterviewHandlers() {
   )));
 
   ipcMain.handle('interview-list-sessions', wrap(() => interviewService.listSessions()));
+  ipcMain.handle('interview-list-documents', wrap(() => interviewService.listDocuments()));
+  ipcMain.handle('interview-save-document', wrap((event, document) => interviewService.saveDocument(document || {})));
+  ipcMain.handle('interview-delete-document', wrap((event, documentId) => interviewService.deleteDocument(documentId)));
 
   ipcMain.handle('interview-load-session', wrap((event, sessionId) => (
     interviewService.getSession(sessionId)
@@ -36,10 +39,10 @@ function registerInterviewHandlers() {
     interviewService.updateSession(sessionId, patch || {})
   )));
 
-  ipcMain.handle('interview-finish-session', wrap(async (event, sessionId) => {
+  ipcMain.handle('interview-finish-session', wrap(async (event, sessionId, options) => {
     await interviewTranscriptionService.stopSession(sessionId);
     await interviewRecordingService.stopSession(sessionId);
-    const finished = interviewService.finishSession(sessionId);
+    const finished = interviewService.finishSession(sessionId, options || {});
     if (finished.status === 'completed') {
       const timer = setTimeout(() => {
         require('../services/dreamService').runDreamCycle().catch(error => {

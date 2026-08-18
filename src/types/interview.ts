@@ -7,6 +7,14 @@ export type MeetingMode = 'meeting' | 'interview';
 export type InterviewTranscriptionProvider = 'whisper-local';
 export type InterviewAnswerVariant = 'answer' | 'quick' | 'shorter' | 'detail' | 'star' | 'code' | 'retry';
 
+export interface InterviewContextDocument {
+  id: string;
+  title: string;
+  content: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface InterviewConfig {
   mode: MeetingMode;
   title: string;
@@ -23,6 +31,7 @@ export interface InterviewConfig {
   transcribeMicrophone: boolean;
   saveTranscript: boolean;
   retainAudio: boolean;
+  contextDocumentIds: string[];
 }
 
 export interface TranscriptTurn {
@@ -154,5 +163,6 @@ export const DEFAULT_INTERVIEW_CONFIG: InterviewConfig = {
   extraInstructions: '',
   transcribeMicrophone: false,
   saveTranscript: true,
-  retainAudio: true
+  retainAudio: true,
+  contextDocumentIds: []
 };

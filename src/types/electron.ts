@@ -3,6 +3,7 @@ import type {
   InterviewAnswerEvent,
   InterviewAnswerVariant,
   InterviewConfig,
+  InterviewContextDocument,
   InterviewScreenAnalysis,
   InterviewSession,
   InterviewTranscriptDelta,
@@ -88,9 +89,12 @@ export interface ElectronAPI {
     options?: { status?: 'active' | 'pending' }
   ) => Promise<IPCResponse<InterviewSession>>;
   listInterviewSessions: () => Promise<IPCResponse<InterviewSession[]>>;
+  listInterviewDocuments: () => Promise<IPCResponse<InterviewContextDocument[]>>;
+  saveInterviewDocument: (document: Partial<InterviewContextDocument>) => Promise<IPCResponse<InterviewContextDocument>>;
+  deleteInterviewDocument: (documentId: string) => Promise<IPCResponse<boolean>>;
   loadInterviewSession: (sessionId: string) => Promise<IPCResponse<InterviewSession | null>>;
   updateInterviewSession: (sessionId: string, patch: Partial<InterviewSession>) => Promise<IPCResponse<InterviewSession>>;
-  finishInterviewSession: (sessionId: string) => Promise<IPCResponse<InterviewSession>>;
+  finishInterviewSession: (sessionId: string, options?: { forceCompleted?: boolean }) => Promise<IPCResponse<InterviewSession>>;
   archiveInterviewSession: (sessionId: string) => Promise<IPCResponse<InterviewSession>>;
   deleteInterviewSession: (sessionId: string) => Promise<IPCResponse<boolean>>;
   summarizeInterviewSession: (sessionId: string) => Promise<IPCResponse<InterviewSession>>;

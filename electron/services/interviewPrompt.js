@@ -13,7 +13,8 @@ const DEFAULT_CONFIG = {
   extraInstructions: '',
   transcribeMicrophone: false,
   saveTranscript: true,
-  retainAudio: true
+  retainAudio: true,
+  contextDocumentIds: []
 };
 
 const SOURCE_LABELS = {
@@ -100,6 +101,11 @@ function buildOpenAIInterviewPrompt(args = {}) {
     config.extraInstructions
       ? `<candidate_instructions>\n${clipDocument(config.extraInstructions, 1200)}\n</candidate_instructions>`
       : '',
+    Array.isArray(args.contextDocuments) && args.contextDocuments.length
+      ? `<context_documents>\n${args.contextDocuments.map(document => (
+          `<document title="${String(document.title || '').replace(/["<>]/g, '')}">\n${clipDocument(document.content, 6000)}\n</document>`
+        )).join('\n')}\n</context_documents>`
+      : '',
     quickFragments.length
       ? `<latest_live_fragments>\n${quickFragments.map((fragment, index) => `${index + 1}. ${fragment}`).join('\n')}\n</latest_live_fragments>`
       : '',
@@ -144,6 +150,9 @@ function buildInterviewContext(args = {}) {
     config.resume ? `Candidate resume:\n${clipDocument(config.resume, 2400)}` : '',
     config.jobDescription ? `Job description: ${clip(config.jobDescription, 1200)}` : '',
     config.extraInstructions ? `Candidate instructions: ${clip(config.extraInstructions, 600)}` : '',
+    Array.isArray(args.contextDocuments) && args.contextDocuments.length
+      ? `Selected context documents:\n${args.contextDocuments.map(document => `${document.title}:\n${clipDocument(document.content, 1600)}`).join('\n\n')}`
+      : '',
     config.language !== 'auto' ? `Response language: ${config.language}` : 'Response language: same as the question',
     recentTurns ? `Recent interview context:\n${recentTurns}` : '',
     args.sessionSummary ? `Saved meeting summary:\n${clip(args.sessionSummary, 1600)}` : '',

@@ -62,6 +62,43 @@ class InterviewService {
     return this.migrateLegacyHistory().find(session => session.id === sessionId) || null;
   }
 
+  listDocuments() {
+    return [...store.getInterviewDocuments()].sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt)));
+  }
+
+  saveDocument(input = {}) {
+    const title = String(input.title || '').trim();
+    const content = String(input.content || '').trim();
+    if (!title) throw new Error('Informe o título do documento.');
+    if (!content) throw new Error('Informe o conteúdo do documento.');
+    const documents = this.listDocuments();
+    const now = new Date().toISOString();
+    const index = documents.findIndex(document => document.id === input.id);
+    const document = {
+      id: index >= 0 ? documents[index].id : id('document'),
+      title,
+      content,
+      createdAt: index >= 0 ? documents[index].createdAt : now,
+      updatedAt: now
+    };
+    if (index >= 0) documents[index] = document;
+    else documents.unshift(document);
+    store.saveInterviewDocuments(documents);
+    return document;
+  }
+
+  deleteDocument(documentId) {
+    const documents = this.listDocuments();
+    if (!documents.some(document => document.id === documentId)) throw new Error('Documento não encontrado.');
+    store.saveInterviewDocuments(documents.filter(document => document.id !== documentId));
+    return true;
+  }
+
+  resolveContextDocuments(config = {}) {
+    const selectedIds = new Set(Array.isArray(config.contextDocumentIds) ? config.contextDocumentIds : []);
+    return this.listDocuments().filter(document => selectedIds.has(document.id));
+  }
+
   createSession(config = {}, options = {}) {
     const now = new Date().toISOString();
     const normalizedConfig = { ...DEFAULT_CONFIG, ...(config || {}) };
@@ -108,9 +145,15 @@ class InterviewService {
     return nextSession;
   }
 
-  finishSession(sessionId) {
+  finishSession(sessionId, options = {}) {
     const session = this.getSession(sessionId);
     if (!session) throw new Error('Sessao de entrevista nao encontrada.');
+    if (options.forceCompleted) {
+      return this.updateSession(sessionId, {
+        status: 'completed',
+        endedAt: new Date().toISOString()
+      });
+    }
     return this.updateSession(sessionId, buildFinishedSessionPatch(session));
   }
 
@@ -266,7 +309,8 @@ class InterviewService {
 
     const answerId = args.answerId || id('answer');
     const sessionId = args.sessionId;
-    const instruction = this.buildInstruction(args);
+    const enrichedArgs = { ...args, contextDocuments: this.resolveContextDocuments(args.config) };
+    const instruction = this.buildInstruction(enrichedArgs);
     const requestedProvider = 'openai';
     const state = {
       answerId,
@@ -307,7 +351,7 @@ class InterviewService {
     emit({ type: 'start', provider: requestedProvider });
 
     try {
-      const result = await this.streamOpenAIAnswer(args, instruction, state, emit);
+      const result = await this.streamOpenAIAnswer(enrichedArgs, instruction, state, emit);
 
       if (state.cancelled || result?.cancelled) {
         const cancelled = {

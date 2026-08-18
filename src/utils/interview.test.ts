@@ -7,7 +7,8 @@ import {
   isLikelyInterviewQuestion,
   selectScreenAnswerVariant,
   selectInterviewContextTurns,
-  filterInterviewSessions
+  filterInterviewSessions,
+  getMeetingInactivityState
 } from './interview';
 
 const turn = (id: string, text: string, overrides: Partial<TranscriptTurn> = {}): TranscriptTurn => ({
@@ -206,5 +207,19 @@ describe('filterInterviewSessions', () => {
     ];
     expect(filterInterviewSessions(sessions, { query: 'backend', mode: 'interview', status: 'pending' }).map(item => item.id)).toEqual(['2']);
     expect(filterInterviewSessions(sessions, {}).map(item => item.id)).toEqual(['1', '2']);
+  });
+});
+
+describe('meeting inactivity watchdog', () => {
+  const minute = 60 * 1000;
+
+  it('warns after five silent minutes and finishes five minutes after the warning', () => {
+    expect(getMeetingInactivityState(0, null, 5 * minute)).toBe('warning');
+    expect(getMeetingInactivityState(0, 5 * minute, 9 * minute)).toBe('warning');
+    expect(getMeetingInactivityState(0, 5 * minute, 10 * minute)).toBe('finish');
+  });
+
+  it('returns to active when speech happens after the warning', () => {
+    expect(getMeetingInactivityState(6 * minute, 5 * minute, 9 * minute)).toBe('active');
   });
 });

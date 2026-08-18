@@ -14,6 +14,21 @@ export interface InterviewSessionFilters {
   status?: 'all' | InterviewSessionStatus;
 }
 
+export const MEETING_INACTIVITY_WARNING_MS = 5 * 60 * 1000;
+export const MEETING_INACTIVITY_FINISH_MS = 5 * 60 * 1000;
+
+export const getMeetingInactivityState = (
+  lastSpeechAt: number,
+  warningAt: number | null,
+  now = Date.now()
+): 'active' | 'warning' | 'finish' => {
+  if (warningAt !== null && lastSpeechAt > warningAt) return 'active';
+  if (warningAt === null) {
+    return now - lastSpeechAt >= MEETING_INACTIVITY_WARNING_MS ? 'warning' : 'active';
+  }
+  return now - warningAt >= MEETING_INACTIVITY_FINISH_MS ? 'finish' : 'warning';
+};
+
 export const filterInterviewSessions = (
   sessions: InterviewSession[],
   filters: InterviewSessionFilters

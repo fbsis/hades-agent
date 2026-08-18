@@ -182,14 +182,30 @@ class ElectronService {
   async listInterviewSessions() {
     return await this.handleResponse(this.electron?.listInterviewSessions(), [], 'listInterviewSessions');
   }
+  async listInterviewDocuments() {
+    return await this.handleResponse(this.electron?.listInterviewDocuments(), [], 'listInterviewDocuments');
+  }
+  async saveInterviewDocument(document: import('../types/interview').InterviewContextDocument | Omit<import('../types/interview').InterviewContextDocument, 'id' | 'createdAt' | 'updatedAt'>) {
+    if (!this.electron?.saveInterviewDocument) {
+      throw new Error('O recurso de documentos ainda não foi carregado. Reinicie o aplicativo e tente novamente.');
+    }
+    const response = await this.electron.saveInterviewDocument(document);
+    if (!response.success || !response.data) {
+      throw new Error(response.error || 'Não foi possível salvar o documento.');
+    }
+    return response.data;
+  }
+  async deleteInterviewDocument(documentId: string) {
+    return await this.handleResponse(this.electron?.deleteInterviewDocument(documentId), false, 'deleteInterviewDocument');
+  }
   async loadInterviewSession(sessionId: string) {
     return await this.handleResponse(this.electron?.loadInterviewSession(sessionId), null, 'loadInterviewSession');
   }
   async updateInterviewSession(sessionId: string, patch: Partial<InterviewSession>) {
     return await this.handleResponse(this.electron?.updateInterviewSession(sessionId, patch), null, 'updateInterviewSession');
   }
-  async finishInterviewSession(sessionId: string) {
-    return await this.handleResponse(this.electron?.finishInterviewSession(sessionId), null, 'finishInterviewSession');
+  async finishInterviewSession(sessionId: string, options?: { forceCompleted?: boolean }) {
+    return await this.handleResponse(this.electron?.finishInterviewSession(sessionId, options), null, 'finishInterviewSession');
   }
   async archiveInterviewSession(sessionId: string) {
     return await this.handleResponse(this.electron?.archiveInterviewSession(sessionId), null, 'archiveInterviewSession');

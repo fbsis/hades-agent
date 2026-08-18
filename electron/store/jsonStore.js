@@ -22,7 +22,8 @@ class JsonStore {
       personas: path.join(this.userDataPath, 'personas.json'),
       settings: path.join(this.userDataPath, 'settings.json'),
       sessions: path.join(this.userDataPath, 'sessions.json'),
-      interviewSessions: path.join(this.userDataPath, 'interview_sessions.json')
+      interviewSessions: path.join(this.userDataPath, 'interview_sessions.json'),
+      interviewDocuments: path.join(this.userDataPath, 'interview_documents.json')
     };
 
     /** Default settings schema */
@@ -80,7 +81,8 @@ class JsonStore {
         extraInstructions: '',
         transcribeMicrophone: false,
         saveTranscript: true,
-        retainAudio: true
+        retainAudio: true,
+        contextDocumentIds: []
       },
       layout: {
         commandBounds: null,
@@ -104,6 +106,7 @@ class JsonStore {
       susurroHistory: [],
       sessions: [],
       interviewSessions: [],
+      interviewDocuments: [],
       totalTokens: 0,
       settings: defaultSettings
     };
@@ -206,6 +209,7 @@ class JsonStore {
     this.cache.susurroHistory = this.safeLoad(this.paths.susurro, []);
     this.cache.sessions = this.safeLoad(this.paths.sessions, []);
     this.cache.interviewSessions = this.safeLoad(this.paths.interviewSessions, []);
+    this.cache.interviewDocuments = this.safeLoad(this.paths.interviewDocuments, []);
     this.cache.totalTokens = this.safeLoad(this.paths.tokens, { total: 0 }).total || 0;
     // Deep merge so new keys from defaultSettings survive missing fields in saved file
     const saved = this.safeLoadSettings();
@@ -320,6 +324,12 @@ class JsonStore {
   saveInterviewSessions(sessions) {
     this.cache.interviewSessions = sessions;
     this.safeSave(this.paths.interviewSessions, sessions);
+  }
+
+  getInterviewDocuments() { return this.cache.interviewDocuments; }
+  saveInterviewDocuments(documents) {
+    this.cache.interviewDocuments = documents;
+    this.safeSave(this.paths.interviewDocuments, documents);
   }
 
   getTotalTokens() { return this.cache.totalTokens; }

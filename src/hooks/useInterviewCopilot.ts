@@ -51,6 +51,7 @@ export const useInterviewCopilot = (options: { embedded?: boolean; onClosePanel?
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [isPreparingQuickAnswer, setIsPreparingQuickAnswer] = useState(false);
   const [isSummarizing, setIsSummarizing] = useState(false);
+  const [lastSpeechAt, setLastSpeechAt] = useState(() => Date.now());
 
   const {
     startRecording: startSystemRecording,
@@ -125,6 +126,7 @@ export const useInterviewCopilot = (options: { embedded?: boolean; onClosePanel?
   useEffect(() => {
     const removeDelta = electronService.onInterviewTranscriptDelta(delta => {
       if (delta.sessionId !== sessionRef.current?.id) return;
+      if (String(delta.text || '').trim()) setLastSpeechAt(Date.now());
 
       updateSessionState(current => {
         const transcript = applyInterviewTranscriptDelta(current.transcript, delta);
@@ -227,6 +229,7 @@ export const useInterviewCopilot = (options: { embedded?: boolean; onClosePanel?
   const startListening = useCallback(async () => {
     if (flowStatus === 'starting' || flowStatus === 'listening' || flowStatus === 'answering') return;
     setError('');
+    setLastSpeechAt(Date.now());
     if (!config.title.trim()) {
       setError('Informe um título antes de iniciar.');
       return;
@@ -351,7 +354,7 @@ export const useInterviewCopilot = (options: { embedded?: boolean; onClosePanel?
     };
   }, [flowStatus, startListening, stopListening]);
 
-  const finishSession = useCallback(async () => {
+  const finishSession = useCallback(async (options: { forceCompleted?: boolean } = {}) => {
     const activeSession = sessionRef.current;
     if (!activeSession) return;
     if (activeAnswerIdRef.current) await electronService.cancelInterviewAnswer(activeAnswerIdRef.current);
@@ -365,7 +368,7 @@ export const useInterviewCopilot = (options: { embedded?: boolean; onClosePanel?
         })
       )));
     }
-    const finished = await electronService.finishInterviewSession(activeSession.id);
+    const finished = await electronService.finishInterviewSession(activeSession.id, options);
     if (finished) {
       setSession(finished);
       sessionRef.current = finished;
@@ -702,6 +705,7 @@ export const useInterviewCopilot = (options: { embedded?: boolean; onClosePanel?
     setActiveAnswerId(latestQuestion?.answerId || normalized.answers.at(-1)?.id || null);
     setFlowStatus('idle');
     setError('');
+    setLastSpeechAt(Date.now());
   }, []);
 
   const archiveSession = useCallback(async (sessionId: string) => {
@@ -835,6 +839,8 @@ export const useInterviewCopilot = (options: { embedded?: boolean; onClosePanel?
     quickAnswer,
     isPreparingQuickAnswer,
     isSummarizing,
+    lastSpeechAt,
+    markMeetingActive: () => setLastSpeechAt(Date.now()),
     canAnswerLatestQuestion,
     stopAnswer,
     captureScreen,

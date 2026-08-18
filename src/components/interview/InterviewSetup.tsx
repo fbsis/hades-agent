@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { ArrowLeft, ChevronDown, Radio, Save } from 'lucide-react';
-import { InterviewConfig } from '../../types/interview';
+import { InterviewConfig, InterviewContextDocument } from '../../types/interview';
 
 interface InterviewSetupProps {
   config: InterviewConfig;
@@ -10,9 +10,10 @@ interface InterviewSetupProps {
   onStart: () => void;
   onSavePending: () => void;
   onCancel: () => void;
+  documents: InterviewContextDocument[];
 }
 
-export const InterviewSetup: React.FC<InterviewSetupProps> = ({ config, error, isEditing = false, onConfigChange, onStart, onSavePending, onCancel }) => {
+export const InterviewSetup: React.FC<InterviewSetupProps> = ({ config, error, isEditing = false, onConfigChange, onStart, onSavePending, onCancel, documents }) => {
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const update = <K extends keyof InterviewConfig>(key: K, value: InterviewConfig[K]) => onConfigChange({ ...config, [key]: value });
 
@@ -33,6 +34,13 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({ config, error, i
             {config.mode === 'interview' ? <><label><span>Cargo</span><input value={config.role} onChange={event => update('role', event.target.value)} placeholder="Senior Software Engineer" /></label><label><span>Empresa</span><input value={config.company} onChange={event => update('company', event.target.value)} placeholder="Empresa" /></label></> : <label className="interview-title-field"><span>Empresa ou pessoa</span><input value={config.company} onChange={event => update('company', event.target.value)} placeholder="Acme ou Maria Silva" /></label>}
             <label><span>Idioma</span><select value={config.language} onChange={event => update('language', event.target.value as InterviewConfig['language'])}><option value="auto">Automático</option><option value="pt-BR">Português</option><option value="en-US">English</option></select></label>
             <label><span>Estilo da resposta</span><select value={config.answerStyle} onChange={event => update('answerStyle', event.target.value as InterviewConfig['answerStyle'])}><option value="natural">Natural</option><option value="concise">Curta</option><option value="star">STAR</option><option value="technical">Técnica</option></select></label>
+          </div>
+          <div className="interview-context-selector">
+            <div><strong>Documentos de contexto</strong><small>Opcional · selecione tudo que a IA deve considerar</small></div>
+            {documents.length ? <div className="interview-context-options">{documents.map(document => {
+              const selected = config.contextDocumentIds.includes(document.id);
+              return <label className={selected ? 'selected' : ''} key={document.id}><input type="checkbox" checked={selected} onChange={() => update('contextDocumentIds', selected ? config.contextDocumentIds.filter(id => id !== document.id) : [...config.contextDocumentIds, document.id])} /><span><strong>{document.title}</strong><small>Texto de contexto</small></span></label>;
+            })}</div> : <p className="interview-context-empty">Nenhum documento criado. Use a área “Documentos” na tela de reuniões para montar contextos reutilizáveis.</p>}
           </div>
         </section>
 
