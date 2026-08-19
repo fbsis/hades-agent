@@ -8,6 +8,7 @@ import {
   SettingsData
 } from '../types/electron';
 import type { OpenAIChatInput, OpenAIChatResult, OpenAIChatStreamEvent } from '../types/electron';
+import type { SelectedTextPayload, TextActionRequest } from '../types/electron';
 import type {
   InterviewAnswerEvent,
   InterviewAnswerVariant,
@@ -104,6 +105,28 @@ class ElectronService {
     return this.electron?.onNotify(callback) || (() => {});
   }
   notifHidden() { this.electron?.notifHidden(); }
+
+  onSelectedTextCaptured(callback: (payload: SelectedTextPayload) => void) {
+    return this.electron?.onSelectedTextCaptured(callback) || (() => {});
+  }
+  async getSelectedText() {
+    return await this.handleResponse(this.electron?.getSelectedText(), null, 'getSelectedText');
+  }
+  async runSelectedTextAction(args: TextActionRequest) {
+    const response = await this.electron?.runSelectedTextAction(args);
+    if (!response?.success || !response.data) throw new Error(response?.error || 'Não foi possível processar o texto.');
+    return response.data;
+  }
+  async copySelectedTextResult(text: string) {
+    await this.handleResponse(this.electron?.copySelectedTextResult(text), undefined, 'copySelectedTextResult');
+  }
+  async replaceSelectedText(text: string) {
+    const response = await this.electron?.replaceSelectedText(text);
+    if (!response?.success) throw new Error(response?.error || 'Não foi possível substituir o texto.');
+  }
+  async closeTextActions() {
+    await this.handleResponse(this.electron?.closeTextActions(), undefined, 'closeTextActions');
+  }
 
   // --- Screen Capture ---
   async getSources() { return await this.electron?.getSources() || []; }

@@ -13,6 +13,7 @@ const DEFAULTS = {
   toggleSettings: 'Alt+S',
   toggleSusurro: 'Alt+B',
   toggleVoice: 'Alt+V',
+  selectedTextActions: 'Alt+E',
   interviewQuickAnswer: 'F4',
   interviewCaptureScreen: 'F5'
 };
@@ -27,6 +28,7 @@ const ShortcutsTab: React.FC<ShortcutsTabProps> = ({ settings = {}, updateSettin
     toggleSettings: settings?.toggleSettings || DEFAULTS.toggleSettings,
     toggleSusurro: settings?.toggleSusurro || DEFAULTS.toggleSusurro,
     toggleVoice: settings?.toggleVoice || DEFAULTS.toggleVoice,
+    selectedTextActions: settings?.selectedTextActions || DEFAULTS.selectedTextActions,
     interviewQuickAnswer: settings?.interviewQuickAnswer || DEFAULTS.interviewQuickAnswer,
     interviewCaptureScreen: settings?.interviewCaptureScreen || DEFAULTS.interviewCaptureScreen
   };
@@ -143,6 +145,11 @@ const ShortcutsTab: React.FC<ShortcutsTabProps> = ({ settings = {}, updateSettin
       key: 'toggleVoice' as const,
       title: 'Comando de Voz Direto',
       desc: 'Ativa a captura imediata de comandos de voz sem abrir a barra gráfica.',
+    },
+    {
+      key: 'selectedTextActions' as const,
+      title: 'Ações sobre texto selecionado',
+      desc: 'Captura o texto selecionado e abre as opções de tradução, explicação e reescrita.',
     },
     {
       key: 'interviewQuickAnswer' as const,

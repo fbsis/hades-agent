@@ -162,6 +162,30 @@ const windowConfigs = {
       win.setPosition(Math.floor((screenWidth - 600) / 2), 20);
     }
   },
+  textActions: {
+    ...macOverlayOptions,
+    width: 520,
+    height: 430,
+    frame: false,
+    transparent: true,
+    hasShadow: false,
+    alwaysOnTop: true,
+    show: false,
+    resizable: false,
+    skipTaskbar: true,
+    backgroundColor: '#00000000',
+    url: `${baseUrl}?window=text-actions`,
+    webPreferences: {
+      preload: preloadPath,
+      nodeIntegration: false,
+      contextIsolation: true,
+      sandbox: true,
+      backgroundThrottling: false,
+    },
+    onInit: (win) => {
+      if (process.platform === 'win32') win.setBackgroundMaterial('mica');
+    }
+  },
   notification: {
     ...macOverlayOptions,
     width: 400,

@@ -13,6 +13,7 @@ const OPACITY_WINDOW_NAMES = new Set([
   'susurroSetup',
   'susurro',
   'suggestions',
+  'textActions',
   'settings'
 ]);
 
@@ -756,6 +757,28 @@ class WindowManager {
       setTimeout(openPanel, 0);
     }
 
+    return win;
+  }
+
+  showTextActions(payload) {
+    const win = this.get('textActions') || this.createWindow('textActions');
+    const cursor = screen.getCursorScreenPoint();
+    const area = screen.getDisplayNearestPoint(cursor).workArea;
+    const bounds = win.getBounds();
+    const x = Math.min(Math.max(cursor.x + 12, area.x + 8), area.x + area.width - bounds.width - 8);
+    const y = Math.min(Math.max(cursor.y + 14, area.y + 8), area.y + area.height - bounds.height - 8);
+    win.setPosition(Math.round(x), Math.round(y));
+    win.show();
+    win.focus();
+
+    const sendPayload = () => {
+      if (!win.isDestroyed()) win.webContents.send('text-actions-selection', payload);
+    };
+    if (win.webContents.isLoading()) {
+      win.webContents.once('did-finish-load', () => setTimeout(sendPayload, 40));
+    } else {
+      setTimeout(sendPayload, 0);
+    }
     return win;
   }
 

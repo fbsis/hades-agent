@@ -38,6 +38,18 @@ contextBridge.exposeInMainWorld('electron', {
   showNotification: (text) => ipcRenderer.send('show-notification', text),
   notifHidden: () => ipcRenderer.send('notif-hidden'),
 
+  // --- Selected Text Actions ---
+  getSelectedText: () => ipcRenderer.invoke('text-actions-get-selection'),
+  runSelectedTextAction: (args) => ipcRenderer.invoke('text-actions-run', args),
+  copySelectedTextResult: (text) => ipcRenderer.invoke('text-actions-copy', text),
+  replaceSelectedText: (text) => ipcRenderer.invoke('text-actions-replace', text),
+  closeTextActions: () => ipcRenderer.invoke('text-actions-close'),
+  onSelectedTextCaptured: (callback) => {
+    const sub = (_event, payload) => callback(payload);
+    ipcRenderer.on('text-actions-selection', sub);
+    return () => ipcRenderer.removeListener('text-actions-selection', sub);
+  },
+
   // --- Window Management ---
   closeWindow: () => ipcRenderer.invoke('close-window'),
   minimizeWindow: () => ipcRenderer.invoke('minimize-window'),

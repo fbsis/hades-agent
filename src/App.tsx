@@ -8,6 +8,7 @@ const SuggestionsPopup = lazy(() => import('./components/SuggestionsPopup'))
 const Splash = lazy(() => import('./components/Splash'))
 const Settings = lazy(() => import('./components/Settings'))
 const FloatingHead = lazy(() => import('./components/FloatingHead'))
+const TextActions = lazy(() => import('./components/TextActions'))
 
 const App: React.FC = () => {
   const urlParams = new URLSearchParams(globalThis.location.search)
@@ -31,6 +32,7 @@ const App: React.FC = () => {
   if (windowType === 'suggestions') content = <SuggestionsPopup />
   if (windowType === 'settings') content = <Settings />
   if (windowType === 'floating-head') content = <FloatingHead />
+  if (windowType === 'text-actions') content = <TextActions />
 
   return <Suspense fallback={null}>{content}</Suspense>
 }

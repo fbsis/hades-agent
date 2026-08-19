@@ -2,6 +2,9 @@ const { globalShortcut, app } = require('electron');
 const windowManager = require('./windows/windowManager');
 const jsonStore = require('./store/jsonStore');
 const appState = require('./appState');
+const selectedTextService = require('./services/selectedTextService');
+
+let isCapturingSelectedText = false;
 
 /**
  * Toggles the command window and associated chat window.
@@ -100,6 +103,19 @@ function quickAnswerInterview() {
   return dispatchInterviewAction('interview-quick-answer', 'Interview Quick Answer');
 }
 
+async function openSelectedTextActions() {
+  if (isCapturingSelectedText) return;
+  isCapturingSelectedText = true;
+  try {
+    const selection = await selectedTextService.capture();
+    windowManager.showTextActions(selection);
+  } catch (error) {
+    windowManager.showTextActions({ error: error.message });
+  } finally {
+    isCapturingSelectedText = false;
+  }
+}
+
 function registerShortcut(name, key, handler) {
   try {
     const registered = globalShortcut.register(key, handler);
@@ -125,6 +141,7 @@ function registerGlobalShortcuts(retryCount = 0) {
     toggleSettings: 'Alt+S',
     toggleSusurro: 'Alt+B',
     toggleVoice: 'Alt+V',
+    selectedTextActions: 'Alt+E',
     interviewQuickAnswer: 'F4',
     interviewCaptureScreen: 'F5'
   };
@@ -145,6 +162,8 @@ function registerGlobalShortcuts(retryCount = 0) {
 
   // Toggle Command Bar & Chat
   if (!registerShortcut('Command', shortcuts.toggleCommand || 'Alt+D', toggleCommandWindow)) allRegistered = false;
+
+  if (!registerShortcut('Selected Text Actions', shortcuts.selectedTextActions || 'Alt+E', openSelectedTextActions)) allRegistered = false;
 
   // Toggle Settings
   if (!registerShortcut('Settings', shortcuts.toggleSettings || 'Alt+S', toggleSettingsWindow)) allRegistered = false;

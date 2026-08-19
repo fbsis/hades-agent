@@ -93,6 +93,7 @@ class JsonStore {
         toggleSettings: 'Alt+S',
         toggleSusurro: 'Alt+B',
         toggleVoice: 'Alt+V',
+        selectedTextActions: 'Alt+E',
         interviewQuickAnswer: 'F4',
         interviewCaptureScreen: 'F5'
       }

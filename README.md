@@ -192,6 +192,7 @@ Metis opens as a compact command window by default and can be hidden while it re
 | Shortcut | Action |
 | :--- | :--- |
 | **`Alt+D`** | Summon / dismiss the unified command window |
+| **`Alt+E`** | Open AI actions for the selected text |
 | **`Alt+B`** | Open the Interview Copilot |
 | **`Space`** | Answer the selected interview question when no input is focused |
 | **`Alt+S`** | Open Settings & Shortcut Customization |

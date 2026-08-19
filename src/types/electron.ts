@@ -50,6 +50,12 @@ export interface ElectronAPI {
   setActiveCommandPanel: (panel: 'command' | 'chat' | 'history' | 'settings' | 'transcription' | 'voice') => void;
   onNotify: (callback: (message: string) => void) => () => void;
   notifHidden: () => void;
+  getSelectedText: () => Promise<IPCResponse<SelectedTextPayload | null>>;
+  runSelectedTextAction: (args: TextActionRequest) => Promise<IPCResponse<string>>;
+  copySelectedTextResult: (text: string) => Promise<IPCResponse<void>>;
+  replaceSelectedText: (text: string) => Promise<IPCResponse<void>>;
+  closeTextActions: () => Promise<IPCResponse<void>>;
+  onSelectedTextCaptured: (callback: (payload: SelectedTextPayload) => void) => () => void;
   
   // Screen Capture
   getSources: () => Promise<any[]>;
@@ -275,8 +281,22 @@ export interface ShortcutsSettings {
   toggleSettings: string;
   toggleSusurro: string;
   toggleVoice: string;
+  selectedTextActions: string;
   interviewQuickAnswer: string;
   interviewCaptureScreen: string;
+}
+
+export type TextActionKind = 'translate' | 'simplify' | 'explain' | 'summarize' | 'proofread' | 'rewrite' | 'professional' | 'friendly' | 'shorten' | 'expand' | 'custom';
+
+export interface SelectedTextPayload {
+  text?: string;
+  error?: string;
+}
+
+export interface TextActionRequest {
+  action: TextActionKind;
+  text: string;
+  customInstruction?: string;
 }
 
 export interface WindowBounds {
