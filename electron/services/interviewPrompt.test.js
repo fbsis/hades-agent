@@ -170,6 +170,10 @@ describe('interview prompt contract', () => {
     const prompt = buildOpenAIInterviewPrompt({
       question: 'fragment 2 fragment 3 fragment 4 fragment 5 fragment 6',
       quickFragments: Array.from({ length: 7 }, (_, index) => `fragment ${index}`),
+      quickComment: 'Corrija: destaque que usei filas, não chamadas síncronas.',
+      turns: Array.from({ length: 7 }, (_, index) => makeTurn(index, {
+        text: `Earlier conversation context ${index}`
+      })),
       variant: 'quick',
       config: {
         resume: 'Backend engineer resume.',
@@ -187,7 +191,12 @@ describe('interview prompt contract', () => {
     expect(prompt).not.toContain('fragment 1');
     expect(prompt).toContain('fragment 6');
     expect(prompt).toContain('incomplete final fragment');
+    expect(prompt).toContain('<conversation_history>');
+    expect(prompt).toContain('Earlier conversation context 0');
+    expect(prompt).toContain('Earlier conversation context 6');
     expect(prompt).not.toContain('<last_five_conversation_texts>');
+    expect(prompt).toContain('<candidate_live_comment>');
+    expect(prompt).toContain('destaque que usei filas');
     expect(instruction).toContain('using STAR');
     expect(instruction).toContain('Use 5 to 7 independently readable Markdown bullets');
     expect(instruction).toContain('Technical question');
@@ -196,6 +205,11 @@ describe('interview prompt contract', () => {
     expect(instruction).toContain('Any other conversational statement');
     expect(instruction).toContain('Make the response persuasive');
     expect(instruction).toContain('explain the reasoning behind it');
+    expect(instruction).toContain('speaker labels');
+    expect(instruction).toContain('Candidate fragments');
+    expect(instruction).toContain('complete supplied conversation_history');
+    expect(instruction).toContain('real-time correction or addition');
+    expect(instruction).toContain('do not answer the comment in isolation');
     expect(instruction).toContain('Choose only one format');
     expect(instruction).not.toContain('all 14 bullets useful');
     expect(instruction).not.toContain('mandatory two-level bullet format');

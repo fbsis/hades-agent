@@ -129,6 +129,7 @@ export interface ElectronAPI {
     visualContext?: string;
     sessionSummary?: string;
     quickFragments?: string[];
+    quickComment?: string;
     variant: InterviewAnswerVariant;
   }) => Promise<IPCResponse<InterviewAnswer>>;
   cancelInterviewAnswer: (answerId: string) => Promise<IPCResponse<boolean>>;

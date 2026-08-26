@@ -286,6 +286,7 @@ class ElectronService {
     visualContext?: string;
     sessionSummary?: string;
     quickFragments?: string[];
+    quickComment?: string;
     variant: InterviewAnswerVariant;
   }) {
     return await this.handleResponse(this.electron?.requestInterviewAnswer(args), null, 'requestInterviewAnswer');

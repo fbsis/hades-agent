@@ -81,6 +81,53 @@ export const sourceLabel = (source: InterviewSource): string => ({
   manual: 'Manual'
 })[source];
 
+const quickAnswerSourceLabel = (source: InterviewSource): string => ({
+  interviewer: 'Interviewer',
+  candidate: 'Candidate',
+  screen: 'Screen',
+  manual: 'Manual'
+})[source];
+
+const turnLatestActivityAt = (turn: TranscriptTurn): string => (
+  turn.fragmentTimestamps?.at(-1) || turn.endedAt || turn.startedAt
+);
+
+export const selectQuickAnswerFragments = (
+  turns: TranscriptTurn[],
+  limit = 5
+): string[] => turns
+  .filter(turn => turn.source === 'interviewer' || turn.source === 'candidate')
+  .flatMap((turn, turnIndex) => {
+    const fragments = turn.fragments?.length
+      ? turn.fragments
+      : [`${turn.text}${turn.pendingText}`];
+    return fragments.map((fragment, fragmentIndex) => ({
+      source: turn.source,
+      text: fragment.replace(/\s+/g, ' ').trim(),
+      timestamp: turn.fragmentTimestamps?.[fragmentIndex]
+        || turn.endedAt
+        || turn.startedAt,
+      stableOrder: turnIndex * 1000 + fragmentIndex
+    }));
+  })
+  .filter(fragment => fragment.text)
+  .sort((a, b) => a.timestamp.localeCompare(b.timestamp) || a.stableOrder - b.stableOrder)
+  .slice(-limit)
+  .map(fragment => `${quickAnswerSourceLabel(fragment.source)}: ${fragment.text}`);
+
+export const selectLatestQuickAnswerTurn = (
+  turns: TranscriptTurn[]
+): TranscriptTurn | null => turns
+  .filter(turn => (
+    (turn.source === 'interviewer' || turn.source === 'candidate')
+    && `${turn.text}${turn.pendingText}`.trim()
+  ))
+  .reduce<TranscriptTurn | null>((latest, turn) => (
+    !latest || turnLatestActivityAt(turn).localeCompare(turnLatestActivityAt(latest)) > 0
+      ? turn
+      : latest
+  ), null);
+
 export const selectInterviewContextTurns = (
   turns: TranscriptTurn[],
   selectedTurnId?: string,
@@ -107,9 +154,18 @@ export const applyInterviewTranscriptDelta = (
 
   const source: InterviewSource = delta.source;
   const incomingFragment = String(delta.text || '').trim();
-  const fragments = incomingFragment
-    ? [...(current?.fragments || []), incomingFragment].slice(-5)
-    : current?.fragments || [];
+  const previousFragmentEntries = (current?.fragments || []).map((text, fragmentIndex) => ({
+    text,
+    timestamp: current?.fragmentTimestamps?.[fragmentIndex]
+      || current?.endedAt
+      || current?.startedAt
+      || delta.timestamp
+  }));
+  const fragmentEntries = incomingFragment
+    ? [...previousFragmentEntries, { text: incomingFragment, timestamp: delta.timestamp }].slice(-5)
+    : previousFragmentEntries;
+  const fragments = fragmentEntries.map(fragment => fragment.text);
+  const fragmentTimestamps = fragmentEntries.map(fragment => fragment.timestamp);
   const pendingText = delta.replacePending
     ? delta.text || ''
     : `${current?.pendingText || ''}${delta.text || ''}`;
@@ -131,7 +187,8 @@ export const applyInterviewTranscriptDelta = (
       : current?.isQuestion || false,
     answerId: current?.answerId,
     lastSequence: delta.sequence,
-    fragments
+    fragments,
+    fragmentTimestamps
   };
 
   if (index < 0) return [...turns, nextTurn];

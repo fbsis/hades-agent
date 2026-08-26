@@ -7,6 +7,8 @@ import {
   isLikelyInterviewQuestion,
   selectScreenAnswerVariant,
   selectInterviewContextTurns,
+  selectLatestQuickAnswerTurn,
+  selectQuickAnswerFragments,
   filterInterviewSessions,
   getMeetingInactivityState
 } from './interview';
@@ -168,6 +170,71 @@ describe('applyInterviewTranscriptDelta', () => {
       isFinal: true,
       isQuestion: true
     });
+  });
+});
+
+describe('quick answer conversation context', () => {
+  it('merges the latest five fragments from interviewer and candidate chronologically', () => {
+    const turns = [
+      turn('interviewer-live', '', {
+        source: 'interviewer',
+        isFinal: false,
+        pendingText: 'How would you design it?',
+        fragments: ['Tell me about the API', 'How would you design it?'],
+        fragmentTimestamps: ['2026-07-21T10:00:01.000Z', '2026-07-21T10:00:04.000Z']
+      }),
+      turn('candidate-live', '', {
+        source: 'candidate',
+        isFinal: false,
+        pendingText: 'Do you mean the public API?',
+        fragments: ['I would start with REST', 'Do you mean the public API?'],
+        fragmentTimestamps: ['2026-07-21T10:00:02.000Z', '2026-07-21T10:00:03.000Z']
+      })
+    ];
+
+    expect(selectQuickAnswerFragments(turns)).toEqual([
+      'Interviewer: Tell me about the API',
+      'Candidate: I would start with REST',
+      'Candidate: Do you mean the public API?',
+      'Interviewer: How would you design it?'
+    ]);
+    expect(selectLatestQuickAnswerTurn(turns)?.id).toBe('interviewer-live');
+  });
+
+  it('keeps only the five most recent fragments across both speakers', () => {
+    const turns = [
+      turn('interviewer-live', '', {
+        source: 'interviewer',
+        isFinal: false,
+        pendingText: 'interviewer latest',
+        fragments: ['interviewer old', 'interviewer middle', 'interviewer latest'],
+        fragmentTimestamps: [
+          '2026-07-21T10:00:01.000Z',
+          '2026-07-21T10:00:03.000Z',
+          '2026-07-21T10:00:05.000Z'
+        ]
+      }),
+      turn('candidate-live', '', {
+        source: 'candidate',
+        isFinal: false,
+        pendingText: 'candidate latest',
+        fragments: ['candidate old', 'candidate middle', 'candidate latest'],
+        fragmentTimestamps: [
+          '2026-07-21T10:00:02.000Z',
+          '2026-07-21T10:00:04.000Z',
+          '2026-07-21T10:00:06.000Z'
+        ]
+      })
+    ];
+
+    expect(selectQuickAnswerFragments(turns)).toEqual([
+      'Candidate: candidate old',
+      'Interviewer: interviewer middle',
+      'Candidate: candidate middle',
+      'Interviewer: interviewer latest',
+      'Candidate: candidate latest'
+    ]);
+    expect(selectLatestQuickAnswerTurn(turns)?.id).toBe('candidate-live');
   });
 });
 

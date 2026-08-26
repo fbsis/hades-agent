@@ -13,6 +13,8 @@ import {
   applyInterviewTranscriptDelta,
   canUseInterviewActionShortcut,
   isLikelyInterviewQuestion,
+  selectLatestQuickAnswerTurn,
+  selectQuickAnswerFragments,
   selectScreenAnswerVariant
 } from '../utils/interview';
 import { arrayBufferToBase64, floatTo16BitPCM } from '../utils/audio';
@@ -70,6 +72,17 @@ export const useInterviewCopilot = (options: { embedded?: boolean; onClosePanel?
   const captureScreenShortcutRef = useRef<() => void>(() => {});
   const quickAnswerShortcutRef = useRef<() => void>(() => {});
   const shortcutTimestampsRef = useRef({ capture: 0, quick: 0 });
+  const questionDraftEditedRef = useRef(false);
+
+  const setProgrammaticQuestionDraft = useCallback((value: string) => {
+    questionDraftEditedRef.current = false;
+    setQuestionDraft(value);
+  }, []);
+
+  const updateQuestionDraft = useCallback((value: string) => {
+    questionDraftEditedRef.current = true;
+    setQuestionDraft(value);
+  }, []);
 
   useEffect(() => {
     sessionRef.current = session;
@@ -140,7 +153,9 @@ export const useInterviewCopilot = (options: { embedded?: boolean; onClosePanel?
           if (turn.source === 'interviewer' && turn.isQuestion) {
             queueMicrotask(() => {
               setSelectedTurnId(turn.id);
-              setQuestionDraft(turn.text);
+              if (!questionDraftEditedRef.current) {
+                setProgrammaticQuestionDraft(turn.text);
+              }
               setActiveAnswerId(turn.answerId || null);
             });
           }
@@ -200,7 +215,7 @@ export const useInterviewCopilot = (options: { embedded?: boolean; onClosePanel?
       removeStatus();
       removeAnswer();
     };
-  }, [sourceStatuses.interviewer?.status, updateSessionState]);
+  }, [setProgrammaticQuestionDraft, sourceStatuses.interviewer?.status, updateSessionState]);
 
   const recordingChunk = useCallback((sessionId: string, source: AudioSource, samples: Float32Array) => {
     if (!sessionRef.current?.config.retainAudio) return;
@@ -374,7 +389,7 @@ export const useInterviewCopilot = (options: { embedded?: boolean; onClosePanel?
       sessionRef.current = finished;
       setConfig({ ...DEFAULT_INTERVIEW_CONFIG, ...finished.config });
       setSelectedTurnId(null);
-      setQuestionDraft('');
+      setProgrammaticQuestionDraft('');
       setActiveAnswerId(null);
       activeAnswerIdRef.current = null;
       setSourceStatuses({});
@@ -382,7 +397,7 @@ export const useInterviewCopilot = (options: { embedded?: boolean; onClosePanel?
       setError('');
     }
     await refreshSessions();
-  }, [refreshSessions, stopListening]);
+  }, [refreshSessions, setProgrammaticQuestionDraft, stopListening]);
 
   const savePendingSession = useCallback(async () => {
     setError('');
@@ -418,23 +433,23 @@ export const useInterviewCopilot = (options: { embedded?: boolean; onClosePanel?
     setSession(null);
     sessionRef.current = null;
     setSelectedTurnId(null);
-    setQuestionDraft('');
+    setProgrammaticQuestionDraft('');
     setActiveAnswerId(null);
     setSourceStatuses({});
     setFlowStatus('idle');
     setError('');
-  }, [finishSession]);
+  }, [finishSession, setProgrammaticQuestionDraft]);
 
   const selectTurn = useCallback((turn: TranscriptTurn) => {
     setSelectedTurnId(turn.id);
-    setQuestionDraft(`${turn.text}${turn.pendingText}`.trim());
+    setProgrammaticQuestionDraft(`${turn.text}${turn.pendingText}`.trim());
     setActiveAnswerId(turn.answerId || null);
-  }, []);
+  }, [setProgrammaticQuestionDraft]);
 
   const requestAnswer = useCallback(async (
     variant: InterviewAnswerVariant = 'answer',
     answer?: Pick<InterviewAnswer, 'question' | 'turnId'>
-      & { quickFragments?: string[]; visualContext?: string }
+      & { quickFragments?: string[]; quickComment?: string; visualContext?: string }
   ) => {
     const activeSession = sessionRef.current;
     if (!activeSession) return;
@@ -509,6 +524,7 @@ export const useInterviewCopilot = (options: { embedded?: boolean; onClosePanel?
         || sessionRef.current?.transcript.find(turn => turn.id === turnId)?.visualContext,
       sessionSummary: activeSession.summary,
       quickFragments: answer?.quickFragments,
+      quickComment: answer?.quickComment,
       variant
     });
 
@@ -548,13 +564,13 @@ export const useInterviewCopilot = (options: { embedded?: boolean; onClosePanel?
 
     const question = `${latestTurn.text}${latestTurn.pendingText}`.trim();
     setSelectedTurnId(latestTurn.id);
-    setQuestionDraft(question);
+    setProgrammaticQuestionDraft(question);
     setActiveAnswerId(latestTurn.answerId || null);
     requestAnswer('answer', {
       question,
       turnId: latestTurn.id
     });
-  }, [requestAnswer]);
+  }, [requestAnswer, setProgrammaticQuestionDraft]);
 
   const quickAnswer = useCallback(async () => {
     const currentSession = sessionRef.current;
@@ -562,22 +578,19 @@ export const useInterviewCopilot = (options: { embedded?: boolean; onClosePanel?
 
     setIsPreparingQuickAnswer(true);
     setError('');
+    const quickComment = questionDraftEditedRef.current ? questionDraft.trim() : '';
     try {
-      await electronService.flushInterviewTranscription(currentSession.id, 'interviewer');
+      await Promise.all([
+        electronService.flushInterviewTranscription(currentSession.id, 'interviewer'),
+        currentSession.config.transcribeMicrophone
+          ? electronService.flushInterviewTranscription(currentSession.id, 'candidate')
+          : Promise.resolve(false)
+      ]);
       const activeSession = sessionRef.current;
       if (!activeSession) return;
 
-      const interviewerTurns = activeSession.transcript.filter(turn => turn.source === 'interviewer');
-      const quickFragments = interviewerTurns
-        .flatMap(turn => turn.fragments?.length
-          ? turn.fragments
-          : [`${turn.text}${turn.pendingText}`])
-        .map(fragment => fragment.replace(/\s+/g, ' ').trim())
-        .filter(Boolean)
-        .slice(-5);
-      const latestTurn = [...interviewerTurns].reverse().find(turn => (
-        `${turn.text}${turn.pendingText}`.trim() || turn.fragments?.some(Boolean)
-      ));
+      const quickFragments = selectQuickAnswerFragments(activeSession.transcript, 5);
+      const latestTurn = selectLatestQuickAnswerTurn(activeSession.transcript);
 
       if (!latestTurn || quickFragments.length === 0) {
         setError('Ainda nao ha conversa transcrita para gerar a resposta rapida.');
@@ -586,18 +599,18 @@ export const useInterviewCopilot = (options: { embedded?: boolean; onClosePanel?
 
       const question = quickFragments.join(' ');
       setSelectedTurnId(latestTurn.id);
-      setQuestionDraft(question);
       setActiveAnswerId(latestTurn.answerId || null);
       setIsPreparingQuickAnswer(false);
       await requestAnswer('quick', {
         question,
         turnId: latestTurn.id,
-        quickFragments
+        quickFragments,
+        quickComment
       });
     } finally {
       setIsPreparingQuickAnswer(false);
     }
-  }, [isPreparingQuickAnswer, requestAnswer]);
+  }, [isPreparingQuickAnswer, questionDraft, requestAnswer]);
 
   const captureScreen = useCallback(async () => {
     const activeSession = sessionRef.current;
@@ -635,7 +648,7 @@ export const useInterviewCopilot = (options: { embedded?: boolean; onClosePanel?
       transcript: [...current.transcript, screenTurn]
     }));
     setSelectedTurnId(screenTurn.id);
-    setQuestionDraft(screenTurn.text);
+    setProgrammaticQuestionDraft(screenTurn.text);
     setActiveAnswerId(null);
     setScreenStatus('idle');
     await requestAnswer(
@@ -646,7 +659,7 @@ export const useInterviewCopilot = (options: { embedded?: boolean; onClosePanel?
         visualContext: analysis.context
       }
     );
-  }, [questionDraft, requestAnswer, screenStatus, updateSessionState]);
+  }, [questionDraft, requestAnswer, screenStatus, setProgrammaticQuestionDraft, updateSessionState]);
 
   captureScreenShortcutRef.current = () => { void captureScreen(); };
   quickAnswerShortcutRef.current = () => { void quickAnswer(); };
@@ -701,12 +714,12 @@ export const useInterviewCopilot = (options: { embedded?: boolean; onClosePanel?
     const latestQuestion = [...normalized.transcript].reverse().find(turn => turn.isQuestion)
       || [...normalized.transcript].reverse().find(turn => turn.source === 'interviewer');
     setSelectedTurnId(latestQuestion?.id || null);
-    setQuestionDraft(latestQuestion?.text || '');
+    setProgrammaticQuestionDraft(latestQuestion?.text || '');
     setActiveAnswerId(latestQuestion?.answerId || normalized.answers.at(-1)?.id || null);
     setFlowStatus('idle');
     setError('');
     setLastSpeechAt(Date.now());
-  }, []);
+  }, [setProgrammaticQuestionDraft]);
 
   const archiveSession = useCallback(async (sessionId: string) => {
     await electronService.archiveInterviewSession(sessionId);
@@ -741,7 +754,7 @@ export const useInterviewCopilot = (options: { embedded?: boolean; onClosePanel?
       setSession(null);
       sessionRef.current = null;
       setSelectedTurnId(null);
-      setQuestionDraft('');
+      setProgrammaticQuestionDraft('');
       setActiveAnswerId(null);
       activeAnswerIdRef.current = null;
       setSourceStatuses({});
@@ -750,7 +763,7 @@ export const useInterviewCopilot = (options: { embedded?: boolean; onClosePanel?
     }
     await refreshSessions();
     return true;
-  }, [refreshSessions, stopMicrophoneRecording, stopSystemRecording]);
+  }, [refreshSessions, setProgrammaticQuestionDraft, stopMicrophoneRecording, stopSystemRecording]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -819,7 +832,7 @@ export const useInterviewCopilot = (options: { embedded?: boolean; onClosePanel?
     selectedTurn,
     selectedTurnId,
     questionDraft,
-    setQuestionDraft,
+    setQuestionDraft: updateQuestionDraft,
     activeAnswer,
     toolStatus,
     screenStatus,

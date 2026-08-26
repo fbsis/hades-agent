@@ -48,6 +48,7 @@ export interface TranscriptTurn {
   visualContext?: string;
   lastSequence?: number;
   fragments?: string[];
+  fragmentTimestamps?: string[];
 }
 
 export interface InterviewAnswer {

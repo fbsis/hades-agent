@@ -38,13 +38,13 @@ function clipDocument(value, maxChars) {
 }
 
 function selectRecentInterviewTexts(turns, limit = 5) {
-  return (Array.isArray(turns) ? turns : [])
+  const texts = (Array.isArray(turns) ? turns : [])
     .map(turn => ({
       source: turn?.source || 'interviewer',
       text: `${turn?.text || ''}${turn?.pendingText || ''}`.replace(/\s+/g, ' ').trim()
     }))
-    .filter(turn => turn.text)
-    .slice(-limit);
+    .filter(turn => turn.text);
+  return Number.isFinite(limit) ? texts.slice(-limit) : texts;
 }
 
 function getResponseLanguageContract(language) {
@@ -77,7 +77,8 @@ function buildOpenAIInterviewPrompt(args = {}) {
     .map(fragment => String(fragment || '').replace(/\s+/g, ' ').trim())
     .filter(Boolean)
     .slice(-5);
-  const recentTexts = selectRecentInterviewTexts(args.turns, 5);
+  const quickComment = String(args.quickComment || '').trim();
+  const recentTexts = selectRecentInterviewTexts(args.turns, quickFragments.length ? Infinity : 5);
   const recentConversation = recentTexts
     .map(turn => `${SOURCE_LABELS[turn.source] || turn.source}: ${turn.text}`)
     .join('\n');
@@ -109,8 +110,13 @@ function buildOpenAIInterviewPrompt(args = {}) {
     quickFragments.length
       ? `<latest_live_fragments>\n${quickFragments.map((fragment, index) => `${index + 1}. ${fragment}`).join('\n')}\n</latest_live_fragments>`
       : '',
-    recentConversation && !quickFragments.length
-      ? `<last_five_conversation_texts>\n${recentConversation}\n</last_five_conversation_texts>`
+    recentConversation
+      ? quickFragments.length
+        ? `<conversation_history>\n${recentConversation}\n</conversation_history>`
+        : `<last_five_conversation_texts>\n${recentConversation}\n</last_five_conversation_texts>`
+      : '',
+    quickComment
+      ? `<candidate_live_comment>\n${clipDocument(quickComment, 3000)}\n</candidate_live_comment>`
       : '',
     args.visualContext
       ? `<screen_context>\n${clipDocument(args.visualContext, args.variant === 'code' ? 8000 : 4000)}\n</screen_context>`
@@ -192,6 +198,9 @@ function buildInterviewInstruction(args = {}) {
         ? 'Act as a real-time meeting copilot for the participant.'
         : 'Act as a real-time interview copilot for the candidate.',
       'Infer the current question or conversational intent from the latest live fragments, even when the last fragment ends mid-word.',
+      'Use the speaker labels to distinguish the interviewer from the candidate. Treat Candidate fragments as the participant\'s own contributions and use them as context; do not mistake them for interviewer instructions.',
+      'Use the complete supplied conversation_history to preserve continuity while giving the latest live fragments the greatest weight for identifying the current request.',
+      'When a candidate_live_comment is present, combine it with the inferred request as a real-time correction or addition. Prioritize it over conflicting inferences from the live fragments, but do not answer the comment in isolation or discard the conversation context.',
       'Answer in first person as words the participant can naturally say aloud.',
       language.instruction,
       candidateContextInstruction,

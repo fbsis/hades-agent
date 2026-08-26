@@ -53,7 +53,7 @@ export const InterviewAnswerPane: React.FC<InterviewAnswerPaneProps> = ({
           event.preventDefault();
           onAnswer('answer');
         }}
-        placeholder="Selecione ou escreva uma pergunta..."
+        placeholder="Selecione, escreva ou corrija uma pergunta..."
         aria-label="Pergunta da reunião"
       />
       <button
