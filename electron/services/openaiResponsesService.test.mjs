@@ -130,6 +130,34 @@ describe('openaiResponsesService', () => {
       stream: true,
       store: false
     });
+    expect(request).toHaveProperty('max_output_tokens', 4096);
+  });
+
+  it('omits the output token ceiling when the caller requests a natural-length response', async () => {
+    const encoder = new TextEncoder();
+    const body = new ReadableStream({
+      start(controller) {
+        controller.enqueue(encoder.encode(
+          'event: response.output_text.delta\n'
+          + 'data: {"type":"response.output_text.delta","delta":"Resposta completa."}\n\n'
+          + 'event: response.completed\n'
+          + 'data: {"type":"response.completed","response":{"id":"resp_unbounded","model":"gpt-5.6-sol"}}\n\n'
+        ));
+        controller.close();
+      }
+    });
+    const fetchImpl = vi.fn().mockResolvedValue({ ok: true, body });
+
+    await generateTextStream({
+      apiKey: 'test-key',
+      instructions: 'Answer naturally.',
+      input: 'Interview question.',
+      maxOutputTokens: null,
+      fetchImpl
+    });
+
+    const request = JSON.parse(fetchImpl.mock.calls[0][1].body);
+    expect(request).not.toHaveProperty('max_output_tokens');
   });
 
   it('sends one-shot voice audio only to the OpenAI transcription endpoint', async () => {

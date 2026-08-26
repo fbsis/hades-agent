@@ -85,6 +85,10 @@ async function generateTextStream({
   if (!apiKey) throw new Error('OpenAI API key nao configurada.');
   if (typeof fetchImpl !== 'function') throw new Error('fetch nao esta disponivel.');
 
+  const outputTokenLimit = Number.isFinite(maxOutputTokens) && maxOutputTokens > 0
+    ? { max_output_tokens: maxOutputTokens }
+    : {};
+
   const response = await fetchImpl(OPENAI_RESPONSES_URL, {
     method: 'POST',
     headers: {
@@ -96,7 +100,7 @@ async function generateTextStream({
       model,
       instructions,
       input,
-      max_output_tokens: maxOutputTokens,
+      ...outputTokenLimit,
       reasoning: { effort: reasoningEffort },
       text: { verbosity },
       stream: true,

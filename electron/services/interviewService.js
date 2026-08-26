@@ -286,7 +286,7 @@ class InterviewService {
       model: 'gpt-5.6-sol',
       instructions: instruction,
       input: buildOpenAIInterviewPrompt(args),
-      maxOutputTokens: args.variant === 'code' ? 8192 : 4096,
+      maxOutputTokens: null,
       reasoningEffort: 'low',
       verbosity: 'low',
       signal: controller.signal,
