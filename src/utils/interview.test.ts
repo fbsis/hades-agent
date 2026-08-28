@@ -10,8 +10,26 @@ import {
   selectLatestQuickAnswerTurn,
   selectQuickAnswerFragments,
   filterInterviewSessions,
-  getMeetingInactivityState
+  getMeetingInactivityState,
+  normalizeInterviewConfig,
+  withInterviewFormat
 } from './interview';
+
+describe('whiteboard interview configuration', () => {
+  it('normalizes legacy sessions to the traditional format', () => {
+    expect(normalizeInterviewConfig({ mode: 'interview' }).interviewFormat).toBe('standard');
+  });
+
+  it('enables candidate transcription when Whiteboard is first selected without making it mandatory', () => {
+    const whiteboard = withInterviewFormat({ ...DEFAULT_INTERVIEW_CONFIG, mode: 'interview' }, 'whiteboard');
+    expect(whiteboard.transcribeMicrophone).toBe(true);
+    expect({ ...whiteboard, transcribeMicrophone: false }.transcribeMicrophone).toBe(false);
+    expect(withInterviewFormat(whiteboard, 'standard')).toMatchObject({
+      interviewFormat: 'standard',
+      transcribeMicrophone: true
+    });
+  });
+});
 
 const turn = (id: string, text: string, overrides: Partial<TranscriptTurn> = {}): TranscriptTurn => ({
   id,

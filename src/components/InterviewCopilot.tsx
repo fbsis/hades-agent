@@ -20,6 +20,7 @@ import { InterviewList } from './interview/InterviewList';
 import { InterviewDetails } from './interview/InterviewDetails';
 import { DEFAULT_INTERVIEW_CONFIG, InterviewContextDocument, InterviewSession } from '../types/interview';
 import { InterviewDocuments } from './interview/InterviewDocuments';
+import { WhiteboardGuidancePane } from './interview/WhiteboardGuidancePane';
 import { getMeetingInactivityState } from '../utils/interview';
 
 interface InterviewCopilotProps {
@@ -152,10 +153,12 @@ const InterviewCopilot: React.FC<InterviewCopilotProps> = ({ embedded = false, o
                 className="interview-quick-answer-button"
                 onClick={copilot.quickAnswer}
                 disabled={copilot.isPreparingQuickAnswer}
-                title="Atualizar a transcrição e gerar uma resposta rápida"
+                title={copilot.session.config.interviewFormat === 'whiteboard' ? 'Capturar o quadro e avançar a orientação' : 'Atualizar a transcrição e gerar uma resposta rápida'}
               >
                 <Zap size={14} />
-                {copilot.isPreparingQuickAnswer ? 'Preparando' : 'Resposta rapida'}
+                {copilot.isPreparingQuickAnswer
+                  ? (copilot.session.config.interviewFormat === 'whiteboard' ? 'Analisando' : 'Preparando')
+                  : (copilot.session.config.interviewFormat === 'whiteboard' ? 'Avançar orientação' : 'Resposta rapida')}
               </button>
               <button type="button" className="interview-finish-button" onClick={() => finishAndReturnToList()} title="Finalizar reunião"><Check size={15} /> Finalizar</button>
             </>
@@ -239,6 +242,7 @@ const InterviewCopilot: React.FC<InterviewCopilotProps> = ({ embedded = false, o
           {isContextOpen && (
             <div className="interview-context-strip">
               <span><strong>Tipo</strong>{copilot.session.config.mode === 'interview' ? 'Entrevista' : 'Reunião'}</span>
+              {copilot.session.config.mode === 'interview' && <span><strong>Formato</strong>{copilot.session.config.interviewFormat === 'whiteboard' ? 'Whiteboard' : 'Tradicional'}</span>}
               <span><strong>Título</strong>{copilot.session.config.title || copilot.session.title}</span>
               {copilot.session.config.mode === 'interview' && (
                 <span><strong>Cargo / Empresa</strong>{[copilot.session.config.role, copilot.session.config.company].filter(Boolean).join(' / ') || 'Nao informado'}</span>
@@ -280,9 +284,29 @@ const InterviewCopilot: React.FC<InterviewCopilotProps> = ({ embedded = false, o
 
             <section className="interview-response-pane">
               <div className="interview-pane-heading">
-                <span>Resposta</span>
+                <span>{copilot.session.config.interviewFormat === 'whiteboard' ? 'Orientação Whiteboard' : 'Resposta'}</span>
+                {copilot.session.config.mode === 'interview' && <div className="interview-live-format-switch" role="group" aria-label="Formato atual da entrevista">
+                  <button
+                    type="button"
+                    className={copilot.session.config.interviewFormat === 'standard' ? 'active' : ''}
+                    onClick={() => copilot.switchInterviewFormat('standard')}
+                    disabled={copilot.isSwitchingInterviewFormat || copilot.isAdvancingWhiteboard}
+                  >Tradicional</button>
+                  <button
+                    type="button"
+                    className={copilot.session.config.interviewFormat === 'whiteboard' ? 'active' : ''}
+                    onClick={() => copilot.switchInterviewFormat('whiteboard')}
+                    disabled={copilot.isSwitchingInterviewFormat || copilot.isAdvancingWhiteboard}
+                  >Whiteboard</button>
+                </div>}
               </div>
-              <InterviewAnswerPane
+              {copilot.session.config.interviewFormat === 'whiteboard' ? <WhiteboardGuidancePane
+                state={copilot.session.whiteboardState}
+                comment={copilot.questionDraft}
+                isAnalyzing={copilot.isAdvancingWhiteboard}
+                onCommentChange={copilot.setQuestionDraft}
+                onAdvance={copilot.advanceWhiteboard}
+              /> : <InterviewAnswerPane
                 question={copilot.questionDraft}
                 answer={copilot.activeAnswer}
                 toolStatus={copilot.toolStatus}
@@ -292,7 +316,7 @@ const InterviewCopilot: React.FC<InterviewCopilotProps> = ({ embedded = false, o
                 onCopy={text => electronService.copyToClipboard(text)}
                 screenStatus={copilot.screenStatus}
                 onCaptureScreen={copilot.captureScreen}
-              />
+              />}
             </section>
           </main>
         </>

@@ -4,6 +4,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { InterviewSession } from '../../types/interview';
 import { InterviewTranscript } from './InterviewTranscript';
+import { WhiteboardGuidancePane } from './WhiteboardGuidancePane';
 
 interface InterviewDetailsProps {
   session: InterviewSession;
@@ -49,8 +50,9 @@ export const InterviewDetails: React.FC<InterviewDetailsProps> = ({ session, isS
       </nav>
       <section className="interview-details-content">
         {tab === 'overview' && <div className="interview-overview-grid">
+          {session.config.interviewFormat === 'whiteboard' && session.whiteboardState && <article className="interview-detail-card interview-whiteboard-detail"><h2>Última orientação Whiteboard</h2><WhiteboardGuidancePane state={session.whiteboardState} readOnly /></article>}
           <article className="interview-detail-card interview-summary-card"><h2>Resumo</h2>{session.summary ? <div className="interview-markdown"><ReactMarkdown remarkPlugins={[remarkGfm]}>{session.summary}</ReactMarkdown></div> : <div className="interview-detail-empty">Ainda não há resumo para esta sessão.<button type="button" onClick={onSummarize} disabled={isSummarizing || !session.transcript.length}>{isSummarizing ? 'Gerando…' : 'Gerar resumo'}</button></div>}</article>
-          <article className="interview-detail-card"><h2>Informações</h2><dl className="interview-info-list"><div><dt>Idioma</dt><dd>{session.config.language}</dd></div><div><dt>Estilo de resposta</dt><dd>{session.config.answerStyle}</dd></div>{session.config.role && <div><dt>Cargo</dt><dd>{session.config.role}</dd></div>}<div><dt>Gravação</dt><dd>{session.config.retainAudio ? 'Mantida' : 'Não mantida'}</dd></div></dl></article>
+          <article className="interview-detail-card"><h2>Informações</h2><dl className="interview-info-list">{session.config.mode === 'interview' && <div><dt>Formato</dt><dd>{session.config.interviewFormat === 'whiteboard' ? 'Whiteboard' : 'Tradicional'}</dd></div>}<div><dt>Idioma</dt><dd>{session.config.language}</dd></div><div><dt>Estilo de resposta</dt><dd>{session.config.answerStyle}</dd></div>{session.config.role && <div><dt>Cargo</dt><dd>{session.config.role}</dd></div>}<div><dt>Gravação</dt><dd>{session.config.retainAudio ? 'Mantida' : 'Não mantida'}</dd></div></dl></article>
         </div>}
         {tab === 'transcript' && <div className="interview-detail-transcript"><InterviewTranscript turns={session.transcript} selectedTurnId={null} onSelect={() => {}} onAnswer={() => {}} readOnly /></div>}
         {tab === 'answers' && <div className="interview-detail-answers">{session.answers.length === 0 ? <div className="interview-list-empty"><strong>Nenhuma resposta gerada</strong><span>As respostas criadas durante a sessão aparecerão aqui.</span></div> : session.answers.map(answer => <article className="interview-detail-card" key={answer.id}><small>{new Date(answer.createdAt).toLocaleString()}</small><h2>{answer.question || 'Resposta'}</h2><div className="interview-markdown"><ReactMarkdown remarkPlugins={[remarkGfm]}>{answer.text}</ReactMarkdown></div></article>)}</div>}

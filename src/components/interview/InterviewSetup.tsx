@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ArrowLeft, ChevronDown, Radio, Save } from 'lucide-react';
 import { InterviewConfig, InterviewContextDocument } from '../../types/interview';
+import { withInterviewFormat } from '../../utils/interview';
 
 interface InterviewSetupProps {
   config: InterviewConfig;
@@ -16,6 +17,14 @@ interface InterviewSetupProps {
 export const InterviewSetup: React.FC<InterviewSetupProps> = ({ config, error, isEditing = false, onConfigChange, onStart, onSavePending, onCancel, documents }) => {
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const update = <K extends keyof InterviewConfig>(key: K, value: InterviewConfig[K]) => onConfigChange({ ...config, [key]: value });
+  const selectMode = (mode: InterviewConfig['mode']) => onConfigChange({
+    ...config,
+    mode,
+    ...(mode === 'meeting' ? { interviewFormat: 'standard' as const } : {})
+  });
+  const selectInterviewFormat = (interviewFormat: InterviewConfig['interviewFormat']) => (
+    onConfigChange(withInterviewFormat(config, interviewFormat))
+  );
 
   return (
     <main className="interview-form-page">
@@ -26,9 +35,14 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({ config, error, i
         <header className="interview-form-heading"><h1>{isEditing ? 'Editar sessão pendente' : 'Nova reunião ou entrevista'}</h1><p>Defina o contexto principal. Você pode ajustar as opções avançadas quando precisar.</p></header>
         <section className="interview-form-card">
           <div className="interview-mode-selector" role="group" aria-label="Tipo de sessão">
-            <button type="button" className={config.mode === 'meeting' ? 'active' : ''} onClick={() => update('mode', 'meeting')}>Reunião</button>
-            <button type="button" className={config.mode === 'interview' ? 'active' : ''} onClick={() => update('mode', 'interview')}>Entrevista</button>
+            <button type="button" className={config.mode === 'meeting' ? 'active' : ''} onClick={() => selectMode('meeting')}>Reunião</button>
+            <button type="button" className={config.mode === 'interview' ? 'active' : ''} onClick={() => selectMode('interview')}>Entrevista</button>
           </div>
+          {config.mode === 'interview' && <div className="interview-format-selector" role="group" aria-label="Formato da entrevista">
+            <span>Formato</span>
+            <button type="button" className={config.interviewFormat === 'standard' ? 'active' : ''} onClick={() => selectInterviewFormat('standard')}>Tradicional</button>
+            <button type="button" className={config.interviewFormat === 'whiteboard' ? 'active' : ''} onClick={() => selectInterviewFormat('whiteboard')}>Whiteboard</button>
+          </div>}
           <div className="interview-form-grid">
             <label className="interview-title-field"><span>Título *</span><input autoFocus value={config.title} onChange={event => update('title', event.target.value)} placeholder={config.mode === 'interview' ? 'Entrevista técnica' : 'Planejamento semanal'} /></label>
             {config.mode === 'interview' ? <><label><span>Cargo</span><input value={config.role} onChange={event => update('role', event.target.value)} placeholder="Senior Software Engineer" /></label><label><span>Empresa</span><input value={config.company} onChange={event => update('company', event.target.value)} placeholder="Empresa" /></label></> : <label className="interview-title-field"><span>Empresa ou pessoa</span><input value={config.company} onChange={event => update('company', event.target.value)} placeholder="Acme ou Maria Silva" /></label>}

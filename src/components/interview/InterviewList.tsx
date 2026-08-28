@@ -71,7 +71,7 @@ export const InterviewList: React.FC<InterviewListProps> = ({
             <tbody>{filtered.map(session => (
               <tr key={session.id}>
                 <td data-label="Título"><button className="interview-title-link" type="button" onClick={() => onOpen(session)}>{session.title}</button></td>
-                <td data-label="Tipo">{session.config.mode === 'interview' ? 'Entrevista' : 'Reunião'}</td>
+                <td data-label="Tipo">{session.config.mode === 'interview' ? (session.config.interviewFormat === 'whiteboard' ? 'Entrevista · Whiteboard' : 'Entrevista') : 'Reunião'}</td>
                 <td data-label="Empresa / cargo">{[session.config.company, session.config.role].filter(Boolean).join(' · ') || '—'}</td>
                 <td data-label="Status"><span className={`interview-status-badge status-${session.status}`}>{statusLabel[session.status]}</span></td>
                 <td data-label="Atualizada">{new Date(session.updatedAt).toLocaleString()}</td>

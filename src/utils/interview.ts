@@ -1,11 +1,14 @@
 import {
   InterviewAnswerVariant,
+  InterviewConfig,
+  InterviewFormat,
   InterviewSession,
   InterviewSessionStatus,
   InterviewSource,
   MeetingMode,
   InterviewTranscriptDelta,
-  TranscriptTurn
+  TranscriptTurn,
+  DEFAULT_INTERVIEW_CONFIG
 } from '../types/interview';
 
 export interface InterviewSessionFilters {
@@ -16,6 +19,21 @@ export interface InterviewSessionFilters {
 
 export const MEETING_INACTIVITY_WARNING_MS = 5 * 60 * 1000;
 export const MEETING_INACTIVITY_FINISH_MS = 5 * 60 * 1000;
+
+export const normalizeInterviewConfig = (config: Partial<InterviewConfig> = {}): InterviewConfig => ({
+  ...DEFAULT_INTERVIEW_CONFIG,
+  ...config,
+  interviewFormat: config.interviewFormat || 'standard'
+});
+
+export const withInterviewFormat = (
+  config: InterviewConfig,
+  interviewFormat: InterviewFormat
+): InterviewConfig => ({
+  ...config,
+  interviewFormat,
+  ...(interviewFormat === 'whiteboard' ? { transcribeMicrophone: true } : {})
+});
 
 export const getMeetingInactivityState = (
   lastSpeechAt: number,

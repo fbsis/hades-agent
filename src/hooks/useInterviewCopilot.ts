@@ -4,6 +4,7 @@ import {
   InterviewAnswer,
   InterviewAnswerVariant,
   InterviewConfig,
+  InterviewFormat,
   InterviewFlowStatus,
   InterviewSession,
   InterviewTranscriptionStatus,
@@ -13,9 +14,11 @@ import {
   applyInterviewTranscriptDelta,
   canUseInterviewActionShortcut,
   isLikelyInterviewQuestion,
+  normalizeInterviewConfig,
   selectLatestQuickAnswerTurn,
   selectQuickAnswerFragments,
-  selectScreenAnswerVariant
+  selectScreenAnswerVariant,
+  withInterviewFormat
 } from '../utils/interview';
 import { arrayBufferToBase64, floatTo16BitPCM } from '../utils/audio';
 import { electronService } from '../services/electron';
@@ -52,6 +55,8 @@ export const useInterviewCopilot = (options: { embedded?: boolean; onClosePanel?
   const [error, setError] = useState('');
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [isPreparingQuickAnswer, setIsPreparingQuickAnswer] = useState(false);
+  const [isAdvancingWhiteboard, setIsAdvancingWhiteboard] = useState(false);
+  const [isSwitchingInterviewFormat, setIsSwitchingInterviewFormat] = useState(false);
   const [isSummarizing, setIsSummarizing] = useState(false);
   const [lastSpeechAt, setLastSpeechAt] = useState(() => Date.now());
 
@@ -73,6 +78,8 @@ export const useInterviewCopilot = (options: { embedded?: boolean; onClosePanel?
   const quickAnswerShortcutRef = useRef<() => void>(() => {});
   const shortcutTimestampsRef = useRef({ capture: 0, quick: 0 });
   const questionDraftEditedRef = useRef(false);
+  const isAdvancingWhiteboardRef = useRef(false);
+  const isSwitchingInterviewFormatRef = useRef(false);
 
   const setProgrammaticQuestionDraft = useCallback((value: string) => {
     questionDraftEditedRef.current = false;
@@ -111,7 +118,7 @@ export const useInterviewCopilot = (options: { embedded?: boolean; onClosePanel?
 
   useEffect(() => {
     electronService.getSettings().then(settings => {
-      if (settings?.interview) setConfig({ ...DEFAULT_INTERVIEW_CONFIG, ...settings.interview });
+      if (settings?.interview) setConfig(normalizeInterviewConfig(settings.interview));
     });
     refreshSessions();
   }, [refreshSessions]);
@@ -153,7 +160,7 @@ export const useInterviewCopilot = (options: { embedded?: boolean; onClosePanel?
           if (turn.source === 'interviewer' && turn.isQuestion) {
             queueMicrotask(() => {
               setSelectedTurnId(turn.id);
-              if (!questionDraftEditedRef.current) {
+              if (current.config.interviewFormat !== 'whiteboard' && !questionDraftEditedRef.current) {
                 setProgrammaticQuestionDraft(turn.text);
               }
               setActiveAnswerId(turn.answerId || null);
@@ -387,7 +394,7 @@ export const useInterviewCopilot = (options: { embedded?: boolean; onClosePanel?
     if (finished) {
       setSession(finished);
       sessionRef.current = finished;
-      setConfig({ ...DEFAULT_INTERVIEW_CONFIG, ...finished.config });
+      setConfig(normalizeInterviewConfig(finished.config));
       setSelectedTurnId(null);
       setProgrammaticQuestionDraft('');
       setActiveAnswerId(null);
@@ -422,7 +429,7 @@ export const useInterviewCopilot = (options: { embedded?: boolean; onClosePanel?
 
     setSession(saved);
     sessionRef.current = saved;
-    setConfig({ ...DEFAULT_INTERVIEW_CONFIG, ...saved.config });
+    setConfig(normalizeInterviewConfig(saved.config));
     setFlowStatus('idle');
     await refreshSessions();
     return saved;
@@ -442,7 +449,9 @@ export const useInterviewCopilot = (options: { embedded?: boolean; onClosePanel?
 
   const selectTurn = useCallback((turn: TranscriptTurn) => {
     setSelectedTurnId(turn.id);
-    setProgrammaticQuestionDraft(`${turn.text}${turn.pendingText}`.trim());
+    if (sessionRef.current?.config.interviewFormat !== 'whiteboard') {
+      setProgrammaticQuestionDraft(`${turn.text}${turn.pendingText}`.trim());
+    }
     setActiveAnswerId(turn.answerId || null);
   }, [setProgrammaticQuestionDraft]);
 
@@ -572,9 +581,126 @@ export const useInterviewCopilot = (options: { embedded?: boolean; onClosePanel?
     });
   }, [requestAnswer, setProgrammaticQuestionDraft]);
 
+  const advanceWhiteboard = useCallback(async () => {
+    const currentSession = sessionRef.current;
+    if (!currentSession || currentSession.config.interviewFormat !== 'whiteboard' || isAdvancingWhiteboardRef.current) return;
+
+    isAdvancingWhiteboardRef.current = true;
+    setIsAdvancingWhiteboard(true);
+    setIsPreparingQuickAnswer(true);
+    setScreenStatus('reading');
+    setError('');
+    const comment = questionDraftEditedRef.current ? questionDraft.trim() : '';
+    try {
+      await Promise.all([
+        electronService.flushInterviewTranscription(currentSession.id, 'interviewer'),
+        electronService.flushInterviewTranscription(currentSession.id, 'candidate')
+      ]);
+      const activeSession = sessionRef.current;
+      if (!activeSession) return;
+      const whiteboardState = await electronService.requestInterviewWhiteboardStep({
+        sessionId: activeSession.id,
+        turns: activeSession.transcript,
+        comment
+      });
+      if (!whiteboardState) {
+        setScreenStatus('error');
+        setError('Nao foi possivel analisar o Whiteboard. O estado anterior foi preservado.');
+        return;
+      }
+      updateSessionState(current => ({ ...current, whiteboardState }));
+      setProgrammaticQuestionDraft('');
+      setScreenStatus('idle');
+    } catch (requestError) {
+      setScreenStatus('error');
+      setError(requestError instanceof Error
+        ? requestError.message
+        : 'Nao foi possivel analisar o Whiteboard. O estado anterior foi preservado.');
+    } finally {
+      isAdvancingWhiteboardRef.current = false;
+      setIsAdvancingWhiteboard(false);
+      setIsPreparingQuickAnswer(false);
+    }
+  }, [questionDraft, setProgrammaticQuestionDraft, updateSessionState]);
+
+  const switchInterviewFormat = useCallback(async (interviewFormat: InterviewFormat) => {
+    const activeSession = sessionRef.current;
+    if (
+      !activeSession
+      || activeSession.status !== 'active'
+      || activeSession.config.mode !== 'interview'
+      || activeSession.config.interviewFormat === interviewFormat
+      || isSwitchingInterviewFormatRef.current
+      || isAdvancingWhiteboardRef.current
+    ) return;
+
+    isSwitchingInterviewFormatRef.current = true;
+    setIsSwitchingInterviewFormat(true);
+    setError('');
+    let nextConfig: InterviewConfig = withInterviewFormat(activeSession.config, interviewFormat);
+
+    try {
+      const updated = await electronService.updateInterviewSession(activeSession.id, { config: nextConfig });
+      if (!updated) throw new Error('Nao foi possivel alterar o formato da entrevista.');
+      nextConfig = normalizeInterviewConfig(updated.config);
+      setConfig(nextConfig);
+      updateSessionState(current => ({ ...current, config: nextConfig, updatedAt: updated.updatedAt }));
+
+      if (interviewFormat === 'whiteboard') {
+        setProgrammaticQuestionDraft('');
+        if (!activeSession.config.transcribeMicrophone) {
+          const sessionWithMicrophone = { ...activeSession, config: nextConfig };
+          let sourceStarted = false;
+          let recorderStarted = false;
+          try {
+            sourceStarted = await electronService.startInterviewSource({
+              sessionId: activeSession.id,
+              source: 'candidate',
+              language: nextConfig.language,
+              provider: nextConfig.transcriptionProvider || 'whisper-local',
+              customVocabulary: buildTranscriptionVocabulary(nextConfig)
+            });
+            recorderStarted = sourceStarted
+              ? await startRecorder(sessionWithMicrophone, 'candidate')
+              : false;
+          } catch {
+            recorderStarted = false;
+          }
+          if (!sourceStarted || !recorderStarted) {
+            if (sourceStarted) await electronService.stopInterviewSource(activeSession.id, 'candidate');
+            stopMicrophoneRecording();
+            if (nextConfig.retainAudio) {
+              await electronService.stopInterviewRecording(activeSession.id, 'candidate');
+            }
+            nextConfig = { ...nextConfig, transcribeMicrophone: false };
+            await electronService.updateInterviewSession(activeSession.id, { config: nextConfig });
+            setConfig(nextConfig);
+            updateSessionState(current => ({ ...current, config: nextConfig }));
+            setError('Whiteboard ativado, mas o microfone nao ficou disponivel. A entrevista continua com o audio do sistema.');
+          }
+        }
+      } else {
+        const latestQuestion = [...activeSession.transcript].reverse().find(turn => turn.isQuestion)
+          || [...activeSession.transcript].reverse().find(turn => turn.source === 'interviewer');
+        setSelectedTurnId(latestQuestion?.id || null);
+        setProgrammaticQuestionDraft(latestQuestion?.text || '');
+        setActiveAnswerId(activeAnswerIdRef.current || latestQuestion?.answerId || activeSession.answers.at(-1)?.id || null);
+      }
+    } catch (switchError) {
+      setError(switchError instanceof Error ? switchError.message : 'Nao foi possivel alterar o formato da entrevista.');
+    } finally {
+      isSwitchingInterviewFormatRef.current = false;
+      setIsSwitchingInterviewFormat(false);
+    }
+  }, [setProgrammaticQuestionDraft, startRecorder, stopMicrophoneRecording, updateSessionState]);
+
   const quickAnswer = useCallback(async () => {
     const currentSession = sessionRef.current;
     if (!currentSession || isPreparingQuickAnswer) return;
+    if (currentSession.config.interviewFormat === 'whiteboard') {
+      await advanceWhiteboard();
+      return;
+    }
 
     setIsPreparingQuickAnswer(true);
     setError('');
@@ -610,11 +736,15 @@ export const useInterviewCopilot = (options: { embedded?: boolean; onClosePanel?
     } finally {
       setIsPreparingQuickAnswer(false);
     }
-  }, [isPreparingQuickAnswer, questionDraft, requestAnswer]);
+  }, [advanceWhiteboard, isPreparingQuickAnswer, questionDraft, requestAnswer]);
 
   const captureScreen = useCallback(async () => {
     const activeSession = sessionRef.current;
     if (!activeSession || screenStatus === 'reading') return;
+    if (activeSession.config.interviewFormat === 'whiteboard') {
+      await advanceWhiteboard();
+      return;
+    }
     setScreenStatus('reading');
     setError('');
     const analysis = await electronService.analyzeInterviewScreen(questionDraft);
@@ -659,7 +789,7 @@ export const useInterviewCopilot = (options: { embedded?: boolean; onClosePanel?
         visualContext: analysis.context
       }
     );
-  }, [questionDraft, requestAnswer, screenStatus, setProgrammaticQuestionDraft, updateSessionState]);
+  }, [advanceWhiteboard, questionDraft, requestAnswer, screenStatus, setProgrammaticQuestionDraft, updateSessionState]);
 
   captureScreenShortcutRef.current = () => { void captureScreen(); };
   quickAnswerShortcutRef.current = () => { void quickAnswer(); };
@@ -706,7 +836,7 @@ export const useInterviewCopilot = (options: { embedded?: boolean; onClosePanel?
   const loadSession = useCallback((loaded: InterviewSession) => {
     const normalized = {
       ...loaded,
-      config: { ...DEFAULT_INTERVIEW_CONFIG, ...loaded.config }
+      config: normalizeInterviewConfig(loaded.config)
     };
     setSession(normalized);
     sessionRef.current = normalized;
@@ -714,7 +844,7 @@ export const useInterviewCopilot = (options: { embedded?: boolean; onClosePanel?
     const latestQuestion = [...normalized.transcript].reverse().find(turn => turn.isQuestion)
       || [...normalized.transcript].reverse().find(turn => turn.source === 'interviewer');
     setSelectedTurnId(latestQuestion?.id || null);
-    setProgrammaticQuestionDraft(latestQuestion?.text || '');
+    setProgrammaticQuestionDraft(normalized.config.interviewFormat === 'whiteboard' ? '' : latestQuestion?.text || '');
     setActiveAnswerId(latestQuestion?.answerId || normalized.answers.at(-1)?.id || null);
     setFlowStatus('idle');
     setError('');
@@ -851,6 +981,10 @@ export const useInterviewCopilot = (options: { embedded?: boolean; onClosePanel?
     answerLatestQuestion,
     quickAnswer,
     isPreparingQuickAnswer,
+    isAdvancingWhiteboard,
+    advanceWhiteboard,
+    isSwitchingInterviewFormat,
+    switchInterviewFormat,
     isSummarizing,
     lastSpeechAt,
     markMeetingActive: () => setLastSpeechAt(Date.now()),
