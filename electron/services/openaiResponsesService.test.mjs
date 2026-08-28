@@ -94,6 +94,48 @@ describe('openaiResponsesService', () => {
     });
   });
 
+  it('sends strict structured multimodal output without an output token ceiling', async () => {
+    const fetchImpl = vi.fn().mockResolvedValue({
+      ok: true,
+      text: async () => JSON.stringify({ output_text: '{"ok":true}' })
+    });
+    const textFormat = {
+      type: 'json_schema',
+      name: 'whiteboard_state',
+      strict: true,
+      schema: {
+        type: 'object',
+        additionalProperties: false,
+        properties: { ok: { type: 'boolean' } },
+        required: ['ok']
+      }
+    };
+
+    await generateText({
+      apiKey: 'test-key',
+      model: 'gpt-5.6-sol',
+      instructions: 'Guide the interview.',
+      input: [{ role: 'user', content: [
+        { type: 'input_text', text: 'Complete transcript' },
+        { type: 'input_image', image_url: 'data:image/png;base64,AAAA', detail: 'high' }
+      ] }],
+      maxOutputTokens: null,
+      reasoningEffort: 'low',
+      verbosity: 'low',
+      textFormat,
+      fetchImpl
+    });
+
+    const request = JSON.parse(fetchImpl.mock.calls[0][1].body);
+    expect(request).not.toHaveProperty('max_output_tokens');
+    expect(request).toMatchObject({
+      model: 'gpt-5.6-sol',
+      reasoning: { effort: 'low' },
+      text: { verbosity: 'low', format: textFormat },
+      store: false
+    });
+  });
+
   it('streams OpenAI interview answer deltas in order', async () => {
     const encoder = new TextEncoder();
     const body = new ReadableStream({

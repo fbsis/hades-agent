@@ -19,6 +19,12 @@ const {
   isPathInsideDirectory,
   legacyHistoryToInterviewSession
 } = require('./interviewData');
+const {
+  WHITEBOARD_INSTRUCTIONS,
+  WHITEBOARD_STATE_SCHEMA,
+  buildWhiteboardInput,
+  validateWhiteboardState
+} = require('./whiteboardPrompt');
 
 function id(prefix) {
   return `${prefix}_${crypto.randomUUID()}`;
@@ -36,9 +42,18 @@ function parseJsonResponse(rawText) {
   }
 }
 
+function normalizeConfig(config = {}) {
+  return { ...DEFAULT_CONFIG, ...(config || {}), interviewFormat: config?.interviewFormat || 'standard' };
+}
+
+function normalizeSession(session) {
+  return session ? { ...session, config: normalizeConfig(session.config) } : session;
+}
+
 class InterviewService {
   constructor() {
     this.activeAnswers = new Map();
+    this.activeWhiteboardSteps = new Set();
   }
 
   migrateLegacyHistory() {
@@ -55,6 +70,7 @@ class InterviewService {
 
   listSessions() {
     return [...this.migrateLegacyHistory()]
+      .map(normalizeSession)
       .sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt)));
   }
 
@@ -101,7 +117,7 @@ class InterviewService {
 
   createSession(config = {}, options = {}) {
     const now = new Date().toISOString();
-    const normalizedConfig = { ...DEFAULT_CONFIG, ...(config || {}) };
+    const normalizedConfig = normalizeConfig(config);
     const isPending = options.status === 'pending';
     const titleParts = normalizedConfig.mode === 'interview'
       ? [normalizedConfig.company, normalizedConfig.role].filter(Boolean)
@@ -459,6 +475,67 @@ class InterviewService {
       analysis.extractedText ? `Visible text/code:\n${analysis.extractedText}` : ''
     ].filter(Boolean).join('\n\n');
     return analysis;
+  }
+
+  async requestWhiteboardStep(args = {}, imageUrl) {
+    const sessionId = String(args.sessionId || '');
+    if (this.activeWhiteboardSteps.has(sessionId)) {
+      throw new Error('Uma analise Whiteboard ja esta em andamento.');
+    }
+    this.activeWhiteboardSteps.add(sessionId);
+    try {
+      return await this.runWhiteboardStep(args, imageUrl);
+    } finally {
+      this.activeWhiteboardSteps.delete(sessionId);
+    }
+  }
+
+  async runWhiteboardStep(args = {}, imageUrl) {
+    const session = this.getSession(args.sessionId);
+    if (!session) throw new Error('Sessao de entrevista nao encontrada.');
+    if (session.config.mode !== 'interview' || session.config.interviewFormat !== 'whiteboard') {
+      throw new Error('Esta sessao nao esta no formato Whiteboard.');
+    }
+    if (!imageUrl) throw new Error('Nenhuma tela disponivel para captura.');
+
+    const settings = store.getSettings();
+    const apiKey = settings?.general?.openaiApiKey || process.env.OPENAI_API_KEY;
+    if (!apiKey) {
+      throw new Error('OpenAI API key nao configurada. Abra Configuracoes > Configuracao.');
+    }
+
+    const turns = Array.isArray(args.turns) ? args.turns : session.transcript || [];
+    const inputText = buildWhiteboardInput({
+      session,
+      turns,
+      contextDocuments: this.resolveContextDocuments(session.config),
+      comment: args.comment
+    });
+    const result = await openaiResponsesService.generateText({
+      apiKey,
+      model: 'gpt-5.6-sol',
+      instructions: WHITEBOARD_INSTRUCTIONS,
+      input: [{
+        role: 'user',
+        content: [
+          { type: 'input_text', text: inputText },
+          { type: 'input_image', image_url: imageUrl, detail: 'high' }
+        ]
+      }],
+      maxOutputTokens: null,
+      reasoningEffort: 'low',
+      verbosity: 'low',
+      textFormat: WHITEBOARD_STATE_SCHEMA
+    });
+    const parsed = parseJsonResponse(result.text);
+    const validated = validateWhiteboardState(parsed);
+    const whiteboardState = {
+      ...validated,
+      revision: Number(session.whiteboardState?.revision || 0) + 1,
+      updatedAt: new Date().toISOString()
+    };
+    this.updateSession(session.id, { whiteboardState });
+    return whiteboardState;
   }
 }
 

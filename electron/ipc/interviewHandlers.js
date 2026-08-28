@@ -21,6 +21,34 @@ function wrap(handler) {
   };
 }
 
+async function captureInterviewDisplay(event) {
+  const requestingWindow = BrowserWindow.fromWebContents(event.sender);
+  const floatingHead = windowManager.get('floatingHead');
+  const floatingHeadVisible = floatingHead
+    && !floatingHead.isDestroyed()
+    && floatingHead.isVisible();
+  const anchorWindow = requestingWindow && !requestingWindow.isDestroyed() && requestingWindow.isVisible()
+    ? requestingWindow
+    : floatingHeadVisible
+      ? floatingHead
+      : requestingWindow;
+  const displays = screen.getAllDisplays();
+  const targetDisplay = anchorWindow && !anchorWindow.isDestroyed()
+    ? screen.getDisplayMatching(anchorWindow.getBounds())
+    : screen.getDisplayNearestPoint(screen.getCursorScreenPoint());
+  const sources = await desktopCapturer.getSources({
+    types: ['screen'],
+    thumbnailSize: getDisplayThumbnailSize(targetDisplay)
+  });
+  const source = selectDisplaySource(sources, targetDisplay, displays);
+  if (!source) throw new Error('Nenhuma tela disponivel para captura.');
+  logger.info(
+    'INTERVIEW_IPC',
+    `Capturing display ${targetDisplay.id} from source ${source.id} (${source.name}).`
+  );
+  return source.thumbnail.toDataURL();
+}
+
 function registerInterviewHandlers() {
   ipcMain.handle('interview-create-session', wrap((event, config, options) => (
     interviewService.createSession(config || {}, options || {})
@@ -108,31 +136,13 @@ function registerInterviewHandlers() {
   )));
 
   ipcMain.handle('interview-analyze-screen', wrap(async (event, question) => {
-    const requestingWindow = BrowserWindow.fromWebContents(event.sender);
-    const floatingHead = windowManager.get('floatingHead');
-    const floatingHeadVisible = floatingHead
-      && !floatingHead.isDestroyed()
-      && floatingHead.isVisible();
-    const anchorWindow = requestingWindow && !requestingWindow.isDestroyed() && requestingWindow.isVisible()
-      ? requestingWindow
-      : floatingHeadVisible
-        ? floatingHead
-        : requestingWindow;
-    const displays = screen.getAllDisplays();
-    const targetDisplay = anchorWindow && !anchorWindow.isDestroyed()
-      ? screen.getDisplayMatching(anchorWindow.getBounds())
-      : screen.getDisplayNearestPoint(screen.getCursorScreenPoint());
-    const sources = await desktopCapturer.getSources({
-      types: ['screen'],
-      thumbnailSize: getDisplayThumbnailSize(targetDisplay)
-    });
-    const source = selectDisplaySource(sources, targetDisplay, displays);
-    if (!source) throw new Error('Nenhuma tela disponivel para captura.');
-    logger.info(
-      'INTERVIEW_IPC',
-      `Capturing display ${targetDisplay.id} from source ${source.id} (${source.name}).`
-    );
-    return interviewService.analyzeScreen([source.thumbnail.toDataURL()], question);
+    const imageUrl = await captureInterviewDisplay(event);
+    return interviewService.analyzeScreen([imageUrl], question);
+  }));
+
+  ipcMain.handle('interview-request-whiteboard-step', wrap(async (event, args) => {
+    const imageUrl = await captureInterviewDisplay(event);
+    return interviewService.requestWhiteboardStep(args || {}, imageUrl);
   }));
 
   ipcMain.handle('interview-recording-start', wrap((event, sessionId, source) => (

@@ -4,6 +4,7 @@ export type InterviewSessionStatus = 'pending' | 'active' | 'completed' | 'archi
 export type InterviewLanguage = 'auto' | 'pt-BR' | 'en-US';
 export type InterviewAnswerStyle = 'natural' | 'concise' | 'star' | 'technical';
 export type MeetingMode = 'meeting' | 'interview';
+export type InterviewFormat = 'standard' | 'whiteboard';
 export type InterviewTranscriptionProvider = 'whisper-local';
 export type InterviewAnswerVariant = 'answer' | 'quick' | 'shorter' | 'detail' | 'star' | 'code' | 'retry';
 
@@ -17,6 +18,7 @@ export interface InterviewContextDocument {
 
 export interface InterviewConfig {
   mode: MeetingMode;
+  interviewFormat: InterviewFormat;
   title: string;
   description: string;
   role: string;
@@ -32,6 +34,29 @@ export interface InterviewConfig {
   saveTranscript: boolean;
   retainAudio: boolean;
   contextDocumentIds: string[];
+}
+
+export type WhiteboardProblemType = 'unknown' | 'algorithm' | 'system_design';
+export type WhiteboardPhase = 'understand' | 'clarify' | 'explore' | 'construct' | 'validate' | 'finalize';
+
+export interface WhiteboardState {
+  revision: number;
+  updatedAt: string;
+  problemType: WhiteboardProblemType;
+  phase: WhiteboardPhase;
+  problemSummary: string;
+  requirements: string[];
+  constraints: string[];
+  assumptions: string[];
+  decisions: string[];
+  interviewerFeedback: string[];
+  openQuestions: string[];
+  tradeoffs: string[];
+  suggestedQuestions: string[];
+  nextActions: string[];
+  suggestedSpeech: string[];
+  screenSummary: string;
+  confidence: number;
 }
 
 export interface TranscriptTurn {
@@ -88,6 +113,7 @@ export interface InterviewSession {
   summaryAt?: string;
   summaryProvider?: 'openai' | 'hermes';
   audioArtifacts?: InterviewAudioArtifact[];
+  whiteboardState?: WhiteboardState;
   hasRecording?: boolean;
   hermesMemory?: {
     status: 'pending' | 'synced';
@@ -151,6 +177,7 @@ export interface InterviewScreenAnalysis {
 
 export const DEFAULT_INTERVIEW_CONFIG: InterviewConfig = {
   mode: 'meeting',
+  interviewFormat: 'standard',
   title: '',
   description: '',
   role: '',

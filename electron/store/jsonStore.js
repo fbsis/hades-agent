@@ -68,6 +68,7 @@ class JsonStore {
       },
       interview: {
         mode: 'meeting',
+        interviewFormat: 'standard',
         title: '',
         description: '',
         role: '',

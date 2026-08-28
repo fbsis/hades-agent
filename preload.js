@@ -172,6 +172,7 @@ contextBridge.exposeInMainWorld('electron', {
     return () => ipcRenderer.removeListener('interview-transcription-status', sub);
   },
   requestInterviewAnswer: (args) => ipcRenderer.invoke('interview-request-answer', args),
+  requestInterviewWhiteboardStep: (args) => ipcRenderer.invoke('interview-request-whiteboard-step', args),
   cancelInterviewAnswer: (answerId) => ipcRenderer.invoke('interview-cancel-answer', answerId),
   onInterviewAnswerEvent: (callback) => {
     const sub = (_event, payload) => callback(payload);

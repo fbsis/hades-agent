@@ -8,7 +8,8 @@ import type {
   InterviewSession,
   InterviewTranscriptDelta,
   InterviewTranscriptionStatus,
-  TranscriptTurn
+  TranscriptTurn,
+  WhiteboardState
 } from './interview';
 
 /**
@@ -132,6 +133,11 @@ export interface ElectronAPI {
     quickComment?: string;
     variant: InterviewAnswerVariant;
   }) => Promise<IPCResponse<InterviewAnswer>>;
+  requestInterviewWhiteboardStep: (args: {
+    sessionId: string;
+    turns: TranscriptTurn[];
+    comment?: string;
+  }) => Promise<IPCResponse<WhiteboardState>>;
   cancelInterviewAnswer: (answerId: string) => Promise<IPCResponse<boolean>>;
   onInterviewAnswerEvent: (callback: (event: InterviewAnswerEvent) => void) => () => void;
   analyzeInterviewScreen: (question?: string) => Promise<IPCResponse<InterviewScreenAnalysis>>;

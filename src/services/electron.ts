@@ -16,7 +16,8 @@ import type {
   InterviewSession,
   InterviewTranscriptDelta,
   InterviewTranscriptionStatus,
-  TranscriptTurn
+  TranscriptTurn,
+  WhiteboardState
 } from '../types/interview';
 
 /**
@@ -290,6 +291,15 @@ class ElectronService {
     variant: InterviewAnswerVariant;
   }) {
     return await this.handleResponse(this.electron?.requestInterviewAnswer(args), null, 'requestInterviewAnswer');
+  }
+  async requestInterviewWhiteboardStep(args: {
+    sessionId: string;
+    turns: TranscriptTurn[];
+    comment?: string;
+  }): Promise<WhiteboardState | null> {
+    const response = await this.electron?.requestInterviewWhiteboardStep(args);
+    if (response?.success && response.data) return response.data;
+    throw new Error(response?.error || 'O processo principal nao retornou uma orientacao Whiteboard.');
   }
   async cancelInterviewAnswer(answerId: string) {
     return await this.handleResponse(this.electron?.cancelInterviewAnswer(answerId), false, 'cancelInterviewAnswer');
