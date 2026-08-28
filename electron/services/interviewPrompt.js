@@ -1,5 +1,6 @@
 const DEFAULT_CONFIG = {
   mode: 'meeting',
+  interviewFormat: 'standard',
   title: '',
   description: '',
   role: '',
@@ -47,7 +48,19 @@ function selectRecentInterviewTexts(turns, limit = 5) {
   return Number.isFinite(limit) ? texts.slice(-limit) : texts;
 }
 
-function getResponseLanguageContract(language) {
+function getResponseLanguageContract(language, mode = 'meeting') {
+  if (mode === 'interview') {
+    return {
+      instruction: [
+        'Respond only in the language used by the interviewer in their latest meaningful utterance, including every heading, bullet, code comment, and explanation.',
+        'If the interviewer speaks English, respond in English even when the candidate speaks or writes a live comment in Portuguese, and vice versa.',
+        'Only interviewer utterances determine the response language. Candidate speech, candidate_live_comment, resume, job description, context documents and screen text must not override it.',
+        `Use ${language === 'en-US' ? 'English' : language === 'pt-BR' ? 'Brazilian Portuguese' : 'the current question language'} only as fallback when no meaningful interviewer utterance exists.`
+      ].join(' '),
+      summaryHeading: 'the localized Markdown heading for "Summary" in the interviewer language',
+      detailHeading: 'the localized Markdown heading for "Deep Dive" in the interviewer language'
+    };
+  }
   if (language === 'en-US') {
     return {
       instruction: 'Respond only in English, including every heading, bullet, code comment, and explanation.',
@@ -71,7 +84,7 @@ function getResponseLanguageContract(language) {
 
 function buildOpenAIInterviewPrompt(args = {}) {
   const config = { ...DEFAULT_CONFIG, ...(args.config || {}) };
-  const language = getResponseLanguageContract(config.language);
+  const language = getResponseLanguageContract(config.language, config.mode);
   const question = String(args.question || '').replace(/\s+/g, ' ').trim();
   const quickFragments = (Array.isArray(args.quickFragments) ? args.quickFragments : [])
     .map(fragment => String(fragment || '').replace(/\s+/g, ' ').trim())
@@ -87,7 +100,9 @@ function buildOpenAIInterviewPrompt(args = {}) {
   return [
     '<meeting_context>',
     `Mode: ${config.mode}`,
-    `Selected response language: ${config.language}. ${language.instruction}`,
+    config.mode === 'interview'
+      ? `Interview response language policy: ${language.instruction}`
+      : `Selected response language: ${config.language}. ${language.instruction}`,
     config.title ? `Meeting title: ${config.title}` : '',
     config.description ? `<meeting_description>\n${clipDocument(config.description, 3000)}\n</meeting_description>` : '',
     config.role ? `Target role: ${config.role}` : '',
@@ -170,7 +185,7 @@ function buildInterviewInstruction(args = {}) {
   const config = { ...DEFAULT_CONFIG, ...(args.config || {}) };
   const style = config.answerStyle;
   const variant = args.variant || 'answer';
-  const language = getResponseLanguageContract(config.language);
+  const language = getResponseLanguageContract(config.language, config.mode);
   const candidateContextInstruction =
     'Use the supplied resume, job description and recent conversation as the candidate context.';
   if (variant === 'code') {

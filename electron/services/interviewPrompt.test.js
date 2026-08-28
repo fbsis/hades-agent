@@ -20,6 +20,7 @@ const makeTurn = (index, overrides = {}) => ({
 describe('interview prompt contract', () => {
   it('keeps audio recording enabled by default', () => {
     expect(DEFAULT_CONFIG.retainAudio).toBe(true);
+    expect(DEFAULT_CONFIG.interviewFormat).toBe('standard');
   });
 
   it('excludes the selected question and keeps only six finalized context turns', () => {
@@ -217,10 +218,14 @@ describe('interview prompt contract', () => {
     expect(instruction).not.toContain('Avoid headings and bullets');
   });
 
-  it('forces quick interview answers and headings to English when en-US is selected', () => {
+  it('uses the interviewer language in interviews even when candidate input has another language', () => {
     const prompt = buildOpenAIInterviewPrompt({
       question: 'Tell me about the Node.js event loop.',
-      quickFragments: ['Tell me about', 'the Node.js event loop'],
+      quickFragments: [
+        'Interviewer: Tell me about the Node.js event loop',
+        'Candidate: Eu gostaria de destacar os detalhes técnicos'
+      ],
+      quickComment: 'Responda com um exemplo curto.',
       variant: 'quick',
       config: { mode: 'interview', language: 'en-US' }
     });
@@ -230,12 +235,14 @@ describe('interview prompt contract', () => {
       provider: 'openai'
     });
 
-    expect(prompt).toContain('Selected response language: en-US');
-    expect(prompt).toContain('Respond only in English');
-    expect(instruction).toContain('Respond only in English');
+    expect(prompt).toContain('Interview response language policy');
+    expect(prompt).toContain('language used by the interviewer');
+    expect(prompt).toContain('Candidate: Eu gostaria');
+    expect(prompt).toContain('Responda com um exemplo curto');
+    expect(instruction).toContain('Only interviewer utterances determine the response language');
+    expect(instruction).toContain('candidate_live_comment');
+    expect(instruction).toContain('If the interviewer speaks English, respond in English');
     expect(instruction).toContain('Situation, Task, Action and Result');
     expect(instruction).toContain('exactly 7 concise');
-    expect(instruction).not.toContain('**Resumo**');
-    expect(instruction).not.toContain('**Aprofundamento**');
   });
 });
