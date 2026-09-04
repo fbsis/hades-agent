@@ -2,6 +2,7 @@ import { useRef, useCallback } from 'react';
 import { AUDIO_CONFIG } from '../constants';
 import { calculateRMS, floatTo16BitPCM, arrayBufferToBase64 } from '../utils/audio';
 import { electronService } from '../services/electron';
+import { getAudioCaptureErrorMessage, getMicrophoneConstraints } from '../utils/media';
 
 const LIVE_TRANSCRIPTION_CHUNK_MS = 40;
 const SPEECH_PRE_ROLL_MS = 240;
@@ -19,6 +20,7 @@ interface AudioRecorderOptions {
   onRawChunk?: (samples: Float32Array) => void;
   onAudioStreamEnd?: () => void;
   onVolumeChange?: (volume: number) => void;
+  onError?: (message: string) => void;
   isSystemAudio?: boolean;
 }
 
@@ -63,6 +65,7 @@ export const useAudioRecorder = () => {
       onRawChunk,
       onAudioStreamEnd,
       onVolumeChange,
+      onError,
       isSystemAudio = false
     } = options;
 
@@ -102,7 +105,13 @@ export const useAudioRecorder = () => {
         stream.getVideoTracks().forEach(t => t.stop());
       } else {
         // Standard microphone capture.
-        stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const access = await electronService.requestMicrophoneAccess();
+        if (!access.granted) throw new Error('MICROPHONE_PERMISSION_DENIED');
+
+        const settings = await electronService.getSettings();
+        const selectedDeviceId = settings?.audio?.inputDeviceId;
+        const audio = getMicrophoneConstraints(selectedDeviceId);
+        stream = await navigator.mediaDevices.getUserMedia({ audio });
         if (!isRecordingActiveRef.current) {
           console.log("[AUDIO_RECORDER] Start canceled: recording active flag is false after getUserMedia.");
           stream.getTracks().forEach(t => t.stop());
@@ -312,6 +321,7 @@ export const useAudioRecorder = () => {
       return true;
     } catch (err) {
       console.error('[AUDIO_RECORDER] Start error:', err);
+      onError?.(getAudioCaptureErrorMessage(err, isSystemAudio));
       stopRecording();
       return false;
     }

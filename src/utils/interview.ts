@@ -1,7 +1,6 @@
 import {
   InterviewAnswerVariant,
   InterviewConfig,
-  InterviewFormat,
   InterviewSession,
   InterviewSessionStatus,
   InterviewSource,
@@ -23,17 +22,26 @@ export const MEETING_INACTIVITY_FINISH_MS = 5 * 60 * 1000;
 export const normalizeInterviewConfig = (config: Partial<InterviewConfig> = {}): InterviewConfig => ({
   ...DEFAULT_INTERVIEW_CONFIG,
   ...config,
-  interviewFormat: config.interviewFormat || 'standard'
+  interviewFormat: 'standard'
 });
 
-export const withInterviewFormat = (
-  config: InterviewConfig,
-  interviewFormat: InterviewFormat
-): InterviewConfig => ({
-  ...config,
-  interviewFormat,
-  ...(interviewFormat === 'whiteboard' ? { transcribeMicrophone: true } : {})
-});
+export const selectConversationTurns = (
+  turns: TranscriptTurn[],
+  limit = 16,
+  maxChars = 8000
+): TranscriptTurn[] => {
+  const selected: TranscriptTurn[] = [];
+  let chars = 0;
+  for (const turn of [...turns].reverse()) {
+    if (turn.source !== 'interviewer' && turn.source !== 'candidate') continue;
+    const text = `${turn.text}${turn.pendingText}`.replace(/\s+/g, ' ').trim();
+    if (!text) continue;
+    if (selected.length >= limit || (selected.length && chars + text.length > maxChars)) break;
+    selected.unshift({ ...turn, text, pendingText: '' });
+    chars += text.length;
+  }
+  return selected;
+};
 
 export const getMeetingInactivityState = (
   lastSpeechAt: number,
@@ -53,6 +61,7 @@ export const filterInterviewSessions = (
 ): InterviewSession[] => {
   const query = (filters.query || '').trim().toLocaleLowerCase();
   return sessions.filter(session => {
+    if (session.isTestMode) return false;
     if (session.status === 'archived') return false;
     if (filters.mode && filters.mode !== 'all' && session.config.mode !== filters.mode) return false;
     if (filters.status && filters.status !== 'all' && session.status !== filters.status) return false;

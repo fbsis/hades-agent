@@ -50,8 +50,13 @@ async function captureInterviewDisplay(event) {
 }
 
 function registerInterviewHandlers() {
+  interviewService.cleanupTestSessions();
   ipcMain.handle('interview-create-session', wrap((event, config, options) => (
     interviewService.createSession(config || {}, options || {})
+  )));
+
+  ipcMain.handle('interview-create-test-session', wrap((event, sourceSessionId) => (
+    interviewService.createTestSession(sourceSessionId)
   )));
 
   ipcMain.handle('interview-list-sessions', wrap(() => interviewService.listSessions()));
@@ -140,10 +145,13 @@ function registerInterviewHandlers() {
     return interviewService.analyzeScreen([imageUrl], question);
   }));
 
-  ipcMain.handle('interview-request-whiteboard-step', wrap(async (event, args) => {
-    const imageUrl = await captureInterviewDisplay(event);
-    return interviewService.requestWhiteboardStep(args || {}, imageUrl);
-  }));
+  ipcMain.handle('interview-request-conversation-suggestions', wrap((event, args) => (
+    interviewService.requestConversationSuggestions(args || {})
+  )));
+
+  ipcMain.handle('interview-expand-conversation-suggestion', wrap((event, args) => (
+    interviewService.expandConversationSuggestion(args || {})
+  )));
 
   ipcMain.handle('interview-recording-start', wrap((event, sessionId, source) => (
     interviewRecordingService.start(sessionId, source)

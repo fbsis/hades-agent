@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { SettingsData } from '../../types/electron';
 import { Sliders, Volume2 } from 'lucide-react';
+import { electronService } from '../../services/electron';
 
 interface AudioTabProps {
   settings: SettingsData['audio'];
@@ -15,7 +16,10 @@ const AudioTab: React.FC<AudioTabProps> = ({ settings, updateSettings }) => {
   useEffect(() => {
     const getDevices = async () => {
       try {
-        await navigator.mediaDevices.getUserMedia({ audio: true }); // Ask permission
+        const access = await electronService.requestMicrophoneAccess();
+        if (!access.granted) throw new Error('Microphone permission denied');
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        stream.getTracks().forEach(track => track.stop());
         const devices = await navigator.mediaDevices.enumerateDevices();
         setInputs(devices.filter(d => d.kind === 'audioinput'));
         setOutputs(devices.filter(d => d.kind === 'audiooutput'));

@@ -20,11 +20,14 @@ const {
   legacyHistoryToInterviewSession
 } = require('./interviewData');
 const {
-  WHITEBOARD_INSTRUCTIONS,
-  WHITEBOARD_STATE_SCHEMA,
-  buildWhiteboardInput,
-  validateWhiteboardState
-} = require('./whiteboardPrompt');
+  CONVERSATION_EXPANSION_INSTRUCTIONS,
+  CONVERSATION_EXPANSION_SCHEMA,
+  CONVERSATION_SUGGESTIONS_INSTRUCTIONS,
+  CONVERSATION_SUGGESTIONS_SCHEMA,
+  buildConversationInput,
+  validateConversationExpansion,
+  validateConversationSuggestions
+} = require('./conversationSuggestionPrompt');
 
 function id(prefix) {
   return `${prefix}_${crypto.randomUUID()}`;
@@ -43,17 +46,19 @@ function parseJsonResponse(rawText) {
 }
 
 function normalizeConfig(config = {}) {
-  return { ...DEFAULT_CONFIG, ...(config || {}), interviewFormat: config?.interviewFormat || 'standard' };
+  return { ...DEFAULT_CONFIG, ...(config || {}), interviewFormat: 'standard' };
 }
 
 function normalizeSession(session) {
-  return session ? { ...session, config: normalizeConfig(session.config) } : session;
+  if (!session) return session;
+  const { whiteboardState, ...rest } = session;
+  return { ...rest, config: normalizeConfig(session.config) };
 }
 
 class InterviewService {
   constructor() {
     this.activeAnswers = new Map();
-    this.activeWhiteboardSteps = new Set();
+    this.activeConversationSuggestions = new Set();
   }
 
   migrateLegacyHistory() {
@@ -75,7 +80,7 @@ class InterviewService {
   }
 
   getSession(sessionId) {
-    return this.migrateLegacyHistory().find(session => session.id === sessionId) || null;
+    return normalizeSession(this.migrateLegacyHistory().find(session => session.id === sessionId) || null);
   }
 
   listDocuments() {
@@ -139,6 +144,45 @@ class InterviewService {
     store.saveInterviewSessions([session, ...this.listSessions()]);
     store.saveSettings({ ...store.getSettings(), interview: normalizedConfig });
     return session;
+  }
+
+  createTestSession(sourceSessionId) {
+    const sourceSession = this.getSession(sourceSessionId);
+    if (!sourceSession || sourceSession.status !== 'pending' || sourceSession.isTestMode || sourceSession.config.mode !== 'interview') {
+      throw new Error('Selecione uma entrevista pendente para testa-la.');
+    }
+    const now = new Date().toISOString();
+    const testSession = {
+      id: id('interview_test'),
+      isTestMode: true,
+      sourceSessionId: sourceSession.id,
+      status: 'active',
+      title: `${sourceSession.title} · Teste`,
+      createdAt: now,
+      startedAt: now,
+      updatedAt: now,
+      config: normalizeConfig(sourceSession.config),
+      transcript: [],
+      answers: [],
+      audioArtifacts: []
+    };
+    store.saveInterviewSessions([testSession, ...this.listSessions()]);
+    return testSession;
+  }
+
+  cleanupTestSessions() {
+    const sessions = this.migrateLegacyHistory();
+    const tests = sessions.filter(session => session.isTestMode);
+    if (!tests.length) return 0;
+    const audioRoot = path.resolve(store.userDataPath, 'interview-audio');
+    for (const session of tests) {
+      for (const artifact of session.audioArtifacts || []) {
+        const target = path.resolve(String(artifact?.path || ''));
+        if (isPathInsideDirectory(audioRoot, target)) fs.rmSync(target, { force: true });
+      }
+    }
+    store.saveInterviewSessions(sessions.filter(session => !session.isTestMode));
+    return tests.length;
   }
 
   updateSession(sessionId, patch = {}) {
@@ -477,65 +521,70 @@ class InterviewService {
     return analysis;
   }
 
-  async requestWhiteboardStep(args = {}, imageUrl) {
+  async requestConversationSuggestions(args = {}) {
     const sessionId = String(args.sessionId || '');
-    if (this.activeWhiteboardSteps.has(sessionId)) {
-      throw new Error('Uma analise Whiteboard ja esta em andamento.');
+    if (this.activeConversationSuggestions.has(sessionId)) {
+      throw new Error('Uma analise da conversa ja esta em andamento.');
     }
-    this.activeWhiteboardSteps.add(sessionId);
+    this.activeConversationSuggestions.add(sessionId);
     try {
-      return await this.runWhiteboardStep(args, imageUrl);
+      const session = this.getSession(sessionId);
+      if (!session) throw new Error('Sessao de entrevista nao encontrada.');
+      const settings = store.getSettings();
+      const apiKey = settings?.general?.openaiApiKey || process.env.OPENAI_API_KEY;
+      if (!apiKey) throw new Error('OpenAI API key nao configurada. Abra Configuracoes > Configuracao.');
+
+      const turns = Array.isArray(args.turns) ? args.turns : session.transcript || [];
+      const input = buildConversationInput({
+        session,
+        turns,
+        contextDocuments: this.resolveContextDocuments(session.config),
+        hint: args.hint,
+        excludedSuggestions: args.excludedSuggestions
+      });
+      const result = await openaiResponsesService.generateText({
+        apiKey,
+        model: 'gpt-5.6-luna',
+        instructions: CONVERSATION_SUGGESTIONS_INSTRUCTIONS,
+        input,
+        maxOutputTokens: 1800,
+        reasoningEffort: 'none',
+        verbosity: 'low',
+        textFormat: CONVERSATION_SUGGESTIONS_SCHEMA
+      });
+      const suggestions = validateConversationSuggestions(parseJsonResponse(result.text))
+        .map(suggestion => ({ ...suggestion, id: id('suggestion') }));
+      return { generatedAt: new Date().toISOString(), suggestions };
     } finally {
-      this.activeWhiteboardSteps.delete(sessionId);
+      this.activeConversationSuggestions.delete(sessionId);
     }
   }
 
-  async runWhiteboardStep(args = {}, imageUrl) {
+  async expandConversationSuggestion(args = {}) {
     const session = this.getSession(args.sessionId);
     if (!session) throw new Error('Sessao de entrevista nao encontrada.');
-    if (session.config.mode !== 'interview' || session.config.interviewFormat !== 'whiteboard') {
-      throw new Error('Esta sessao nao esta no formato Whiteboard.');
-    }
-    if (!imageUrl) throw new Error('Nenhuma tela disponivel para captura.');
-
     const settings = store.getSettings();
     const apiKey = settings?.general?.openaiApiKey || process.env.OPENAI_API_KEY;
-    if (!apiKey) {
-      throw new Error('OpenAI API key nao configurada. Abra Configuracoes > Configuracao.');
-    }
-
+    if (!apiKey) throw new Error('OpenAI API key nao configurada. Abra Configuracoes > Configuracao.');
+    if (!args.suggestion) throw new Error('Selecione uma sugestao para continuar.');
     const turns = Array.isArray(args.turns) ? args.turns : session.transcript || [];
-    const inputText = buildWhiteboardInput({
+    const input = buildConversationInput({
       session,
       turns,
       contextDocuments: this.resolveContextDocuments(session.config),
-      comment: args.comment
+      suggestion: args.suggestion
     });
     const result = await openaiResponsesService.generateText({
       apiKey,
       model: 'gpt-5.6-sol',
-      instructions: WHITEBOARD_INSTRUCTIONS,
-      input: [{
-        role: 'user',
-        content: [
-          { type: 'input_text', text: inputText },
-          { type: 'input_image', image_url: imageUrl, detail: 'high' }
-        ]
-      }],
-      maxOutputTokens: null,
+      instructions: CONVERSATION_EXPANSION_INSTRUCTIONS,
+      input,
+      maxOutputTokens: 700,
       reasoningEffort: 'low',
       verbosity: 'low',
-      textFormat: WHITEBOARD_STATE_SCHEMA
+      textFormat: CONVERSATION_EXPANSION_SCHEMA
     });
-    const parsed = parseJsonResponse(result.text);
-    const validated = validateWhiteboardState(parsed);
-    const whiteboardState = {
-      ...validated,
-      revision: Number(session.whiteboardState?.revision || 0) + 1,
-      updatedAt: new Date().toISOString()
-    };
-    this.updateSession(session.id, { whiteboardState });
-    return whiteboardState;
+    return validateConversationExpansion(parseJsonResponse(result.text));
   }
 }
 

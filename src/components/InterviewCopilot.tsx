@@ -8,6 +8,7 @@ import {
   PinOff,
   Radio,
   SlidersHorizontal,
+  Sparkles,
   Zap
 } from 'lucide-react';
 import { useInterviewCopilot } from '../hooks/useInterviewCopilot';
@@ -20,7 +21,8 @@ import { InterviewList } from './interview/InterviewList';
 import { InterviewDetails } from './interview/InterviewDetails';
 import { DEFAULT_INTERVIEW_CONFIG, InterviewContextDocument, InterviewSession } from '../types/interview';
 import { InterviewDocuments } from './interview/InterviewDocuments';
-import { WhiteboardGuidancePane } from './interview/WhiteboardGuidancePane';
+import { ConversationSuggestionsPane } from './interview/ConversationSuggestionsPane';
+import { InterviewTestSimulator } from './interview/InterviewTestSimulator';
 import { getMeetingInactivityState } from '../utils/interview';
 
 interface InterviewCopilotProps {
@@ -36,6 +38,7 @@ const InterviewCopilot: React.FC<InterviewCopilotProps> = ({ embedded = false, o
   const [documents, setDocuments] = useState<InterviewContextDocument[]>([]);
   const [inactivityWarningAt, setInactivityWarningAt] = useState<number | null>(null);
   const [isAutoFinishing, setIsAutoFinishing] = useState(false);
+  const [responseView, setResponseView] = useState<'answer' | 'suggestions'>('answer');
 
   const refreshDocuments = async () => setDocuments(await electronService.listInterviewDocuments());
 
@@ -85,7 +88,8 @@ const InterviewCopilot: React.FC<InterviewCopilotProps> = ({ embedded = false, o
   };
 
   const finishAndReturnToList = async (forceCompleted = false) => {
-    await copilot.finishSession({ forceCompleted });
+    if (copilot.session?.isTestMode) await copilot.exitTestSession();
+    else await copilot.finishSession({ forceCompleted });
     setIsContextOpen(false);
     setInactivityWarningAt(null);
     setView('list');
@@ -110,6 +114,8 @@ const InterviewCopilot: React.FC<InterviewCopilotProps> = ({ embedded = false, o
     return () => globalThis.clearInterval(timer);
   }, [copilot.lastSpeechAt, copilot.session?.status, inactivityWarningAt, isAutoFinishing, view]);
 
+  const showConversationSuggestions = copilot.conversationCopilotActive && responseView === 'suggestions';
+
   return (
     <div className={`app-container interview-copilot ${embedded ? 'embedded-susurro' : ''}`}>
       <header className="interview-header">
@@ -127,9 +133,9 @@ const InterviewCopilot: React.FC<InterviewCopilotProps> = ({ embedded = false, o
               className={`source-status status-${copilot.sourceStatuses.interviewer?.status || 'idle'}`}
               title="Whisper local, privado e sem custo de API"
             >
-              <Headphones size={12} /> Sistema
+              {copilot.session.isTestMode ? <><Mic size={12} /> Você como entrevistador</> : <><Headphones size={12} /> Sistema</>}
             </span>
-            {copilot.session.config.transcribeMicrophone && (
+            {!copilot.session.isTestMode && copilot.session.config.transcribeMicrophone && (
               <span className={`source-status status-${copilot.sourceStatuses.candidate?.status || 'idle'}`}>
                 <Mic size={12} /> Voce
               </span>
@@ -150,17 +156,27 @@ const InterviewCopilot: React.FC<InterviewCopilotProps> = ({ embedded = false, o
               </button>
               <button
                 type="button"
+                className={`interview-conversation-copilot-button ${copilot.conversationCopilotActive ? 'active' : ''}`}
+                onClick={() => {
+                  setResponseView(copilot.conversationCopilotActive ? 'answer' : 'suggestions');
+                  void copilot.toggleConversationCopilot();
+                }}
+                title={copilot.conversationCopilotActive ? 'Desativar copiloto de conversa' : 'Ativar sugestões para esta conversa'}
+              >
+                <Sparkles size={14} />
+                {copilot.conversationCopilotActive ? 'Copiloto ativo' : 'Copiloto de conversa'}
+              </button>
+              <button
+                type="button"
                 className="interview-quick-answer-button"
                 onClick={copilot.quickAnswer}
                 disabled={copilot.isPreparingQuickAnswer}
-                title={copilot.session.config.interviewFormat === 'whiteboard' ? 'Capturar o quadro e avançar a orientação' : 'Atualizar a transcrição e gerar uma resposta rápida'}
+                title="Atualizar a transcrição e gerar uma resposta rápida"
               >
                 <Zap size={14} />
-                {copilot.isPreparingQuickAnswer
-                  ? (copilot.session.config.interviewFormat === 'whiteboard' ? 'Analisando' : 'Preparando')
-                  : (copilot.session.config.interviewFormat === 'whiteboard' ? 'Avançar orientação' : 'Resposta rapida')}
+                {copilot.isPreparingQuickAnswer ? 'Preparando' : 'Resposta rapida'}
               </button>
-              <button type="button" className="interview-finish-button" onClick={() => finishAndReturnToList()} title="Finalizar reunião"><Check size={15} /> Finalizar</button>
+              <button type="button" className="interview-finish-button" onClick={() => finishAndReturnToList()} title={copilot.session.isTestMode ? 'Sair sem concluir a entrevista' : 'Finalizar reunião'}><Check size={15} /> {copilot.session.isTestMode ? 'Sair do teste' : 'Finalizar'}</button>
             </>
           )}
           {!embedded && (
@@ -190,6 +206,7 @@ const InterviewCopilot: React.FC<InterviewCopilotProps> = ({ embedded = false, o
             if (session.status === 'active') setView('live');
             else setStartSessionId(session.id);
           }}
+          onTest={session => { void copilot.startTestSession(session); }}
           onArchive={copilot.archiveSession}
           onDelete={copilot.deleteSession}
           onDocuments={() => setView('documents')}
@@ -214,6 +231,7 @@ const InterviewCopilot: React.FC<InterviewCopilotProps> = ({ embedded = false, o
           isEditing={copilot.session?.status === 'pending'}
           onConfigChange={copilot.setConfig}
           onStart={copilot.startListening}
+          onTest={() => { void copilot.startTestSession(); }}
           onSavePending={async () => { const saved = await copilot.savePendingSession(); if (saved) setView('list'); }}
           onCancel={returnToList}
           documents={documents}
@@ -242,7 +260,6 @@ const InterviewCopilot: React.FC<InterviewCopilotProps> = ({ embedded = false, o
           {isContextOpen && (
             <div className="interview-context-strip">
               <span><strong>Tipo</strong>{copilot.session.config.mode === 'interview' ? 'Entrevista' : 'Reunião'}</span>
-              {copilot.session.config.mode === 'interview' && <span><strong>Formato</strong>{copilot.session.config.interviewFormat === 'whiteboard' ? 'Whiteboard' : 'Tradicional'}</span>}
               <span><strong>Título</strong>{copilot.session.config.title || copilot.session.title}</span>
               {copilot.session.config.mode === 'interview' && (
                 <span><strong>Cargo / Empresa</strong>{[copilot.session.config.role, copilot.session.config.company].filter(Boolean).join(' / ') || 'Nao informado'}</span>
@@ -268,6 +285,7 @@ const InterviewCopilot: React.FC<InterviewCopilotProps> = ({ embedded = false, o
                 <span>Transcricao</span>
                 <small>{copilot.session.transcript.length} turnos</small>
               </div>
+              {copilot.session.isTestMode && <InterviewTestSimulator onAddTurn={(source, text) => { void copilot.addTestConversationTurn(source, text); }} />}
               <InterviewTranscript
                 turns={copilot.session.transcript}
                 selectedTurnId={copilot.selectedTurnId}
@@ -284,28 +302,31 @@ const InterviewCopilot: React.FC<InterviewCopilotProps> = ({ embedded = false, o
 
             <section className="interview-response-pane">
               <div className="interview-pane-heading">
-                <span>{copilot.session.config.interviewFormat === 'whiteboard' ? 'Orientação Whiteboard' : 'Resposta'}</span>
-                {copilot.session.config.mode === 'interview' && <div className="interview-live-format-switch" role="group" aria-label="Formato atual da entrevista">
+                <span>{showConversationSuggestions ? 'Copiloto de conversa' : 'Resposta'}</span>
+                {copilot.conversationCopilotActive && <div className="interview-live-format-switch" role="group" aria-label="Conteúdo do painel">
                   <button
                     type="button"
-                    className={copilot.session.config.interviewFormat === 'standard' ? 'active' : ''}
-                    onClick={() => copilot.switchInterviewFormat('standard')}
-                    disabled={copilot.isSwitchingInterviewFormat || copilot.isAdvancingWhiteboard}
-                  >Tradicional</button>
+                    className={responseView === 'answer' ? 'active' : ''}
+                    onClick={() => setResponseView('answer')}
+                  >Resposta</button>
                   <button
                     type="button"
-                    className={copilot.session.config.interviewFormat === 'whiteboard' ? 'active' : ''}
-                    onClick={() => copilot.switchInterviewFormat('whiteboard')}
-                    disabled={copilot.isSwitchingInterviewFormat || copilot.isAdvancingWhiteboard}
-                  >Whiteboard</button>
+                    className={responseView === 'suggestions' ? 'active' : ''}
+                    onClick={() => setResponseView('suggestions')}
+                  >Sugestões</button>
                 </div>}
               </div>
-              {copilot.session.config.interviewFormat === 'whiteboard' ? <WhiteboardGuidancePane
-                state={copilot.session.whiteboardState}
-                comment={copilot.questionDraft}
-                isAnalyzing={copilot.isAdvancingWhiteboard}
-                onCommentChange={copilot.setQuestionDraft}
-                onAdvance={copilot.advanceWhiteboard}
+              {showConversationSuggestions ? <ConversationSuggestionsPane
+                suggestions={copilot.conversationSuggestions}
+                selectedId={copilot.selectedConversationSuggestionId}
+                expansion={copilot.conversationExpansion}
+                isLoading={copilot.isLoadingConversationSuggestions}
+                isExpanding={copilot.isExpandingConversationSuggestion}
+                onRefresh={hint => { void copilot.requestConversationSuggestions({ hint }); }}
+                onMore={hint => { void copilot.requestConversationSuggestions({ hint, excludeCurrent: true }); }}
+                onSelect={suggestion => { void copilot.expandConversationSuggestion(suggestion); }}
+                onBack={copilot.clearConversationSuggestion}
+                onHoverChange={copilot.setConversationOptionsHovered}
               /> : <InterviewAnswerPane
                 question={copilot.questionDraft}
                 answer={copilot.activeAnswer}

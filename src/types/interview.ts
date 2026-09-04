@@ -4,7 +4,7 @@ export type InterviewSessionStatus = 'pending' | 'active' | 'completed' | 'archi
 export type InterviewLanguage = 'auto' | 'pt-BR' | 'en-US';
 export type InterviewAnswerStyle = 'natural' | 'concise' | 'star' | 'technical';
 export type MeetingMode = 'meeting' | 'interview';
-export type InterviewFormat = 'standard' | 'whiteboard';
+export type InterviewFormat = 'standard';
 export type InterviewTranscriptionProvider = 'whisper-local';
 export type InterviewAnswerVariant = 'answer' | 'quick' | 'shorter' | 'detail' | 'star' | 'code' | 'retry';
 
@@ -36,27 +36,25 @@ export interface InterviewConfig {
   contextDocumentIds: string[];
 }
 
-export type WhiteboardProblemType = 'unknown' | 'algorithm' | 'system_design';
-export type WhiteboardPhase = 'understand' | 'clarify' | 'explore' | 'construct' | 'validate' | 'finalize';
+export interface ConversationSuggestion {
+  id: string;
+  rank: number;
+  probability: number;
+  type: 'say' | 'question' | 'social';
+  title: string;
+  intent: string;
+  mood: string;
+  motivation: string;
+}
 
-export interface WhiteboardState {
-  revision: number;
-  updatedAt: string;
-  problemType: WhiteboardProblemType;
-  phase: WhiteboardPhase;
-  problemSummary: string;
-  requirements: string[];
-  constraints: string[];
-  assumptions: string[];
-  decisions: string[];
-  interviewerFeedback: string[];
-  openQuestions: string[];
-  tradeoffs: string[];
-  suggestedQuestions: string[];
-  nextActions: string[];
-  suggestedSpeech: string[];
-  screenSummary: string;
-  confidence: number;
+export interface ConversationSuggestionSet {
+  generatedAt: string;
+  suggestions: ConversationSuggestion[];
+}
+
+export interface ConversationSuggestionExpansion {
+  quickResponses: string[];
+  deepDive: string[];
 }
 
 export interface TranscriptTurn {
@@ -99,6 +97,8 @@ export interface InterviewAudioArtifact {
 
 export interface InterviewSession {
   id: string;
+  isTestMode?: boolean;
+  sourceSessionId?: string;
   status: InterviewSessionStatus;
   title: string;
   createdAt?: string;
@@ -113,7 +113,6 @@ export interface InterviewSession {
   summaryAt?: string;
   summaryProvider?: 'openai' | 'hermes';
   audioArtifacts?: InterviewAudioArtifact[];
-  whiteboardState?: WhiteboardState;
   hasRecording?: boolean;
   hermesMemory?: {
     status: 'pending' | 'synced';

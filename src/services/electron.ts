@@ -5,19 +5,22 @@ import {
   HermesMemoryInput,
   HermesStreamEvent,
   IPCResponse,
+  MicrophoneAccessResult,
   SettingsData
 } from '../types/electron';
 import type { OpenAIChatInput, OpenAIChatResult, OpenAIChatStreamEvent } from '../types/electron';
 import type { SelectedTextPayload, TextActionRequest } from '../types/electron';
 import type {
+  ConversationSuggestion,
+  ConversationSuggestionExpansion,
+  ConversationSuggestionSet,
   InterviewAnswerEvent,
   InterviewAnswerVariant,
   InterviewConfig,
   InterviewSession,
   InterviewTranscriptDelta,
   InterviewTranscriptionStatus,
-  TranscriptTurn,
-  WhiteboardState
+  TranscriptTurn
 } from '../types/interview';
 
 /**
@@ -71,6 +74,16 @@ class ElectronService {
   moveFloatingHead(delta: { x: number; y: number }) { this.electron?.moveFloatingHead(delta); }
   toggleMic(enabled: boolean) { this.electron?.toggleMic(enabled); }
   toggleAudio(enabled: boolean) { this.electron?.toggleAudio(enabled); }
+  async requestMicrophoneAccess(): Promise<MicrophoneAccessResult> {
+    if (!this.electron?.requestMicrophoneAccess) {
+      return { granted: true, status: 'granted' };
+    }
+    return await this.handleResponse(
+      this.electron.requestMicrophoneAccess(),
+      { granted: false, status: 'unknown' },
+      'requestMicrophoneAccess'
+    );
+  }
 
   // --- Messaging ---
   sendMessage(text: string, image?: string | null) { this.electron?.sendMessage(text, image); }
@@ -203,6 +216,13 @@ class ElectronService {
       'createInterviewSession'
     );
   }
+  async createInterviewTestSession(sourceSessionId: string) {
+    return await this.handleResponse(
+      this.electron?.createInterviewTestSession(sourceSessionId),
+      null,
+      'createInterviewTestSession'
+    );
+  }
   async listInterviewSessions() {
     return await this.handleResponse(this.electron?.listInterviewSessions(), [], 'listInterviewSessions');
   }
@@ -292,14 +312,24 @@ class ElectronService {
   }) {
     return await this.handleResponse(this.electron?.requestInterviewAnswer(args), null, 'requestInterviewAnswer');
   }
-  async requestInterviewWhiteboardStep(args: {
+  async requestConversationSuggestions(args: {
     sessionId: string;
     turns: TranscriptTurn[];
-    comment?: string;
-  }): Promise<WhiteboardState | null> {
-    const response = await this.electron?.requestInterviewWhiteboardStep(args);
+    hint?: string;
+    excludedSuggestions?: string[];
+  }): Promise<ConversationSuggestionSet> {
+    const response = await this.electron?.requestConversationSuggestions(args);
     if (response?.success && response.data) return response.data;
-    throw new Error(response?.error || 'O processo principal nao retornou uma orientacao Whiteboard.');
+    throw new Error(response?.error || 'O processo principal nao retornou sugestoes de conversa.');
+  }
+  async expandConversationSuggestion(args: {
+    sessionId: string;
+    turns: TranscriptTurn[];
+    suggestion: ConversationSuggestion;
+  }): Promise<ConversationSuggestionExpansion> {
+    const response = await this.electron?.expandConversationSuggestion(args);
+    if (response?.success && response.data) return response.data;
+    throw new Error(response?.error || 'O processo principal nao retornou a orientacao da sugestao.');
   }
   async cancelInterviewAnswer(answerId: string) {
     return await this.handleResponse(this.electron?.cancelInterviewAnswer(answerId), false, 'cancelInterviewAnswer');

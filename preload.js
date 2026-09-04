@@ -69,6 +69,7 @@ contextBridge.exposeInMainWorld('electron', {
   moveFloatingHead: (delta) => ipcRenderer.send('move-floating-head', delta),
   toggleMic: (enabled) => ipcRenderer.send('toggle-mic', enabled),
   toggleAudio: (enabled) => ipcRenderer.send('toggle-audio', enabled),
+  requestMicrophoneAccess: () => ipcRenderer.invoke('media-request-microphone-access'),
 
   // --- Chat & Persistence ---
   getChat: () => ipcRenderer.invoke('get-chat-history'),
@@ -144,6 +145,7 @@ contextBridge.exposeInMainWorld('electron', {
 
   // --- Interview Copilot ---
   createInterviewSession: (config, options) => ipcRenderer.invoke('interview-create-session', config, options),
+  createInterviewTestSession: (sourceSessionId) => ipcRenderer.invoke('interview-create-test-session', sourceSessionId),
   listInterviewSessions: () => ipcRenderer.invoke('interview-list-sessions'),
   listInterviewDocuments: () => ipcRenderer.invoke('interview-list-documents'),
   saveInterviewDocument: (document) => ipcRenderer.invoke('interview-save-document', document),
@@ -172,7 +174,8 @@ contextBridge.exposeInMainWorld('electron', {
     return () => ipcRenderer.removeListener('interview-transcription-status', sub);
   },
   requestInterviewAnswer: (args) => ipcRenderer.invoke('interview-request-answer', args),
-  requestInterviewWhiteboardStep: (args) => ipcRenderer.invoke('interview-request-whiteboard-step', args),
+  requestConversationSuggestions: (args) => ipcRenderer.invoke('interview-request-conversation-suggestions', args),
+  expandConversationSuggestion: (args) => ipcRenderer.invoke('interview-expand-conversation-suggestion', args),
   cancelInterviewAnswer: (answerId) => ipcRenderer.invoke('interview-cancel-answer', answerId),
   onInterviewAnswerEvent: (callback) => {
     const sub = (_event, payload) => callback(payload);

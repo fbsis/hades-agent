@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Archive, Edit3, FileText, FolderOpen, Play, Plus, Search, Trash2, X } from 'lucide-react';
+import { Archive, Edit3, FileText, FlaskConical, FolderOpen, Play, Plus, Search, Trash2, X } from 'lucide-react';
 import { InterviewSession, InterviewSessionStatus, MeetingMode } from '../../types/interview';
 import { filterInterviewSessions } from '../../utils/interview';
 
@@ -9,6 +9,7 @@ interface InterviewListProps {
   onOpen: (session: InterviewSession) => void;
   onEdit: (session: InterviewSession) => void;
   onStart: (session: InterviewSession) => void;
+  onTest: (session: InterviewSession) => void;
   onArchive: (sessionId: string) => void;
   onDelete: (session: InterviewSession) => void;
   onDocuments: () => void;
@@ -19,7 +20,7 @@ const statusLabel: Record<InterviewSessionStatus, string> = {
 };
 
 export const InterviewList: React.FC<InterviewListProps> = ({
-  sessions, onCreate, onOpen, onEdit, onStart, onArchive, onDelete, onDocuments
+  sessions, onCreate, onOpen, onEdit, onStart, onTest, onArchive, onDelete, onDocuments
 }) => {
   const [query, setQuery] = useState('');
   const [mode, setMode] = useState<'all' | MeetingMode>('all');
@@ -71,13 +72,14 @@ export const InterviewList: React.FC<InterviewListProps> = ({
             <tbody>{filtered.map(session => (
               <tr key={session.id}>
                 <td data-label="Título"><button className="interview-title-link" type="button" onClick={() => onOpen(session)}>{session.title}</button></td>
-                <td data-label="Tipo">{session.config.mode === 'interview' ? (session.config.interviewFormat === 'whiteboard' ? 'Entrevista · Whiteboard' : 'Entrevista') : 'Reunião'}</td>
+                <td data-label="Tipo">{session.config.mode === 'interview' ? 'Entrevista' : 'Reunião'}</td>
                 <td data-label="Empresa / cargo">{[session.config.company, session.config.role].filter(Boolean).join(' · ') || '—'}</td>
                 <td data-label="Status"><span className={`interview-status-badge status-${session.status}`}>{statusLabel[session.status]}</span></td>
                 <td data-label="Atualizada">{new Date(session.updatedAt).toLocaleString()}</td>
                 <td className="interview-row-actions">
                   <button type="button" onClick={() => onOpen(session)} title="Abrir"><FolderOpen size={14} /></button>
                   {session.status === 'pending' && <button type="button" onClick={() => onEdit(session)} title="Editar"><Edit3 size={14} /></button>}
+                  {session.status === 'pending' && session.config.mode === 'interview' && <button type="button" className="interview-test-button" onClick={() => onTest(session)} title="Testar entrevista" aria-label={`Testar entrevista ${session.title}`}><FlaskConical size={14} /><span>Testar</span></button>}
                   {(session.status === 'pending' || session.status === 'active') && <button type="button" onClick={() => onStart(session)} title={session.status === 'active' ? 'Continuar' : 'Iniciar'}><Play size={14} /></button>}
                   <button type="button" onClick={() => onArchive(session.id)} title="Arquivar"><Archive size={14} /></button>
                   <button type="button" className="danger" onClick={() => onDelete(session)} title="Excluir"><Trash2 size={14} /></button>

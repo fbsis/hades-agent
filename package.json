@@ -66,7 +66,10 @@
         "dmg",
         "zip"
       ],
-      "icon": "public/icon/icon.png"
+      "icon": "public/icon/icon.png",
+      "extendInfo": {
+        "NSMicrophoneUsageDescription": "O Metis usa o microfone para transcrever sua fala em reuniões, entrevistas e comandos de voz."
+      }
     }
   },
   "keywords": [],

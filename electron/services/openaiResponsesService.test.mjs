@@ -101,7 +101,7 @@ describe('openaiResponsesService', () => {
     });
     const textFormat = {
       type: 'json_schema',
-      name: 'whiteboard_state',
+      name: 'structured_test_state',
       strict: true,
       schema: {
         type: 'object',

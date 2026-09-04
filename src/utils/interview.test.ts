@@ -9,25 +9,53 @@ import {
   selectInterviewContextTurns,
   selectLatestQuickAnswerTurn,
   selectQuickAnswerFragments,
+  selectConversationTurns,
   filterInterviewSessions,
   getMeetingInactivityState,
-  normalizeInterviewConfig,
-  withInterviewFormat
+  normalizeInterviewConfig
 } from './interview';
 
-describe('whiteboard interview configuration', () => {
+describe('interview configuration', () => {
   it('normalizes legacy sessions to the traditional format', () => {
     expect(normalizeInterviewConfig({ mode: 'interview' }).interviewFormat).toBe('standard');
+    expect(normalizeInterviewConfig({ interviewFormat: 'whiteboard' } as never).interviewFormat).toBe('standard');
+  });
+});
+
+describe('conversation copilot context', () => {
+  it('keeps recent speech from both sides within the character budget', () => {
+    const turns = [
+      turn('old', 'fala antiga longa', { source: 'interviewer' }),
+      turn('screen', 'texto da tela', { source: 'screen' }),
+      turn('user', 'minha resposta', { source: 'candidate' }),
+      turn('other', 'pergunta atual', { source: 'interviewer' })
+    ];
+    expect(selectConversationTurns(turns, 2, 100).map(item => item.id)).toEqual(['user', 'other']);
   });
 
-  it('enables candidate transcription when Whiteboard is first selected without making it mandatory', () => {
-    const whiteboard = withInterviewFormat({ ...DEFAULT_INTERVIEW_CONFIG, mode: 'interview' }, 'whiteboard');
-    expect(whiteboard.transcribeMicrophone).toBe(true);
-    expect({ ...whiteboard, transcribeMicrophone: false }.transcribeMicrophone).toBe(false);
-    expect(withInterviewFormat(whiteboard, 'standard')).toMatchObject({
-      interviewFormat: 'standard',
-      transcribeMicrophone: true
-    });
+  it('includes the latest pending hypothesis once', () => {
+    const result = selectConversationTurns([
+      turn('live', '', { source: 'candidate', isFinal: false, pendingText: 'ainda estou falando' })
+    ]);
+    expect(result[0]).toMatchObject({ text: 'ainda estou falando', pendingText: '' });
+  });
+});
+
+describe('interview test sessions', () => {
+  it('never exposes temporary test copies in the regular session list', () => {
+    const testSession = {
+      id: 'test-session',
+      isTestMode: true,
+      sourceSessionId: 'pending-session',
+      status: 'active',
+      title: 'Teste',
+      updatedAt: '2026-08-28T12:00:00.000Z',
+      config: { ...DEFAULT_INTERVIEW_CONFIG, mode: 'interview' },
+      transcript: [],
+      answers: []
+    } satisfies InterviewSession;
+
+    expect(filterInterviewSessions([testSession], {})).toEqual([]);
   });
 });
 

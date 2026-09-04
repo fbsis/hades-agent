@@ -3,13 +3,15 @@ import type {
   InterviewAnswerEvent,
   InterviewAnswerVariant,
   InterviewConfig,
+  ConversationSuggestion,
+  ConversationSuggestionExpansion,
+  ConversationSuggestionSet,
   InterviewContextDocument,
   InterviewScreenAnalysis,
   InterviewSession,
   InterviewTranscriptDelta,
   InterviewTranscriptionStatus,
-  TranscriptTurn,
-  WhiteboardState
+  TranscriptTurn
 } from './interview';
 
 /**
@@ -39,6 +41,7 @@ export interface ElectronAPI {
   moveFloatingHead: (delta: { x: number; y: number }) => void;
   toggleMic: (enabled: boolean) => void;
   toggleAudio: (enabled: boolean) => void;
+  requestMicrophoneAccess: () => Promise<IPCResponse<MicrophoneAccessResult>>;
   
   // Messaging & Notifications
   sendMessage: (text: string, image?: string | null) => void;
@@ -95,6 +98,7 @@ export interface ElectronAPI {
     config: InterviewConfig,
     options?: { status?: 'active' | 'pending' }
   ) => Promise<IPCResponse<InterviewSession>>;
+  createInterviewTestSession: (sourceSessionId: string) => Promise<IPCResponse<InterviewSession>>;
   listInterviewSessions: () => Promise<IPCResponse<InterviewSession[]>>;
   listInterviewDocuments: () => Promise<IPCResponse<InterviewContextDocument[]>>;
   saveInterviewDocument: (document: Partial<InterviewContextDocument>) => Promise<IPCResponse<InterviewContextDocument>>;
@@ -133,11 +137,17 @@ export interface ElectronAPI {
     quickComment?: string;
     variant: InterviewAnswerVariant;
   }) => Promise<IPCResponse<InterviewAnswer>>;
-  requestInterviewWhiteboardStep: (args: {
+  requestConversationSuggestions: (args: {
     sessionId: string;
     turns: TranscriptTurn[];
-    comment?: string;
-  }) => Promise<IPCResponse<WhiteboardState>>;
+    hint?: string;
+    excludedSuggestions?: string[];
+  }) => Promise<IPCResponse<ConversationSuggestionSet>>;
+  expandConversationSuggestion: (args: {
+    sessionId: string;
+    turns: TranscriptTurn[];
+    suggestion: ConversationSuggestion;
+  }) => Promise<IPCResponse<ConversationSuggestionExpansion>>;
   cancelInterviewAnswer: (answerId: string) => Promise<IPCResponse<boolean>>;
   onInterviewAnswerEvent: (callback: (event: InterviewAnswerEvent) => void) => () => void;
   analyzeInterviewScreen: (question?: string) => Promise<IPCResponse<InterviewScreenAnalysis>>;
@@ -212,6 +222,11 @@ export interface ElectronAPI {
   // Misc
   openExternal: (url: string) => void;
   copyToClipboard: (text: string) => void;
+}
+
+export interface MicrophoneAccessResult {
+  granted: boolean;
+  status: 'not-determined' | 'granted' | 'denied' | 'restricted' | 'unknown';
 }
 
 export interface AudioSettings {

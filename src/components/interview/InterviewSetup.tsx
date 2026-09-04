@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
-import { ArrowLeft, ChevronDown, Radio, Save } from 'lucide-react';
+import { ArrowLeft, ChevronDown, FlaskConical, Radio, Save } from 'lucide-react';
 import { InterviewConfig, InterviewContextDocument } from '../../types/interview';
-import { withInterviewFormat } from '../../utils/interview';
 
 interface InterviewSetupProps {
   config: InterviewConfig;
@@ -9,12 +8,13 @@ interface InterviewSetupProps {
   isEditing?: boolean;
   onConfigChange: (config: InterviewConfig) => void;
   onStart: () => void;
+  onTest: () => void;
   onSavePending: () => void;
   onCancel: () => void;
   documents: InterviewContextDocument[];
 }
 
-export const InterviewSetup: React.FC<InterviewSetupProps> = ({ config, error, isEditing = false, onConfigChange, onStart, onSavePending, onCancel, documents }) => {
+export const InterviewSetup: React.FC<InterviewSetupProps> = ({ config, error, isEditing = false, onConfigChange, onStart, onTest, onSavePending, onCancel, documents }) => {
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const update = <K extends keyof InterviewConfig>(key: K, value: InterviewConfig[K]) => onConfigChange({ ...config, [key]: value });
   const selectMode = (mode: InterviewConfig['mode']) => onConfigChange({
@@ -22,9 +22,6 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({ config, error, i
     mode,
     ...(mode === 'meeting' ? { interviewFormat: 'standard' as const } : {})
   });
-  const selectInterviewFormat = (interviewFormat: InterviewConfig['interviewFormat']) => (
-    onConfigChange(withInterviewFormat(config, interviewFormat))
-  );
 
   return (
     <main className="interview-form-page">
@@ -38,11 +35,6 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({ config, error, i
             <button type="button" className={config.mode === 'meeting' ? 'active' : ''} onClick={() => selectMode('meeting')}>Reunião</button>
             <button type="button" className={config.mode === 'interview' ? 'active' : ''} onClick={() => selectMode('interview')}>Entrevista</button>
           </div>
-          {config.mode === 'interview' && <div className="interview-format-selector" role="group" aria-label="Formato da entrevista">
-            <span>Formato</span>
-            <button type="button" className={config.interviewFormat === 'standard' ? 'active' : ''} onClick={() => selectInterviewFormat('standard')}>Tradicional</button>
-            <button type="button" className={config.interviewFormat === 'whiteboard' ? 'active' : ''} onClick={() => selectInterviewFormat('whiteboard')}>Whiteboard</button>
-          </div>}
           <div className="interview-form-grid">
             <label className="interview-title-field"><span>Título *</span><input autoFocus value={config.title} onChange={event => update('title', event.target.value)} placeholder={config.mode === 'interview' ? 'Entrevista técnica' : 'Planejamento semanal'} /></label>
             {config.mode === 'interview' ? <><label><span>Cargo</span><input value={config.role} onChange={event => update('role', event.target.value)} placeholder="Senior Software Engineer" /></label><label><span>Empresa</span><input value={config.company} onChange={event => update('company', event.target.value)} placeholder="Empresa" /></label></> : <label className="interview-title-field"><span>Empresa ou pessoa</span><input value={config.company} onChange={event => update('company', event.target.value)} placeholder="Acme ou Maria Silva" /></label>}
@@ -68,7 +60,7 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({ config, error, i
         </section>
         {error && <div className="interview-error interview-form-error">{error}</div>}
       </div>
-      <footer className="interview-form-actions"><button type="button" className="interview-cancel-button" onClick={onCancel}>Cancelar</button><button type="button" className="interview-secondary-button" onClick={onSavePending}><Save size={15} /> {isEditing ? 'Salvar alterações' : 'Salvar como pendente'}</button><button type="button" className="interview-primary-button" onClick={onStart}><Radio size={16} /> Iniciar {config.mode === 'interview' ? 'entrevista' : 'reunião'}</button></footer>
+      <footer className="interview-form-actions"><button type="button" className="interview-cancel-button" onClick={onCancel}>Cancelar</button><button type="button" className="interview-secondary-button" onClick={onSavePending}><Save size={15} /> {isEditing ? 'Salvar alterações' : 'Salvar como pendente'}</button>{config.mode === 'interview' && <button type="button" className="interview-secondary-button" onClick={onTest}><FlaskConical size={15} /> Testar entrevista</button>}<button type="button" className="interview-primary-button" onClick={onStart}><Radio size={16} /> Iniciar {config.mode === 'interview' ? 'entrevista' : 'reunião'}</button></footer>
     </main>
   );
 };

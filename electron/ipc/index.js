@@ -8,6 +8,7 @@ const registerVoiceHandlers = require('./voiceHandlers');
 const registerHermesHandlers = require('./hermesHandlers');
 const registerInterviewHandlers = require('./interviewHandlers');
 const registerTextActionHandlers = require('./textActionHandlers');
+const registerMediaPermissionHandlers = require('./mediaPermissionHandlers');
 const { registerSettingsHandlers } = require('./settingsHandlers');
 
 /**
@@ -25,6 +26,7 @@ function initIPC() {
   registerInterviewHandlers();
   registerTextActionHandlers();
   registerVoiceHandlers();
+  registerMediaPermissionHandlers();
   registerSettingsHandlers();
 }
 
