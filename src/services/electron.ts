@@ -6,6 +6,8 @@ import {
   HermesStreamEvent,
   IPCResponse,
   MicrophoneAccessResult,
+  McpServerTestResult,
+  McpStatus,
   SettingsData
 } from '../types/electron';
 import type { OpenAIChatInput, OpenAIChatResult, OpenAIChatStreamEvent } from '../types/electron';
@@ -359,6 +361,25 @@ class ElectronService {
   async saveSkill(args: any) { return await this.handleResponse(this.electron?.saveSkill(args), 'Erro ao salvar skill', 'saveSkill'); }
   async listSkills() { return await this.handleResponse(this.electron?.listSkills(), [], 'listSkills'); }
   async loadSkill(name: string) { return await this.handleResponse(this.electron?.loadSkill(name), 'Erro ao carregar skill', 'loadSkill'); }
+
+  // --- Model Context Protocol ---
+  async getMcpStatus() {
+    return await this.handleResponse<McpStatus>(
+      this.electron?.getMcpStatus(),
+      { enabled: false, servers: [], toolCount: 0 },
+      'getMcpStatus'
+    );
+  }
+  async testMcpServer(serverId: string): Promise<McpServerTestResult> {
+    const response = await this.electron?.testMcpServer(serverId);
+    if (!response?.success || !response.data) throw new Error(response?.error || 'Nao foi possivel conectar ao servidor MCP.');
+    return response.data;
+  }
+  async reloadMcp() {
+    const response = await this.electron?.reloadMcp();
+    if (!response?.success || !response.data) throw new Error(response?.error || 'Nao foi possivel recarregar o MCP.');
+    return response.data;
+  }
 
   // --- Session Logger ---
   async logSession(data: any) { return await this.handleResponse(this.electron?.logSession(data), null, 'logSession'); }

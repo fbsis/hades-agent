@@ -61,6 +61,20 @@ function buildMeetingMetadata(session = {}) {
   ].filter(Boolean);
 }
 
+function buildMeetingKnowledge(session = {}, memorySummary = '') {
+  const summary = String(memorySummary || session.summary || '').trim();
+  const transcript = buildRecordedTranscript(session);
+  return {
+    title: `Reunião: ${session.title || session.config?.title || 'Sem título'}`,
+    content: [
+      `ID: metis-recorded-session:${session.id || 'unknown'}`,
+      ...buildMeetingMetadata(session),
+      summary ? `Resumo:\n${summary}` : '',
+      transcript ? `Conversa:\n${transcript}` : ''
+    ].filter(Boolean).join('\n\n')
+  };
+}
+
 function buildRecordedMeetingSummaryInput(session = {}, maxTranscriptChars = 12000) {
   const transcript = clipMeetingText(buildRecordedTranscript(session), maxTranscriptChars);
   return {
@@ -92,6 +106,8 @@ function buildRecordedMeetingMemoryPrompt(session = {}, memorySummary) {
 
 module.exports = {
   RECORDED_MEETING_SUMMARY_INSTRUCTIONS,
+  buildMeetingKnowledge,
+  buildMeetingMetadata,
   buildRecordedMeetingMemoryPrompt,
   buildRecordedMeetingSummaryInput,
   buildRecordedTranscript,

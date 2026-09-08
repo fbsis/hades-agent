@@ -142,6 +142,48 @@ Open **Settings > Agent**, enable Hermes, keep **Use Hermes as primary agent** o
 
 See [docs/hermes-agent.md](docs/hermes-agent.md) for memory behavior, low-token routing, modes, resume/interview workflow and the recommended Hermes setup.
 
+### MCP tools
+
+Metis includes a native Model Context Protocol client based on the official
+`@modelcontextprotocol/client` v2 SDK. Open **Settings > MCP** to add local
+`stdio` servers or remote Streamable HTTP endpoints, test the connection and
+inspect discovered tools, resources and prompts. Resources and prompts are
+bridged to the model through namespaced read/get tools.
+
+For a local server, configure the executable and put each argument on its own
+line. For example, a filesystem server can use `npx` as the executable and the
+following arguments:
+
+```txt
+-y
+@modelcontextprotocol/server-filesystem
+/absolute/path/allowed-to-the-server
+```
+
+After enabling MCP and saving the settings, MiniChat uses OpenAI as the native
+tool-calling host. Tool names are namespaced by server, calls are bounded by
+round, count, timeout and total result-size limits, and call outcomes are
+included in the local session audit. No discovered tool is exposed until the
+user explicitly selects it; server-provided read-only annotations are shown
+only as hints. Resources and prompts also require explicit per-server opt-in.
+Streamable HTTP requires HTTPS, except for loopback URLs.
+
+See [docs/ai-memory-mcp.md](docs/ai-memory-mcp.md) for a reproducible raw Linux
+installation of a local or remote `ai-memory` server, including SSH tunnel,
+HTTPS, automatic meeting knowledge and Metis JSON examples. Meeting delivery
+is enabled separately for each MCP server, so other configured servers remain
+available without receiving meeting content.
+
+Memory MCPs can also be enabled as automatic context providers for MiniChat,
+meeting and interview assistance. Metis recalls relevant facts from all
+selected memory servers before answering and labels every result with the
+configured MCP server name.
+
+> [!WARNING]
+> An MCP `stdio` server runs a program with your user permissions. Install only
+> trusted servers, pin package versions when possible and grant access only to
+> directories and credentials that server actually needs.
+
 ### Dreaming
 
 Dreaming runs ten seconds after startup and then every 24 hours. Configure an OpenAI API key under **Settings > Configuration** and keep Hermes memory enabled.

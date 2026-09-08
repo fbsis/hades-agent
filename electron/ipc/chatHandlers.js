@@ -11,17 +11,27 @@ function registerChatHandlers() {
   ipcMain.handle('openai-chat-stream', async (event, args = {}) => {
     try {
       const streamId = String(args.streamId || 'openai-chat');
-      const result = await aiService.streamChat(args, delta => {
-        if (!event.sender.isDestroyed()) {
-          event.sender.send('openai-chat-stream-event', { streamId, type: 'delta', text: delta });
-        }
-      });
+      const sendEvent = payload => {
+        if (!event.sender.isDestroyed()) event.sender.send('openai-chat-stream-event', { streamId, ...payload });
+      };
+      const result = await aiService.streamChat(
+        args,
+        delta => sendEvent({ type: 'delta', text: delta }),
+        data => sendEvent({ type: 'tool', text: data.name, data })
+      );
       if (!event.sender.isDestroyed()) {
         event.sender.send('openai-chat-stream-event', { streamId, type: 'end', text: result.text });
       }
       return { success: true, data: result };
     } catch (error) {
       logger.error('OPENAI_CHAT', 'stream error', error);
+      if (!event.sender.isDestroyed()) {
+        event.sender.send('openai-chat-stream-event', {
+          streamId: String(args.streamId || 'openai-chat'),
+          type: 'error',
+          error: error.message
+        });
+      }
       return { success: false, error: error.message };
     }
   });

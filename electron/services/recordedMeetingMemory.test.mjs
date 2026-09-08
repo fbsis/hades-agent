@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import memoryModule from './recordedMeetingMemory.js';
 
 const {
+  buildMeetingKnowledge,
   buildRecordedMeetingMemoryPrompt,
   buildRecordedMeetingSummaryInput,
   clipMeetingText,
@@ -59,6 +60,20 @@ describe('recorded meeting memory', () => {
     expect(result.prompt).toContain('Decisao: usar entrega pelo menos uma vez.');
     expect(result.prompt).not.toContain('Outra pessoa: Vamos usar entrega');
     expect(result.prompt).not.toContain('<transcricao');
+  });
+
+  it('builds MCP knowledge with a stable meeting id, summary and conversation', () => {
+    const result = buildMeetingKnowledge(
+      recordedSession,
+      '- Decisão: usar entrega pelo menos uma vez.'
+    );
+
+    expect(result.title).toBe('Reunião: Architecture review');
+    expect(result.content).toContain('ID: metis-recorded-session:meeting-123');
+    expect(result.content).toContain('Decisão: usar entrega pelo menos uma vez.');
+    expect(result.content).toContain('Conversa:');
+    expect(result.content).toContain('Outra pessoa: Vamos usar entrega');
+    expect(result.content).toContain('Usuario: Vou documentar');
   });
 
   it('preserves the beginning and end when compacting a long transcript', () => {

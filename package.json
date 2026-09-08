@@ -94,6 +94,7 @@
     "wait-on": "^9.0.5"
   },
   "dependencies": {
+    "@modelcontextprotocol/client": "2.0.0",
     "axios": "^1.16.0",
     "electron-log": "^5.4.4",
     "lucide-react": "^1.14.0",

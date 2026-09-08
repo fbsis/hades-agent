@@ -5,6 +5,7 @@ const {
   OPENAI_RESPONSES_URL,
   OPENAI_TRANSCRIPTIONS_URL,
   extractResponseText,
+  extractResponseToolCalls,
   generateText,
   generateTextStream,
   transcribeAudio
@@ -21,6 +22,19 @@ describe('openaiResponsesService', () => {
         ]
       }]
     })).toBe('- Prefere respostas curtas.');
+  });
+
+  it('extracts MCP-compatible function calls from Responses output', () => {
+    expect(extractResponseToolCalls({
+      output: [
+        { type: 'reasoning', id: 'reasoning_1' },
+        { type: 'function_call', call_id: 'call_1', name: 'mcp_files_read', arguments: '{"path":"README.md"}' }
+      ]
+    })).toEqual([{
+      callId: 'call_1',
+      name: 'mcp_files_read',
+      arguments: '{"path":"README.md"}'
+    }]);
   });
 
   it('uses the low-cost stateless Dreaming request contract', async () => {
@@ -200,6 +214,33 @@ describe('openaiResponsesService', () => {
 
     const request = JSON.parse(fetchImpl.mock.calls[0][1].body);
     expect(request).not.toHaveProperty('max_output_tokens');
+  });
+
+  it('returns tool calls when a streamed response has no text', async () => {
+    const encoder = new TextEncoder();
+    const body = new ReadableStream({
+      start(controller) {
+        controller.enqueue(encoder.encode(
+          'event: response.completed\n'
+          + 'data: {"type":"response.completed","response":{"id":"resp_tool","model":"gpt-5.6-sol","output":[{"type":"function_call","call_id":"call_1","name":"mcp_files_read","arguments":"{\\"path\\":\\"README.md\\"}"}]}}\n\n'
+        ));
+        controller.close();
+      }
+    });
+    const fetchImpl = vi.fn().mockResolvedValue({ ok: true, body });
+    const tools = [{ type: 'function', name: 'mcp_files_read', parameters: { type: 'object' } }];
+
+    const result = await generateTextStream({
+      apiKey: 'test-key',
+      instructions: 'Use tools.',
+      input: 'Read README.',
+      tools,
+      fetchImpl
+    });
+
+    expect(result.text).toBe('');
+    expect(result.toolCalls).toEqual([{ callId: 'call_1', name: 'mcp_files_read', arguments: '{"path":"README.md"}' }]);
+    expect(JSON.parse(fetchImpl.mock.calls[0][1].body)).toMatchObject({ tools, tool_choice: 'auto' });
   });
 
   it('sends one-shot voice audio only to the OpenAI transcription endpoint', async () => {

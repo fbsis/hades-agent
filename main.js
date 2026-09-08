@@ -141,23 +141,38 @@ app.whenReady().then(() => {
   log.info('[MAIN] Metis initialized successfully.');
 });
 
+let shutdownPromise = null;
+let shutdownComplete = false;
+
 const markAppAsQuitting = () => {
   appState.isQuitting = true;
   app.isQuitting = true;
-  taskService.stop();
-  require('./electron/services/interviewTranscriptionService').shutdown();
+  if (!shutdownPromise) {
+    taskService.stop();
+    require('./electron/services/interviewTranscriptionService').shutdown();
+    const mcpShutdown = require('./electron/services/mcpClientService').shutdown();
+    shutdownPromise = Promise.race([
+      mcpShutdown,
+      new Promise(resolve => setTimeout(resolve, 1200))
+    ]);
+  }
+  return shutdownPromise;
 };
 
 const quitFromSignal = (signal) => {
   log.info(`[MAIN] Received ${signal}, quitting gracefully.`);
-  markAppAsQuitting();
   app.quit();
   setTimeout(() => app.exit(0), 1500).unref();
 };
 
 // 4. Global Event Handlers
-app.on('before-quit', () => {
-  markAppAsQuitting();
+app.on('before-quit', (event) => {
+  if (shutdownComplete) return;
+  event.preventDefault();
+  markAppAsQuitting().finally(() => {
+    shutdownComplete = true;
+    app.quit();
+  });
 });
 
 app.on('window-all-closed', () => {

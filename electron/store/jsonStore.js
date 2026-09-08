@@ -60,6 +60,14 @@ class JsonStore {
         autoForwardTasksPersonas: false,
         autoSummarizeMeetings: true
       },
+      mcp: {
+        enabled: false,
+        maxToolRounds: 6,
+        maxToolCalls: 12,
+        toolTimeoutMs: 30000,
+        maxResultChars: 24000,
+        servers: []
+      },
       assistant: {
         mode: 'auto',
         delegationEnabled: true,
@@ -219,6 +227,7 @@ class JsonStore {
       audio: { ...this._defaultSettings.audio, ...(saved.audio || {}) },
       general: { ...this._defaultSettings.general, ...(saved.general || {}) },
       hermes: { ...this._defaultSettings.hermes, ...(saved.hermes || {}) },
+      mcp: { ...this._defaultSettings.mcp, ...(saved.mcp || {}) },
       assistant: { ...this._defaultSettings.assistant, ...(saved.assistant || {}) },
       interview: { ...this._defaultSettings.interview, ...(saved.interview || {}) },
       layout: { ...this._defaultSettings.layout, ...(saved.layout || {}) },
@@ -346,6 +355,7 @@ class JsonStore {
       audio: { ...this._defaultSettings.audio, ...(settings.audio || {}) },
       general: { ...this._defaultSettings.general, ...(settings.general || {}) },
       hermes: { ...this._defaultSettings.hermes, ...(settings.hermes || {}) },
+      mcp: { ...this._defaultSettings.mcp, ...(settings.mcp || {}) },
       assistant: { ...this._defaultSettings.assistant, ...(settings.assistant || {}) },
       interview: {
         ...this._defaultSettings.interview,

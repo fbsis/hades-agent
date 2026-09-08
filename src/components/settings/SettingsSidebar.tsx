@@ -1,6 +1,6 @@
 import React from 'react';
 import { SettingsTab } from '../../hooks/useSettings';
-import { Bot, Keyboard, Power, Settings as SettingsIcon, Volume2 } from 'lucide-react';
+import { Bot, Cable, Keyboard, Power, Settings as SettingsIcon, Volume2 } from 'lucide-react';
 
 interface SidebarProps {
   activeTab: SettingsTab;
@@ -38,6 +38,15 @@ const SettingsSidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, onQu
       >
         <Bot size={16} />
         <span>Agente</span>
+      </button>
+
+      <button
+        type="button"
+        className={`sidebar-item ${activeTab === 'mcp' ? 'active' : ''}`}
+        onClick={() => setActiveTab('mcp')}
+      >
+        <Cable size={16} />
+        <span>MCP</span>
       </button>
 
       <button 

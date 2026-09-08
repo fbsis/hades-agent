@@ -9,6 +9,7 @@ import AudioTab from './settings/AudioTab';
 import GeneralTab from './settings/GeneralTab';
 import HermesTab from './settings/HermesTab';
 import ShortcutsTab from './settings/ShortcutsTab';
+import McpTab from './settings/McpTab';
 
 interface SettingsProps {
   embedded?: boolean;
@@ -26,6 +27,7 @@ const Settings: React.FC<SettingsProps> = ({ embedded = false, onClosePanel }) =
     updateGeneralSettings,
     updateHermesSettings,
     updateAssistantSettings,
+    updateMcpSettings,
     updateShortcutsSettings,
     saveAll
   } = useSettings();
@@ -93,6 +95,10 @@ const Settings: React.FC<SettingsProps> = ({ embedded = false, onClosePanel }) =
               settings={settings.shortcuts} 
               updateSettings={updateShortcutsSettings} 
             />
+          )}
+
+          {activeTab === 'mcp' && (
+            <McpTab settings={settings.mcp} updateSettings={updateMcpSettings} />
           )}
         </div>
 

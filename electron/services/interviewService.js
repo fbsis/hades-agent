@@ -2,7 +2,9 @@ const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
 const store = require('../store/jsonStore');
+const logger = require('./logger');
 const openaiResponsesService = require('./openaiResponsesService');
+const mcpClientService = require('./mcpClientService');
 const {
   RECORDED_MEETING_SUMMARY_INSTRUCTIONS,
   buildRecordedMeetingSummaryInput
@@ -301,6 +303,31 @@ class InterviewService {
     return buildInterviewInstruction(args);
   }
 
+  buildMemoryQuery(args = {}) {
+    const config = args.config || {};
+    const recentConversation = (Array.isArray(args.turns) ? args.turns : [])
+      .slice(-8)
+      .map(turn => String(`${turn?.text || ''}${turn?.pendingText || ''}`).replace(/\s+/g, ' ').trim())
+      .filter(Boolean)
+      .join('\n');
+    return [
+      args.question,
+      config.title,
+      config.company,
+      config.role,
+      config.topics,
+      recentConversation
+    ].filter(Boolean).join('\n').slice(-4000);
+  }
+
+  async addMemoryContext(args = {}) {
+    const result = await mcpClientService.recallMemoryContext(this.buildMemoryQuery(args));
+    if (result.failures.length) {
+      logger.warn?.('INTERVIEW_MEMORY', `${result.failures.length} MCP memory server(s) unavailable.`);
+    }
+    return { ...args, memoryContext: result.text, memorySources: result.sources };
+  }
+
   async summarizeSession(sessionId) {
     const session = this.getSession(sessionId);
     if (!session) throw new Error('Sessao nao encontrada.');
@@ -369,7 +396,10 @@ class InterviewService {
 
     const answerId = args.answerId || id('answer');
     const sessionId = args.sessionId;
-    const enrichedArgs = { ...args, contextDocuments: this.resolveContextDocuments(args.config) };
+    const enrichedArgs = await this.addMemoryContext({
+      ...args,
+      contextDocuments: this.resolveContextDocuments(args.config)
+    });
     const instruction = this.buildInstruction(enrichedArgs);
     const requestedProvider = 'openai';
     const state = {
@@ -535,10 +565,12 @@ class InterviewService {
       if (!apiKey) throw new Error('OpenAI API key nao configurada. Abra Configuracoes > Configuracao.');
 
       const turns = Array.isArray(args.turns) ? args.turns : session.transcript || [];
+      const memory = await this.addMemoryContext({ ...args, config: session.config, turns });
       const input = buildConversationInput({
         session,
         turns,
         contextDocuments: this.resolveContextDocuments(session.config),
+        memoryContext: memory.memoryContext,
         hint: args.hint,
         excludedSuggestions: args.excludedSuggestions
       });
@@ -568,10 +600,12 @@ class InterviewService {
     if (!apiKey) throw new Error('OpenAI API key nao configurada. Abra Configuracoes > Configuracao.');
     if (!args.suggestion) throw new Error('Selecione uma sugestao para continuar.');
     const turns = Array.isArray(args.turns) ? args.turns : session.transcript || [];
+    const memory = await this.addMemoryContext({ ...args, config: session.config, turns });
     const input = buildConversationInput({
       session,
       turns,
       contextDocuments: this.resolveContextDocuments(session.config),
+      memoryContext: memory.memoryContext,
       suggestion: args.suggestion
     });
     const result = await openaiResponsesService.generateText({

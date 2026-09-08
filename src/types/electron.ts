@@ -165,6 +165,11 @@ export interface ElectronAPI {
   listSkills: () => Promise<IPCResponse<any[]>>;
   loadSkill: (name: string) => Promise<IPCResponse<string>>;
 
+  // Model Context Protocol
+  getMcpStatus: () => Promise<IPCResponse<McpStatus>>;
+  testMcpServer: (serverId: string) => Promise<IPCResponse<McpServerTestResult>>;
+  reloadMcp: () => Promise<IPCResponse<McpStatus>>;
+
   // Session Logging
   logSession: (data: any) => Promise<IPCResponse<any>>;
   getLearnings: () => Promise<IPCResponse<string>>;
@@ -252,12 +257,17 @@ export interface OpenAIChatResult {
   model?: string;
   usage?: Record<string, unknown> | null;
   responseId?: string | null;
+  output?: Array<Record<string, unknown>>;
+  toolCalls?: Array<{ callId: string; name: string; arguments: string }>;
+  mcpCalls?: Array<{ name: string; server?: string; success: boolean; error?: string }>;
 }
 
 export interface OpenAIChatStreamEvent {
   streamId: string;
-  type: 'delta' | 'end';
+  type: 'delta' | 'tool' | 'end' | 'error';
   text?: string;
+  error?: string;
+  data?: Record<string, unknown>;
 }
 
 export interface GeneralSettings {
@@ -286,6 +296,84 @@ export interface HermesSettings {
   autoForwardConversations: boolean;
   autoForwardTasksPersonas: boolean;
   autoSummarizeMeetings: boolean;
+}
+
+export type McpTransport = 'stdio' | 'streamable-http' | 'sse';
+
+export interface McpServerSettings {
+  id: string;
+  name: string;
+  enabled: boolean;
+  transport: McpTransport;
+  command?: string;
+  args?: string[];
+  cwd?: string;
+  env?: Record<string, string>;
+  url?: string;
+  authType?: 'none' | 'bearer' | 'x-api-key';
+  headers?: Record<string, string>;
+  allowedTools?: string[];
+  allowResources?: boolean;
+  allowPrompts?: boolean;
+  meetingKnowledge?: {
+    enabled: boolean;
+    tool?: string;
+    titleField?: string;
+    contentField?: string;
+    maxContentBytes?: number;
+    arguments?: Record<string, unknown>;
+    conversationArguments?: Record<string, unknown>;
+  };
+  memoryContext?: {
+    enabled: boolean;
+    tool?: string;
+    queryField?: string;
+    maxResultChars?: number;
+    arguments?: Record<string, unknown>;
+  };
+}
+
+export interface McpSettings {
+  enabled: boolean;
+  maxToolRounds: number;
+  maxToolCalls: number;
+  toolTimeoutMs: number;
+  maxResultChars: number;
+  servers: McpServerSettings[];
+}
+
+export interface McpToolSummary {
+  name: string;
+  description: string;
+  readOnlyHint?: boolean;
+  allowed?: boolean;
+}
+
+export interface McpServerStatus {
+  id: string;
+  name: string;
+  enabled: boolean;
+  connected: boolean;
+  tools: McpToolSummary[];
+  resources?: Array<{ name: string; uri: string }>;
+  prompts?: McpToolSummary[];
+  error?: string;
+}
+
+export interface McpStatus {
+  enabled: boolean;
+  servers: McpServerStatus[];
+  toolCount: number;
+  resourceCount?: number;
+  promptCount?: number;
+}
+
+export interface McpServerTestResult {
+  connected: boolean;
+  server: string;
+  tools: McpToolSummary[];
+  resources?: Array<{ name: string; uri: string }>;
+  prompts?: McpToolSummary[];
 }
 
 export type AssistantMode = 'auto' | 'interview' | 'help' | 'idea' | 'coding';
@@ -337,6 +425,7 @@ export interface SettingsData {
   audio: AudioSettings;
   general: GeneralSettings;
   hermes: HermesSettings;
+  mcp: McpSettings;
   assistant: AssistantSettings;
   interview?: InterviewConfig;
   layout?: LayoutSettings;

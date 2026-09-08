@@ -84,12 +84,21 @@ export const useAssistant = (
   const streamOpenAI = useCallback(async (args: any) => {
     const messageId = createStreamMessage();
     let streamedText = '';
+    let streamError = '';
     const result = await electronService.askOpenAIChatStream(args, event => {
       if (event.type === 'delta' && event.text) {
         streamedText += event.text;
         appendMessageText(messageId, event.text);
       }
+      if (event.type === 'tool') {
+        setActiveTool(event.text ? `mcp: ${event.text}` : 'mcp usando ferramenta');
+      }
+      if (event.type === 'error') streamError = event.error || 'A execução do agente falhou.';
     });
+    if (streamError || !result) {
+      removeMessage(messageId);
+      throw new Error(streamError || 'A OpenAI nao concluiu a resposta.');
+    }
     const finalText = String(result?.text || streamedText);
     if (finishStreamMessage(messageId, finalText)) return result || { text: finalText };
     removeMessage(messageId);
@@ -112,6 +121,7 @@ export const useAssistant = (
       let result: any = null;
       let context = '';
       const useHermes = !image
+        && settings?.mcp?.enabled !== true
         && Boolean(settings?.hermes?.enabled)
         && settings?.assistant?.delegationEnabled !== false
         && (settings?.hermes?.useAsPrimaryAgent !== false || codingQuestion);
@@ -165,7 +175,12 @@ export const useAssistant = (
           args: { mode, style: preferredAnswerStyle, image: Boolean(image) },
           result: String(result.text).slice(0, 500),
           success: true
-        }],
+        }, ...(result.mcpCalls || []).map((call: any) => ({
+          name: call.name,
+          args: { server: call.server || 'mcp' },
+          result: call.error || 'MCP tool executada',
+          success: call.success !== false
+        }))],
         totalTokens: tokens,
         skillsUsed: []
       });

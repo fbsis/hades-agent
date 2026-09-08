@@ -14,6 +14,16 @@ function extractResponseText(data) {
     .trim();
 }
 
+function extractResponseToolCalls(data) {
+  return (data?.output || [])
+    .filter(item => item?.type === 'function_call' && item.name && item.call_id)
+    .map(item => ({
+      callId: item.call_id,
+      name: item.name,
+      arguments: typeof item.arguments === 'string' ? item.arguments : '{}'
+    }));
+}
+
 async function generateText({
   apiKey,
   model = 'gpt-5.6-luna',
@@ -83,6 +93,7 @@ async function generateTextStream({
   maxOutputTokens = 4096,
   reasoningEffort = 'none',
   verbosity = 'low',
+  tools = [],
   signal,
   onDelta = () => {},
   fetchImpl = globalThis.fetch
@@ -108,6 +119,7 @@ async function generateTextStream({
       ...outputTokenLimit,
       reasoning: { effort: reasoningEffort },
       text: { verbosity },
+      ...(tools.length > 0 ? { tools, tool_choice: 'auto', parallel_tool_calls: true } : {}),
       stream: true,
       store: false
     }),
@@ -172,13 +184,16 @@ async function generateTextStream({
   if (buffer.trim()) processEvent(buffer);
 
   const finalText = text.trim() || extractResponseText(completedResponse);
-  if (!finalText) throw new Error('OpenAI nao retornou texto.');
+  const toolCalls = extractResponseToolCalls(completedResponse);
+  if (!finalText && toolCalls.length === 0) throw new Error('OpenAI nao retornou texto nem chamada de tool.');
 
   return {
     text: finalText,
     model: completedResponse?.model || model,
     usage: completedResponse?.usage || null,
-    responseId: completedResponse?.id || null
+    responseId: completedResponse?.id || null,
+    output: completedResponse?.output || [],
+    toolCalls
   };
 }
 
@@ -227,6 +242,7 @@ module.exports = {
   OPENAI_RESPONSES_URL,
   OPENAI_TRANSCRIPTIONS_URL,
   extractResponseText,
+  extractResponseToolCalls,
   generateText,
   generateTextStream,
   transcribeAudio

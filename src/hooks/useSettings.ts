@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { electronService } from '../services/electron';
 import { SettingsData } from '../types/electron';
 
-export type SettingsTab = 'audio' | 'general' | 'hermes' | 'shortcuts';
+export type SettingsTab = 'audio' | 'general' | 'hermes' | 'mcp' | 'shortcuts';
 
 export function useSettings() {
   const [activeTab, setActiveTab] = useState<SettingsTab>('general');
@@ -72,6 +72,10 @@ export function useSettings() {
     });
   };
 
+  const updateMcpSettings = (updates: Partial<SettingsData['mcp']>) => {
+    setSettings((prev) => prev ? { ...prev, mcp: { ...prev.mcp, ...updates } } : null);
+  };
+
   const saveAll = async () => {
     if (!settings) return;
     setIsSaving(true);
@@ -95,6 +99,7 @@ export function useSettings() {
     updateShortcutsSettings,
     updateHermesSettings,
     updateAssistantSettings,
+    updateMcpSettings,
     saveAll
   };
 }

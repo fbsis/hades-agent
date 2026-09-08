@@ -229,6 +229,11 @@ contextBridge.exposeInMainWorld('electron', {
   listSkills: () => ipcRenderer.invoke('list-skills'),
   loadSkill: (name) => ipcRenderer.invoke('load-skill', name),
 
+  // --- Model Context Protocol ---
+  getMcpStatus: () => ipcRenderer.invoke('mcp-get-status'),
+  testMcpServer: (serverId) => ipcRenderer.invoke('mcp-test-server', serverId),
+  reloadMcp: () => ipcRenderer.invoke('mcp-reload'),
+
   // --- Session Logger ---
   logSession: (data) => ipcRenderer.invoke('log-session', data),
   getLearnings: () => ipcRenderer.invoke('get-learnings'),
