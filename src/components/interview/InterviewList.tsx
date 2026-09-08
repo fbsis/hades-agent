@@ -19,6 +19,18 @@ const statusLabel: Record<InterviewSessionStatus, string> = {
   pending: 'Pendente', active: 'Em andamento', completed: 'Concluída', archived: 'Arquivada'
 };
 
+const knowledgeStatusLabels: Record<string, string> = {
+  pending: 'Pendente',
+  sending: 'Enviando',
+  partial: 'Parcial',
+  synced: 'Enviado',
+  failed: 'Falhou'
+};
+
+const knowledgeLabel = (session: InterviewSession) => (
+  knowledgeStatusLabels[session.mcpMemory?.status || ''] || '—'
+);
+
 export const InterviewList: React.FC<InterviewListProps> = ({
   sessions, onCreate, onOpen, onEdit, onStart, onTest, onArchive, onDelete, onDocuments
 }) => {
@@ -68,13 +80,14 @@ export const InterviewList: React.FC<InterviewListProps> = ({
       {filtered.length ? (
         <div className="interview-table-wrap">
           <table className="interview-session-table">
-            <thead><tr><th>Título</th><th>Tipo</th><th>Empresa / cargo</th><th>Status</th><th>Atualizada</th><th><span className="sr-only">Ações</span></th></tr></thead>
+            <thead><tr><th>Título</th><th>Tipo</th><th>Empresa / cargo</th><th>Status</th><th>Conhecimento</th><th>Atualizada</th><th><span className="sr-only">Ações</span></th></tr></thead>
             <tbody>{filtered.map(session => (
               <tr key={session.id}>
                 <td data-label="Título"><button className="interview-title-link" type="button" onClick={() => onOpen(session)}>{session.title}</button></td>
                 <td data-label="Tipo">{session.config.mode === 'interview' ? 'Entrevista' : 'Reunião'}</td>
                 <td data-label="Empresa / cargo">{[session.config.company, session.config.role].filter(Boolean).join(' · ') || '—'}</td>
                 <td data-label="Status"><span className={`interview-status-badge status-${session.status}`}>{statusLabel[session.status]}</span></td>
+                <td data-label="Conhecimento"><span className={`interview-memory-badge status-${session.mcpMemory?.status || 'none'}`}>{knowledgeLabel(session)}</span></td>
                 <td data-label="Atualizada">{new Date(session.updatedAt).toLocaleString()}</td>
                 <td className="interview-row-actions">
                   <button type="button" onClick={() => onOpen(session)} title="Abrir"><FolderOpen size={14} /></button>

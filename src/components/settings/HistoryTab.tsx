@@ -10,7 +10,24 @@ interface Session {
   type: 'minichat' | 'susurro';
   timestamp: string;
   messages: ChatMessage[];
+  mcpMemory?: {
+    status?: 'pending' | 'sending' | 'partial' | 'synced' | 'failed';
+    servers?: Record<string, {
+      serverName?: string;
+      status: 'pending' | 'sending' | 'partial' | 'synced' | 'failed';
+      syncedAt?: string;
+      error?: string;
+    }>;
+  };
 }
+
+const memoryLabel: Record<string, string> = {
+  pending: 'Knowledge pendente',
+  sending: 'Enviando ao Knowledge',
+  partial: 'Knowledge parcial',
+  synced: 'Knowledge confirmado',
+  failed: 'Falha no Knowledge'
+};
 
 // ─── Session Detail View ─────────────────────────────────────────────────────
 const SessionDetail: React.FC<{ session: Session; onBack: () => void }> = ({ session, onBack }) => {
@@ -61,6 +78,9 @@ const SessionDetail: React.FC<{ session: Session; onBack: () => void }> = ({ ses
             <Clock size={10} /> {formatDate(session.timestamp)}
             <span style={{ color: 'rgba(255,255,255,0.2)' }}>·</span>
             <Hash size={10} /> {session.messages.length} mensagens
+            {session.mcpMemory?.status && <span className={`history-memory-badge status-${session.mcpMemory.status}`}>
+              {memoryLabel[session.mcpMemory.status]}
+            </span>}
           </div>
         </div>
       </div>
@@ -115,7 +135,15 @@ const HistoryTab: React.FC = () => {
   useEffect(() => {
     const fetchSessions = () => {
       electronService.getHistoryData().then(data => {
-        if (data) setSessions(data as any);
+        if (data) {
+          const next = data as any;
+          setSessions(next);
+          setSelectedSession(current => {
+            if (!current) return current;
+            return [...next.susurroHistory, ...next.chatHistory]
+              .find((session: Session) => session.id === current.id) || current;
+          });
+        }
       });
     };
     
@@ -222,6 +250,11 @@ const HistoryTab: React.FC = () => {
                     {hasImages && (
                       <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.35)', display: 'flex', alignItems: 'center', gap: '3px' }}>
                         <Image size={11} /> imagens
+                      </span>
+                    )}
+                    {session.mcpMemory?.status && (
+                      <span className={`history-memory-badge status-${session.mcpMemory.status}`}>
+                        {memoryLabel[session.mcpMemory.status]}
                       </span>
                     )}
                   </div>

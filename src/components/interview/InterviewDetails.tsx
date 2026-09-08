@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Archive, ArrowLeft, FileText, MoreHorizontal, Trash2 } from 'lucide-react';
+import { Archive, ArrowLeft, Brain, CheckCircle2, FileText, MoreHorizontal, Trash2 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { InterviewSession } from '../../types/interview';
@@ -20,6 +20,14 @@ const duration = (session: InterviewSession) => {
   if (!session.startedAt || !session.endedAt) return '—';
   const seconds = Math.max(0, Math.floor((new Date(session.endedAt).getTime() - new Date(session.startedAt).getTime()) / 1000));
   return `${Math.floor(seconds / 60)} min ${seconds % 60}s`;
+};
+
+const memoryStatusLabel: Record<string, string> = {
+  pending: 'Pendente',
+  sending: 'Enviando',
+  partial: 'Envio parcial',
+  synced: 'Enviado e confirmado',
+  failed: 'Falha no envio'
 };
 
 export const InterviewDetails: React.FC<InterviewDetailsProps> = ({ session, isSummarizing, onBack, onSummarize, onArchive, onDelete }) => {
@@ -51,6 +59,24 @@ export const InterviewDetails: React.FC<InterviewDetailsProps> = ({ session, isS
         {tab === 'overview' && <div className="interview-overview-grid">
           <article className="interview-detail-card interview-summary-card"><h2>Resumo</h2>{session.summary ? <div className="interview-markdown"><ReactMarkdown remarkPlugins={[remarkGfm]}>{session.summary}</ReactMarkdown></div> : <div className="interview-detail-empty">Ainda não há resumo para esta sessão.<button type="button" onClick={onSummarize} disabled={isSummarizing || !session.transcript.length}>{isSummarizing ? 'Gerando…' : 'Gerar resumo'}</button></div>}</article>
           <article className="interview-detail-card"><h2>Informações</h2><dl className="interview-info-list"><div><dt>Idioma</dt><dd>{session.config.language}</dd></div><div><dt>Estilo de resposta</dt><dd>{session.config.answerStyle}</dd></div>{session.config.role && <div><dt>Cargo</dt><dd>{session.config.role}</dd></div>}<div><dt>Gravação</dt><dd>{session.config.retainAudio ? 'Mantida' : 'Não mantida'}</dd></div></dl></article>
+          {session.mcpMemory && <article className="interview-detail-card interview-memory-card">
+            <h2><Brain size={16} /> Conhecimento MCP</h2>
+            <span className={`interview-memory-badge status-${session.mcpMemory.status || 'pending'}`}>
+              {memoryStatusLabel[session.mcpMemory.status || 'pending']}
+            </span>
+            <div className="interview-memory-server-list">
+              {Object.entries(session.mcpMemory.servers || {}).map(([serverId, state]) => (
+                <div className="interview-memory-server" key={serverId}>
+                  <strong>{state.serverName || serverId}</strong>
+                  <span>{state.conversationSynced ? <><CheckCircle2 size={12} /> Conversa confirmada</> : 'Conversa não confirmada'}</span>
+                  <span>{state.summarySynced ? <><CheckCircle2 size={12} /> Resumo confirmado</> : 'Resumo pendente'}</span>
+                  {state.parts ? <small>{state.parts} parte(s) enviada(s)</small> : null}
+                  {state.syncedAt && <small>Confirmado em {new Date(state.syncedAt).toLocaleString()}</small>}
+                  {state.error && <small className="error">{state.error}</small>}
+                </div>
+              ))}
+            </div>
+          </article>}
         </div>}
         {tab === 'transcript' && <div className="interview-detail-transcript"><InterviewTranscript turns={session.transcript} selectedTurnId={null} onSelect={() => {}} onAnswer={() => {}} readOnly /></div>}
         {tab === 'answers' && <div className="interview-detail-answers">{session.answers.length === 0 ? <div className="interview-list-empty"><strong>Nenhuma resposta gerada</strong><span>As respostas criadas durante a sessão aparecerão aqui.</span></div> : session.answers.map(answer => <article className="interview-detail-card" key={answer.id}><small>{new Date(answer.createdAt).toLocaleString()}</small><h2>{answer.question || 'Resposta'}</h2><div className="interview-markdown"><ReactMarkdown remarkPlugins={[remarkGfm]}>{answer.text}</ReactMarkdown></div></article>)}</div>}

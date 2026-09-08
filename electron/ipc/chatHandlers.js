@@ -109,6 +109,15 @@ function registerChatHandlers() {
       sessions.push(session);
       store.saveSessions(sessions);
 
+      if (!isSusurro) {
+        const timer = setTimeout(() => {
+          require('../services/dreamService').runDreamCycle().catch(error => {
+            logger.error('DREAM', 'Conversation knowledge synchronization failed', error);
+          });
+        }, 100);
+        timer.unref?.();
+      }
+
       if (isSusurro) {
         const hermesService = require('../services/hermesService');
         hermesService.summarizeMeeting(session).catch(error => {

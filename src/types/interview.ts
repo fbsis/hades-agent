@@ -128,6 +128,26 @@ export interface InterviewSession {
     summaryResponseId?: string | null;
     summaryUsage?: Record<string, unknown> | null;
   };
+  mcpMemory?: {
+    status?: 'pending' | 'sending' | 'partial' | 'synced' | 'failed';
+    summary?: string;
+    summaryProvider?: 'openai' | 'existing';
+    summaryModel?: string;
+    summaryError?: string;
+    servers: Record<string, {
+      status: 'pending' | 'sending' | 'partial' | 'synced' | 'failed';
+      attempts: number;
+      serverName?: string;
+      tool?: string;
+      parts?: number;
+      conversationSynced?: boolean;
+      summarySynced?: boolean;
+      lastAttemptAt?: string;
+      syncedAt?: string;
+      response?: string;
+      error?: string;
+    }>;
+  };
 }
 
 export interface InterviewTranscriptDelta {

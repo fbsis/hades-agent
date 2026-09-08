@@ -889,6 +889,36 @@ input:checked + .slider:before {
   flex-wrap: wrap;
 }
 
+.history-memory-badge {
+  display: inline-flex;
+  padding: 3px 7px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.52);
+  font-size: 10px;
+}
+
+.history-memory-badge.status-synced {
+  background: rgba(34, 197, 94, 0.13);
+  color: #86efac;
+}
+
+.history-memory-badge.status-sending,
+.history-memory-badge.status-pending {
+  background: rgba(59, 130, 246, 0.13);
+  color: #93c5fd;
+}
+
+.history-memory-badge.status-partial {
+  background: rgba(245, 158, 11, 0.13);
+  color: #fcd34d;
+}
+
+.history-memory-badge.status-failed {
+  background: rgba(239, 68, 68, 0.13);
+  color: #fca5a5;
+}
+
 .toggle-btn {
   display: flex;
   align-items: center;

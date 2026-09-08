@@ -352,11 +352,18 @@ class InterviewService {
     const text = result.text.trim();
 
     if (!text) throw new Error('A IA nao retornou um resumo.');
-    return this.updateSession(sessionId, {
+    const updated = this.updateSession(sessionId, {
       summary: text,
       summaryAt: new Date().toISOString(),
       summaryProvider: 'openai'
     });
+    const timer = setTimeout(() => {
+      require('./dreamService').runDreamCycle().catch(error => {
+        logger.error('INTERVIEW_MEMORY', 'MCP summary synchronization failed', error);
+      });
+    }, 50);
+    timer.unref?.();
+    return updated;
   }
 
   async streamOpenAIAnswer(args, instruction, state, emit) {

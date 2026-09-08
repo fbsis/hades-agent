@@ -125,6 +125,14 @@ export const useInterviewCopilot = (options: { embedded?: boolean; onClosePanel?
           || String(b.updatedAt).localeCompare(String(a.updatedAt))
         ))
     );
+    const selectedId = sessionRef.current?.id;
+    if (selectedId && sessionRef.current?.status === 'completed') {
+      const refreshed = sessions.find(item => item.id === selectedId);
+      if (refreshed) {
+        setSession(refreshed);
+        sessionRef.current = refreshed;
+      }
+    }
   }, []);
 
   useEffect(() => {
@@ -132,6 +140,11 @@ export const useInterviewCopilot = (options: { embedded?: boolean; onClosePanel?
       if (settings?.interview) setConfig(normalizeInterviewConfig(settings.interview));
     });
     refreshSessions();
+  }, [refreshSessions]);
+
+  useEffect(() => {
+    const timer = globalThis.setInterval(() => { void refreshSessions(); }, 3000);
+    return () => globalThis.clearInterval(timer);
   }, [refreshSessions]);
 
   useEffect(() => {

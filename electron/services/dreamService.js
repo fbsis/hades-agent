@@ -8,6 +8,7 @@ const jsonStore = require('../store/jsonStore');
 const {
   RECORDED_MEETING_SUMMARY_INSTRUCTIONS,
   buildRecordedMeetingSummaryInput,
+  buildRecordedTranscript,
   shouldSyncRecordedMeeting
 } = require('./recordedMeetingMemory');
 
@@ -31,6 +32,7 @@ class DreamService {
       fs.mkdirSync(this.memoryDir, { recursive: true });
     }
     this.activeCycle = null;
+    this.rerunRequested = false;
   }
 
   getLearningsPath() {
@@ -122,12 +124,12 @@ class DreamService {
   }
 
   async summarizeRecordedMeeting(session, settings) {
-    const cachedSummary = String(session.hermesMemory?.summary || '').trim();
+    const cachedSummary = String(session.hermesMemory?.summary || session.mcpMemory?.summary || '').trim();
     if (cachedSummary) {
       return {
         summary: cachedSummary,
-        provider: session.hermesMemory?.summaryProvider || 'existing',
-        model: session.hermesMemory?.summaryModel,
+        provider: session.hermesMemory?.summaryProvider || session.mcpMemory?.summaryProvider || 'existing',
+        model: session.hermesMemory?.summaryModel || session.mcpMemory?.summaryModel,
         responseId: session.hermesMemory?.summaryResponseId,
         usage: session.hermesMemory?.summaryUsage
       };
@@ -250,9 +252,210 @@ class DreamService {
     return synced;
   }
 
+  async syncMeetingKnowledge() {
+    const mcpClientService = require('./mcpClientService');
+    const mcpConfig = mcpClientService.getConfig();
+    const targetServers = mcpConfig.enabled
+      ? mcpConfig.servers.filter(server => server.enabled && server.meetingKnowledge.enabled)
+      : [];
+    if (targetServers.length === 0) return 0;
+
+    const sessions = jsonStore.getInterviewSessions();
+    const candidates = sessions.filter(session => (
+      session.status === 'completed'
+      && Boolean(String(session.summary || session.mcpMemory?.summary || '').trim() || buildRecordedTranscript(session))
+      && targetServers.some(server => session.mcpMemory?.servers?.[server.id]?.status !== 'synced')
+    ));
+    if (candidates.length === 0) return 0;
+
+    const settings = jsonStore.getSettings();
+    logger.info('DreamService', `Synchronizing ${candidates.length} meeting(s) with MCP knowledge servers...`);
+    let synced = 0;
+
+    for (const candidate of candidates) {
+      const attemptedAt = new Date().toISOString();
+      const previousServers = candidate.mcpMemory?.servers || {};
+      const pendingTargets = targetServers.filter(server => previousServers[server.id]?.status !== 'synced');
+      let summaryResult;
+      let summaryError = '';
+
+      try {
+        summaryResult = await this.summarizeRecordedMeeting(candidate, settings);
+      } catch (error) {
+        summaryError = error.message;
+        summaryResult = { summary: '', provider: 'existing' };
+        logger.warn('DreamService', `Meeting ${candidate.id} MCP summary pending; sending conversation first: ${error.message}`);
+      }
+
+      const pendingServers = { ...previousServers };
+      pendingTargets.forEach(server => {
+        pendingServers[server.id] = {
+          ...pendingServers[server.id],
+          serverName: server.name,
+          status: 'sending',
+          attempts: Number(pendingServers[server.id]?.attempts || 0) + 1,
+          lastAttemptAt: attemptedAt,
+          error: undefined
+        };
+      });
+      const pendingMemory = {
+        ...candidate.mcpMemory,
+        status: 'sending',
+        summary: summaryResult.summary || candidate.mcpMemory?.summary,
+        summaryProvider: summaryResult.provider,
+        summaryModel: summaryResult.model,
+        summaryError: summaryError || undefined,
+        servers: pendingServers
+      };
+      const beforeSync = jsonStore.getInterviewSessions();
+      const beforeIndex = beforeSync.findIndex(session => session.id === candidate.id);
+      if (beforeIndex >= 0) {
+        beforeSync[beforeIndex] = { ...beforeSync[beforeIndex], mcpMemory: pendingMemory };
+        jsonStore.saveInterviewSessions(beforeSync);
+      }
+
+      const alreadySynced = Object.entries(previousServers)
+        .filter(([, state]) => state?.status === 'synced')
+        .map(([serverId]) => serverId);
+      const results = await mcpClientService.syncMeetingKnowledge(
+        candidate,
+        summaryResult.summary,
+        alreadySynced,
+        previousServers
+      );
+      const afterSync = jsonStore.getInterviewSessions();
+      const afterIndex = afterSync.findIndex(session => session.id === candidate.id);
+      if (afterIndex < 0) continue;
+      const serverStates = { ...(afterSync[afterIndex].mcpMemory?.servers || pendingServers) };
+      results.forEach(result => {
+        const previous = serverStates[result.serverId] || { attempts: 1 };
+        serverStates[result.serverId] = {
+          ...previous,
+          serverName: result.server || previous.serverName,
+          status: result.success
+            ? 'synced'
+            : result.conversationSynced || result.summarySynced
+              ? 'partial'
+              : 'failed',
+          tool: result.tool,
+          parts: previous.conversationSynced && !previous.summarySynced && result.summarySynced
+            ? Number(previous.parts || 0) + Number(result.parts || 0)
+            : result.parts || previous.parts || 0,
+          conversationSynced: result.conversationSynced === true,
+          summarySynced: result.summarySynced === true,
+          ...(result.success ? { syncedAt: attemptedAt } : {}),
+          response: String(result.response || previous.response || '').slice(0, 1000),
+          error: result.success ? undefined : result.error || 'Servidor MCP indisponível.'
+        };
+        if (result.success) synced += 1;
+      });
+      const targetStates = targetServers.map(server => serverStates[server.id]).filter(Boolean);
+      const overallStatus = targetStates.length > 0 && targetStates.every(state => state.status === 'synced')
+        ? 'synced'
+        : targetStates.some(state => state.status === 'synced' || state.status === 'partial')
+          ? 'partial'
+          : 'failed';
+      afterSync[afterIndex] = {
+        ...afterSync[afterIndex],
+        mcpMemory: { ...pendingMemory, status: overallStatus, servers: serverStates }
+      };
+      jsonStore.saveInterviewSessions(afterSync);
+    }
+
+    return synced;
+  }
+
+  async syncChatConversations() {
+    const mcpClientService = require('./mcpClientService');
+    const mcpConfig = mcpClientService.getConfig();
+    const targetServers = mcpConfig.enabled
+      ? mcpConfig.servers.filter(server => server.enabled && server.meetingKnowledge.enabled)
+      : [];
+    if (targetServers.length === 0) return 0;
+
+    const conversations = jsonStore.getSessions();
+    const candidates = conversations.filter(session => (
+      session.type !== 'susurro'
+      && Array.isArray(session.messages)
+      && session.messages.length > 0
+      && targetServers.some(server => session.mcpMemory?.servers?.[server.id]?.status !== 'synced')
+    ));
+    if (candidates.length === 0) return 0;
+
+    logger.info('DreamService', `Synchronizing ${candidates.length} chat conversation(s) with MCP knowledge servers...`);
+    let synced = 0;
+    for (const candidate of candidates) {
+      const attemptedAt = new Date().toISOString();
+      const previousServers = candidate.mcpMemory?.servers || {};
+      const serverStates = { ...previousServers };
+      targetServers.forEach(server => {
+        if (serverStates[server.id]?.status === 'synced') return;
+        serverStates[server.id] = {
+          ...serverStates[server.id],
+          serverName: server.name,
+          status: 'sending',
+          attempts: Number(serverStates[server.id]?.attempts || 0) + 1,
+          lastAttemptAt: attemptedAt,
+          error: undefined
+        };
+      });
+
+      let sessions = jsonStore.getSessions();
+      let index = sessions.findIndex(session => session.id === candidate.id);
+      if (index < 0) continue;
+      sessions[index] = {
+        ...sessions[index],
+        mcpMemory: { status: 'sending', servers: serverStates }
+      };
+      jsonStore.saveSessions(sessions);
+
+      const alreadySynced = Object.entries(previousServers)
+        .filter(([, state]) => state?.status === 'synced')
+        .map(([serverId]) => serverId);
+      const results = await mcpClientService.syncChatConversationKnowledge(candidate, alreadySynced);
+
+      sessions = jsonStore.getSessions();
+      index = sessions.findIndex(session => session.id === candidate.id);
+      if (index < 0) continue;
+      const currentStates = { ...(sessions[index].mcpMemory?.servers || serverStates) };
+      results.forEach(result => {
+        const previous = currentStates[result.serverId] || {};
+        currentStates[result.serverId] = {
+          ...previous,
+          serverName: result.server || previous.serverName,
+          status: result.success ? 'synced' : 'failed',
+          tool: result.tool,
+          parts: result.parts || previous.parts || 0,
+          conversationSynced: result.success === true,
+          ...(result.success ? { syncedAt: attemptedAt } : {}),
+          response: String(result.response || '').slice(0, 1000),
+          error: result.success ? undefined : result.error || 'Servidor MCP indisponível.'
+        };
+        if (result.success) synced += 1;
+      });
+      const states = targetServers.map(server => currentStates[server.id]).filter(Boolean);
+      const status = states.length > 0 && states.every(state => state.status === 'synced')
+        ? 'synced'
+        : states.some(state => state.status === 'synced') ? 'partial' : 'failed';
+      sessions[index] = { ...sessions[index], mcpMemory: { status, servers: currentStates } };
+      jsonStore.saveSessions(sessions);
+    }
+    return synced;
+  }
+
   async runDreamCycle() {
-    if (this.activeCycle) return this.activeCycle;
-    this.activeCycle = this.executeDreamCycle();
+    if (this.activeCycle) {
+      this.rerunRequested = true;
+      return this.activeCycle;
+    }
+    this.activeCycle = (async () => {
+      let result;
+      do {
+        this.rerunRequested = false;
+        result = await this.executeDreamCycle();
+      } while (this.rerunRequested);
+      return result;
+    })();
     try {
       return await this.activeCycle;
     } finally {
@@ -263,6 +466,13 @@ class DreamService {
   async executeDreamCycle() {
     logger.info('DreamService', 'Starting dream cycle...');
     const settings = jsonStore.getSettings();
+
+    // Meeting knowledge is an explicit per-MCP opt-in and remains independent
+    // from the general behavioral-learning Dreaming switch.
+    await Promise.all([
+      this.syncMeetingKnowledge(),
+      this.syncChatConversations()
+    ]);
     
     // Check if dreaming is enabled in settings
     if (settings?.general?.dreamingEnabled === false) {
