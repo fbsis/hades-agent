@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, globalShortcut, screen, session } = require('electron');
+const { app, BrowserWindow, ipcMain, globalShortcut, screen, session, systemPreferences } = require('electron');
 const path = require('node:path');
 const fs = require('node:fs');
 
@@ -34,6 +34,7 @@ const registerGlobalShortcuts = require('./electron/shortcuts');
 const appState = require('./electron/appState');
 const taskService = require('./electron/services/taskService');
 const dreamService = require('./electron/services/dreamService');
+const jsonStore = require('./electron/store/jsonStore');
 const log = require('electron-log');
 
 log.transports.file.level = 'info';
@@ -79,6 +80,18 @@ app.whenReady().then(() => {
     const allowed = ['media', 'audioCapture', 'videoCapture'];
     callback(allowed.includes(permission));
   });
+
+  // Ask macOS up front while the app has a visible startup window. This also
+  // covers resumed meetings whose original configuration predates mic capture.
+  if (process.platform === 'darwin' && jsonStore.getSettings()?.audio?.micEnabled !== false) {
+    const microphoneStatus = systemPreferences.getMediaAccessStatus('microphone');
+    log.info(`[MEDIA] Startup microphone permission check: ${microphoneStatus}`);
+    if (['not-determined', 'unknown'].includes(microphoneStatus)) {
+      systemPreferences.askForMediaAccess('microphone')
+        .then(granted => log.info(`[MEDIA] Startup microphone permission requested: ${granted ? 'granted' : 'denied'}`))
+        .catch(error => log.error('[MEDIA] Startup microphone permission request failed', error));
+    }
+  }
 
   process.env.ELECTRON_DISABLE_SECURITY_WARNINGS = 'true'; // Suppress CSP warnings in Dev (Vite requires unsafe-eval)
 

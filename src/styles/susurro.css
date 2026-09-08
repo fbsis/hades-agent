@@ -75,6 +75,17 @@
 .source-status.status-reconnecting { color: var(--color-gold-light); border-color: rgba(250, 204, 21, 0.24); }
 .source-status.status-error { color: var(--color-danger-light); border-color: rgb(var(--color-danger-rgb) / 0.3); }
 
+.source-status-button {
+  appearance: none;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.source-status-button:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
 .interview-header-actions {
   display: flex;
   align-items: center;

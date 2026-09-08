@@ -14,16 +14,23 @@ function registerMediaPermissionHandlers() {
   ipcMain.handle('media-request-microphone-access', async () => {
     try {
       const current = getMicrophoneAccess();
-      if (process.platform !== 'darwin' || current.status !== 'not-determined') {
+      logger.info('MEDIA', `Microphone permission check: ${current.status}`);
+      if (
+        process.platform !== 'darwin'
+        || !['not-determined', 'unknown'].includes(current.status)
+      ) {
         return { success: true, data: current };
       }
 
       const granted = await systemPreferences.askForMediaAccess('microphone');
       const updated = getMicrophoneAccess();
       logger.info('MEDIA', `Microphone permission requested: ${updated.status}`);
+      const effectiveStatus = updated.status === 'unknown'
+        ? (granted ? 'granted' : 'denied')
+        : updated.status;
       return {
         success: true,
-        data: { granted: granted && updated.status === 'granted', status: updated.status }
+        data: { granted: granted || updated.status === 'granted', status: effectiveStatus }
       };
     } catch (error) {
       logger.error('MEDIA', 'Could not request microphone permission', error);

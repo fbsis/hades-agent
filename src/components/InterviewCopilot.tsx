@@ -129,16 +129,36 @@ const InterviewCopilot: React.FC<InterviewCopilotProps> = ({ embedded = false, o
 
         {view === 'live' && copilot.session?.status === 'active' && (
           <div className="interview-source-statuses">
-            <span
-              className={`source-status status-${copilot.sourceStatuses.interviewer?.status || 'idle'}`}
-              title="Whisper local, privado e sem custo de API"
-            >
-              {copilot.session.isTestMode ? <><Mic size={12} /> Você como entrevistador</> : <><Headphones size={12} /> Sistema</>}
-            </span>
-            {!copilot.session.isTestMode && copilot.session.config.transcribeMicrophone && (
-              <span className={`source-status status-${copilot.sourceStatuses.candidate?.status || 'idle'}`}>
-                <Mic size={12} /> Voce
+            {copilot.session.isTestMode ? (
+              <span
+                className={`source-status status-${copilot.sourceStatuses.interviewer?.status || 'idle'}`}
+                title="Whisper local, privado e sem custo de API"
+              >
+                <Mic size={12} /> Você como entrevistador
               </span>
+            ) : (
+              <button
+                type="button"
+                className={`source-status source-status-button status-${copilot.sourceStatuses.interviewer?.status || 'idle'}`}
+                onClick={() => void copilot.toggleSystemTranscription()}
+                title={['connecting', 'ready', 'reconnecting'].includes(copilot.sourceStatuses.interviewer?.status || '')
+                  ? 'Pausar captura do áudio do sistema'
+                  : 'Ativar captura do áudio do sistema'}
+                aria-label="Alternar captura do áudio do sistema"
+              >
+                <Headphones size={12} /> Sistema
+              </button>
+            )}
+            {!copilot.session.isTestMode && (
+              <button
+                type="button"
+                className={`source-status source-status-button status-${copilot.session.config.transcribeMicrophone ? (copilot.sourceStatuses.candidate?.status || 'connecting') : 'idle'}`}
+                onClick={() => void copilot.toggleMicrophoneTranscription()}
+                title={copilot.session.config.transcribeMicrophone ? 'Desativar e parar de transcrever minha voz' : 'Ativar e transcrever minha voz'}
+                aria-label="Alternar transcrição da minha voz"
+              >
+                <Mic size={12} /> Você
+              </button>
             )}
           </div>
         )}

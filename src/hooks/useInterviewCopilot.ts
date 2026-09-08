@@ -323,6 +323,15 @@ export const useInterviewCopilot = (options: { embedded?: boolean; onClosePanel?
         }
       }
 
+      let microphoneAccessGranted = true;
+      if (activeSession.config.transcribeMicrophone) {
+        const access = await electronService.requestMicrophoneAccess();
+        microphoneAccessGranted = access.granted;
+        if (!access.granted) {
+          setError('O acesso ao microfone está bloqueado. Ative o Metis em Ajustes do Sistema → Privacidade e Segurança → Microfone e reinicie o aplicativo. A sessão continuará apenas com o áudio do sistema.');
+        }
+      }
+
       const systemStarted = await electronService.startInterviewSource({
         sessionId: activeSession.id,
         source: 'interviewer',
@@ -343,7 +352,7 @@ export const useInterviewCopilot = (options: { embedded?: boolean; onClosePanel?
         sessionRef.current = recordingSession;
       }
 
-      if (activeSession.config.transcribeMicrophone) {
+      if (activeSession.config.transcribeMicrophone && microphoneAccessGranted) {
         const microphoneSourceStarted = await electronService.startInterviewSource({
           sessionId: activeSession.id,
           source: 'candidate',
@@ -787,6 +796,125 @@ export const useInterviewCopilot = (options: { embedded?: boolean; onClosePanel?
     conversationOptionsHoveredRef.current = hovered;
   }, []);
 
+  const toggleMicrophoneTranscription = useCallback(async (forceEnabled?: boolean) => {
+    const activeSession = sessionRef.current;
+    if (!activeSession || activeSession.status !== 'active' || activeSession.isTestMode) return false;
+
+    const shouldEnable = forceEnabled ?? !activeSession.config.transcribeMicrophone;
+    if (shouldEnable === activeSession.config.transcribeMicrophone) return true;
+    setError('');
+
+    if (!shouldEnable) {
+      stopMicrophoneRecording();
+      await electronService.stopInterviewSource(activeSession.id, 'candidate');
+      if (activeSession.config.retainAudio) {
+        await electronService.stopInterviewRecording(activeSession.id, 'candidate');
+      }
+      const nextConfig = { ...activeSession.config, transcribeMicrophone: false };
+      const updated = await electronService.updateInterviewSession(activeSession.id, { config: nextConfig });
+      setConfig(nextConfig);
+      updateSessionState(current => ({
+        ...current,
+        config: nextConfig,
+        updatedAt: updated?.updatedAt || current.updatedAt
+      }));
+      setSourceStatuses(current => {
+        const { candidate: _candidate, ...remaining } = current;
+        return remaining;
+      });
+      return true;
+    }
+
+    const access = await electronService.requestMicrophoneAccess();
+    if (!access.granted) {
+      setError('O acesso ao microfone está bloqueado. Clique em Permitir no aviso do macOS ou ative Metis em Ajustes do Sistema → Privacidade e Segurança → Microfone.');
+      return false;
+    }
+
+    const nextConfig = { ...activeSession.config, transcribeMicrophone: true };
+    const sourceStarted = await electronService.startInterviewSource({
+      sessionId: activeSession.id,
+      source: 'candidate',
+      language: nextConfig.language,
+      provider: nextConfig.transcriptionProvider,
+      customVocabulary: buildTranscriptionVocabulary(nextConfig)
+    });
+    const recorderStarted = sourceStarted
+      ? await startRecorder({ ...activeSession, config: nextConfig }, 'candidate')
+      : false;
+
+    if (!sourceStarted || !recorderStarted) {
+      if (sourceStarted) await electronService.stopInterviewSource(activeSession.id, 'candidate');
+      if (nextConfig.retainAudio) {
+        await electronService.stopInterviewRecording(activeSession.id, 'candidate');
+      }
+      stopMicrophoneRecording();
+      setError(audioCaptureErrorRef.current || 'Não foi possível iniciar o microfone. A reunião continua com o áudio do sistema.');
+      return false;
+    }
+
+    const updated = await electronService.updateInterviewSession(activeSession.id, { config: nextConfig });
+    setConfig(nextConfig);
+    updateSessionState(current => ({
+      ...current,
+      config: nextConfig,
+      updatedAt: updated?.updatedAt || current.updatedAt
+    }));
+    return true;
+  }, [startRecorder, stopMicrophoneRecording, updateSessionState]);
+
+  const toggleSystemTranscription = useCallback(async () => {
+    const activeSession = sessionRef.current;
+    if (!activeSession || activeSession.status !== 'active' || activeSession.isTestMode) return false;
+
+    const systemStatus = sourceStatuses.interviewer?.status;
+    const isSystemRunning = ['connecting', 'ready', 'reconnecting'].includes(systemStatus || '');
+    setError('');
+
+    if (isSystemRunning) {
+      stopSystemRecording();
+      await electronService.stopInterviewSource(activeSession.id, 'interviewer');
+      if (activeSession.config.retainAudio) {
+        await electronService.stopInterviewRecording(activeSession.id, 'interviewer');
+      }
+      setSourceStatuses(current => {
+        const { interviewer: _interviewer, ...remaining } = current;
+        return remaining;
+      });
+      setFlowStatus(sourceStatuses.candidate?.status === 'ready' ? 'listening' : 'idle');
+      return true;
+    }
+
+    const sourceStarted = await electronService.startInterviewSource({
+      sessionId: activeSession.id,
+      source: 'interviewer',
+      language: activeSession.config.language,
+      provider: activeSession.config.transcriptionProvider,
+      customVocabulary: buildTranscriptionVocabulary(activeSession.config)
+    });
+    const recorderStarted = sourceStarted
+      ? await startRecorder(activeSession, 'interviewer')
+      : false;
+
+    if (!sourceStarted || !recorderStarted) {
+      if (sourceStarted) await electronService.stopInterviewSource(activeSession.id, 'interviewer');
+      if (activeSession.config.retainAudio) {
+        await electronService.stopInterviewRecording(activeSession.id, 'interviewer');
+      }
+      stopSystemRecording();
+      setError(audioCaptureErrorRef.current || 'Não foi possível capturar o áudio do sistema. Verifique a permissão “Gravação de Tela e Áudio do Sistema” do Metis.');
+      return false;
+    }
+
+    const updated = await electronService.updateInterviewSession(activeSession.id, { hasRecording: true });
+    if (updated) {
+      setSession(updated);
+      sessionRef.current = updated;
+    }
+    setFlowStatus('listening');
+    return true;
+  }, [sourceStatuses.candidate?.status, sourceStatuses.interviewer?.status, startRecorder, stopSystemRecording]);
+
   const toggleConversationCopilot = useCallback(async () => {
     const activeSession = sessionRef.current;
     if (!activeSession || activeSession.status !== 'active') return;
@@ -802,35 +930,10 @@ export const useInterviewCopilot = (options: { embedded?: boolean; onClosePanel?
     setConversationCopilotActive(true);
     setError('');
     if (!activeSession.isTestMode && !activeSession.config.transcribeMicrophone) {
-      const nextConfig = { ...activeSession.config, transcribeMicrophone: true };
-      let sourceStarted = false;
-      let recorderStarted = false;
-      try {
-        sourceStarted = await electronService.startInterviewSource({
-          sessionId: activeSession.id,
-          source: 'candidate',
-          language: nextConfig.language,
-          provider: nextConfig.transcriptionProvider,
-          customVocabulary: buildTranscriptionVocabulary(nextConfig)
-        });
-        recorderStarted = sourceStarted
-          ? await startRecorder({ ...activeSession, config: nextConfig }, 'candidate')
-          : false;
-      } catch {
-        recorderStarted = false;
-      }
-      if (sourceStarted && recorderStarted) {
-        const updated = await electronService.updateInterviewSession(activeSession.id, { config: nextConfig });
-        setConfig(nextConfig);
-        updateSessionState(current => ({ ...current, config: nextConfig, updatedAt: updated?.updatedAt || current.updatedAt }));
-      } else {
-        if (sourceStarted) await electronService.stopInterviewSource(activeSession.id, 'candidate');
-        stopMicrophoneRecording();
-        setError(audioCaptureErrorRef.current || 'O copiloto foi ativado, mas seu microfone nao ficou disponivel. As sugestoes usarao apenas as outras pessoas.');
-      }
+      await toggleMicrophoneTranscription(true);
     }
     await requestConversationSuggestions();
-  }, [requestConversationSuggestions, startRecorder, stopMicrophoneRecording, updateSessionState]);
+  }, [requestConversationSuggestions, toggleMicrophoneTranscription]);
 
   const expandConversationSuggestion = useCallback(async (suggestion: ConversationSuggestion) => {
     const activeSession = sessionRef.current;
@@ -1152,6 +1255,8 @@ export const useInterviewCopilot = (options: { embedded?: boolean; onClosePanel?
     isLoadingConversationSuggestions,
     isExpandingConversationSuggestion,
     toggleConversationCopilot,
+    toggleMicrophoneTranscription,
+    toggleSystemTranscription,
     requestConversationSuggestions,
     expandConversationSuggestion,
     clearConversationSuggestion,

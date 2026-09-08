@@ -67,6 +67,8 @@
         "zip"
       ],
       "icon": "public/icon/icon.png",
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist",
       "extendInfo": {
         "NSMicrophoneUsageDescription": "O Metis usa o microfone para transcrever sua fala em reuniões, entrevistas e comandos de voz."
       }
