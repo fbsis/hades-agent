@@ -77,6 +77,7 @@ function registerInterviewHandlers() {
     await interviewRecordingService.stopSession(sessionId);
     const finished = interviewService.finishSession(sessionId, options || {});
     if (finished.status === 'completed') {
+      if (finished.config?.workspaceId) require('../services/workMeetingSync').schedule();
       const timer = setTimeout(() => {
         require('../services/dreamService').runDreamCycle().catch(error => {
           logger.error('INTERVIEW_IPC', 'Recorded meeting Dreaming cycle failed', error);

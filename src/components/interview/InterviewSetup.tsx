@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { ArrowLeft, ChevronDown, FlaskConical, Radio, Save } from 'lucide-react';
 import { InterviewConfig, InterviewContextDocument } from '../../types/interview';
 import { electronService } from '../../services/electron';
@@ -17,6 +17,9 @@ interface InterviewSetupProps {
 
 export const InterviewSetup: React.FC<InterviewSetupProps> = ({ config, error, isEditing = false, onConfigChange, onStart, onTest, onSavePending, onCancel, documents }) => {
   const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [workspaces,setWorkspaces] = useState<{id:string;name:string}[]>([]);
+  const latestConfig=useRef(config);latestConfig.current=config;
+  useEffect(()=>{void electronService.getSettings().then(settings=>{const work=(settings as unknown as {workSync?:{workspaces?:{id:string;name:string}[];lastWorkspace?:string}})?.workSync;const list=work?.workspaces||[];setWorkspaces(list);const current=latestConfig.current;const chosen=work?.lastWorkspace||(list.length===1?list[0].id:'');if(!current.workspaceId&&chosen)onConfigChange({...current,workspaceId:chosen,retainAudio:false,saveTranscript:true});});},[]);
   const [microphonePermissionError, setMicrophonePermissionError] = useState('');
   const update = <K extends keyof InterviewConfig>(key: K, value: InterviewConfig[K]) => onConfigChange({ ...config, [key]: value });
   const toggleMicrophoneTranscription = async (enabled: boolean) => {
@@ -53,6 +56,7 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({ config, error, i
             <button type="button" className={config.mode === 'interview' ? 'active' : ''} onClick={() => selectMode('interview')}>Entrevista</button>
           </div>
           <div className="interview-form-grid">
+            {workspaces.length>0&&<label className="interview-title-field"><span>Workspace da gravação *</span><select value={config.workspaceId||''} onChange={event=>onConfigChange({...config,workspaceId:event.target.value,retainAudio:false,saveTranscript:true})}><option value="">Selecione a empresa</option>{workspaces.map(w=><option key={w.id} value={w.id}>{w.name}</option>)}</select><small>O workspace fica fixado depois de iniciar. A central recebe o resumo, não o áudio.</small></label>}
             <label className="interview-title-field"><span>Título *</span><input autoFocus value={config.title} onChange={event => update('title', event.target.value)} placeholder={config.mode === 'interview' ? 'Entrevista técnica' : 'Planejamento semanal'} /></label>
             {config.mode === 'interview' ? <><label><span>Cargo</span><input value={config.role} onChange={event => update('role', event.target.value)} placeholder="Senior Software Engineer" /></label><label><span>Empresa</span><input value={config.company} onChange={event => update('company', event.target.value)} placeholder="Empresa" /></label></> : <label className="interview-title-field"><span>Empresa ou pessoa</span><input value={config.company} onChange={event => update('company', event.target.value)} placeholder="Acme ou Maria Silva" /></label>}
             <label><span>Idioma</span><select value={config.language} onChange={event => update('language', event.target.value as InterviewConfig['language'])}><option value="auto">Automático</option><option value="pt-BR">Português</option><option value="en-US">English</option></select></label>
@@ -70,9 +74,10 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({ config, error, i
         <section className={`interview-advanced-card ${advancedOpen ? 'open' : ''}`}>
           <button type="button" className="interview-advanced-toggle" onClick={() => setAdvancedOpen(value => !value)} aria-expanded={advancedOpen}><span><strong>Configurações avançadas</strong><small>Contexto, transcrição e gravação</small></span><ChevronDown size={17} /></button>
           {advancedOpen && <div className="interview-advanced-content">
+            {config.workspaceId&&<label className="interview-toggle"><input type="checkbox" checked={!!config.syncTranscript} onChange={event=>update('syncTranscript',event.target.checked)}/><span>Sincronizar transcrição também (opcional; resumo é o resultado principal)</span></label>}
             {config.mode === 'interview' ? <><label className="interview-wide-field"><span>Assuntos previstos</span><textarea value={config.topics} onChange={event => update('topics', event.target.value)} rows={3} placeholder="React, arquitetura, algoritmos..." /></label><label className="interview-wide-field"><span>Currículo</span><textarea value={config.resume} onChange={event => update('resume', event.target.value)} rows={4} placeholder="Cole o currículo usado como contexto." /></label><label className="interview-wide-field"><span>Descrição da vaga</span><textarea value={config.jobDescription} onChange={event => update('jobDescription', event.target.value)} rows={3} /></label></> : <label className="interview-wide-field"><span>Descrição da reunião</span><textarea value={config.description} onChange={event => update('description', event.target.value)} rows={4} placeholder="Objetivo, participantes, pauta e informações úteis." /></label>}
             <label className="interview-wide-field"><span>Contexto adicional</span><textarea value={config.extraInstructions} onChange={event => update('extraInstructions', event.target.value)} rows={3} /></label>
-            <div className="interview-toggle-row"><label className="interview-toggle"><input type="checkbox" checked={config.saveTranscript} onChange={event => update('saveTranscript', event.target.checked)} /><span>Salvar transcrição</span></label><label className="interview-toggle"><input type="checkbox" checked={config.transcribeMicrophone} onChange={event => void toggleMicrophoneTranscription(event.target.checked)} /><span>Transcrever meu microfone</span></label><label className="interview-toggle"><input type="checkbox" checked={config.retainAudio} onChange={event => update('retainAudio', event.target.checked)} /><span>Guardar gravação</span></label></div>
+            <div className="interview-toggle-row"><label className="interview-toggle"><input type="checkbox" checked={config.saveTranscript} onChange={event => update('saveTranscript', event.target.checked)} /><span>Salvar transcrição</span></label><label className="interview-toggle"><input type="checkbox" checked={config.transcribeMicrophone} onChange={event => void toggleMicrophoneTranscription(event.target.checked)} /><span>Transcrever meu microfone</span></label><label className="interview-toggle"><input type="checkbox" checked={config.workspaceId?false:config.retainAudio} disabled={!!config.workspaceId} onChange={event => update('retainAudio', event.target.checked)} /><span>Guardar gravação</span></label></div>
           </div>}
         </section>
         {(error || microphonePermissionError) && <div className="interview-error interview-form-error">{error || microphonePermissionError}</div>}

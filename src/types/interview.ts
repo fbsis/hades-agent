@@ -17,6 +17,8 @@ export interface InterviewContextDocument {
 }
 
 export interface InterviewConfig {
+  workspaceId?: string;
+  syncTranscript?: boolean;
   mode: MeetingMode;
   interviewFormat: InterviewFormat;
   title: string;

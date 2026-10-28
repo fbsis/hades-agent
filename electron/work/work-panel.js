@@ -7,4 +7,6 @@ $('saveEndpoint').onclick=()=>act(async()=>{await cmd('endpoint',{url:$('endpoin
 $('loadWorkspaces').onclick=()=>act(async()=>{const list=await cmd('list');$('workspace').replaceChildren();for(const w of list){const o=document.createElement('option');o.value=w.id;o.textContent=w.name;$('workspace').append(o);}status('Selecione a empresa e conecte.');});
 $('connect').onclick=()=>act(async()=>{if(!$('workspace').value)throw new Error('Busque e selecione uma empresa primeiro.');await cmd('connect',{workspace:$('workspace').value});await render();status('Empresa lembrada neste computador.');});
 $('hideAll').onclick=()=>act(()=>cmd('hide'));
-void act(render);
+async function renderSessions(){const list=await cmd('sessions');$('meetingSync').replaceChildren();for(const s of list){const row=document.createElement('p');row.textContent=`${s.title} · ${s.workspace} · ${s.status}${s.error?' — '+s.error:''}`;$('meetingSync').append(row);}}
+$('syncMeetings').onclick=()=>act(async()=>{status('Sincronizando resumos…');await cmd('sync');await renderSessions();status('Tentativas concluídas. Confira os estados abaixo.');});
+void act(async()=>{await render();await renderSessions();});

@@ -168,7 +168,7 @@ class DreamService {
   }
 
   async syncRecordedMeetings() {
-    const candidates = jsonStore.getInterviewSessions().filter(shouldSyncRecordedMeeting);
+    const candidates = jsonStore.getInterviewSessions().filter(session => !session.config?.workspaceId).filter(shouldSyncRecordedMeeting);
     if (candidates.length === 0) return 0;
 
     const settings = jsonStore.getSettings();
@@ -262,7 +262,7 @@ class DreamService {
 
     const sessions = jsonStore.getInterviewSessions();
     const candidates = sessions.filter(session => (
-      session.status === 'completed'
+      !session.config?.workspaceId && session.status === 'completed'
       && Boolean(String(session.summary || session.mcpMemory?.summary || '').trim() || buildRecordedTranscript(session))
       && targetServers.some(server => session.mcpMemory?.servers?.[server.id]?.status !== 'synced')
     ));

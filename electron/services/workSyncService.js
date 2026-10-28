@@ -25,7 +25,7 @@ function contextMenu(k,win){const p=config().windows[k]||{};return Menu.buildFro
 function open(workspace,mode='notes',toggle=false){
  const cfg=config(),connection=cfg.workspaces.find(w=>w.id===workspace);
  if(!connection?.token)throw new Error('Conecte a empresa uma vez nas preferências da central.');
- const k=state.key(workspace,mode);lastKey=k;
+ const k=state.key(workspace,mode);lastKey=k;persist({lastWorkspace:workspace});
  const existing=windows.get(k);if(existing&&!existing.isDestroyed()){if(toggle&&existing.isVisible())existing.hide();else{existing.show();existing.focus();}return;}
  const prefs=cfg.windows[k]||{};const area=screen.getDisplayMatching(prefs.bounds||screen.getPrimaryDisplay().workArea).workArea;
  const isolated=session.fromPartition(state.partition(workspace));
@@ -40,7 +40,7 @@ function open(workspace,mode='notes',toggle=false){
  win.webContents.on('context-menu',()=>contextMenu(k,win).popup({window:win}));
  let timer;const remember=()=>{clearTimeout(timer);timer=setTimeout(()=>rememberWindow(k,win),300);timer.unref?.();};
  win.on('move',remember);win.on('resize',remember);win.webContents.on('did-navigate-in-page',remember);
- win.on('focus',()=>{lastKey=k;});win.on('show',remember);win.on('hide',remember);
+ win.on('focus',()=>{lastKey=k;persist({lastWorkspace:workspace});});win.on('show',remember);win.on('hide',remember);
  win.on('blur',()=>{if(config().windows[k]?.autoHide)setTimeout(()=>{if(!win.isDestroyed()&&!win.isFocused()&&!panel?.isFocused())win.hide();},200);});
  win.on('close',event=>{rememberWindow(k,win);if(!app.isQuitting){event.preventDefault();win.hide();}});
  win.on('closed',()=>{clearTimeout(timer);windows.delete(k);});
@@ -79,7 +79,7 @@ function init(){if(initialized)return;initialized=true;
   if(command==='connect'){
    const list=await request('/api/v1/workspaces');const w=list.find(w=>w.id===args.workspace);if(!w)throw new Error('Workspace não encontrado');
    const access=await request(`/api/v1/workspaces/${encodeURIComponent(w.id)}/access`,{method:'POST',body:JSON.stringify({label:'Metis desktop'})});
-   const cfg=config();persist({workspaces:[...cfg.workspaces.filter(item=>item.id!==w.id),{id:w.id,name:w.name,color:w.color,token:access.token}]});rebuildTray();return publicConfig();
+   const cfg=config();persist({lastWorkspace:w.id,workspaces:[...cfg.workspaces.filter(item=>item.id!==w.id),{id:w.id,name:w.name,color:w.color,token:access.token}]});rebuildTray();return publicConfig();
   }
   if(command==='disconnect'){const cfg=config();for(const [k,w]of windows){if(k.startsWith(args.workspace+':')){rememberWindow(k,w);w.destroy();}}persist({workspaces:cfg.workspaces.filter(w=>w.id!==args.workspace)});rebuildTray();return publicConfig();}
   if(command==='open'){open(String(args.workspace),String(args.mode));return publicConfig();}
@@ -91,6 +91,8 @@ function init(){if(initialized)return;initialized=true;
  });
  const image=nativeImage.createFromPath(path.join(__dirname,'../../public/icon/metis-symbol.png')).resize({width:20,height:20});tray=new Tray(image);tray.setToolTip('Metis — Central de trabalho');rebuildTray();
  try{registerShortcuts();}catch(error){require('./logger').warn('WORK_SYNC',error.message);}
+ const syncTimer=setInterval(()=>require('./workMeetingSync').syncPending(false).catch(()=>{}),60000);syncTimer.unref?.();
+ const initial=setTimeout(()=>require('./workMeetingSync').syncPending(false).catch(()=>{}),5000);initial.unref?.();
  app.on('before-quit',()=>{for(const[k,w]of windows)rememberWindow(k,w);});
 }
 module.exports={init,open,openPanel,hideAll,preferences,config,publicConfig,request};
