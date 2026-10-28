@@ -109,6 +109,7 @@ app.whenReady().then(() => {
 
   // Initialize Core Modules
   initIPC();
+  require('./electron/services/workSyncService').init();
   registerGlobalShortcuts();
   taskService.start();
 
