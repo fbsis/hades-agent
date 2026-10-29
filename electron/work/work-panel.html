@@ -1,1 +1,171 @@
-<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'"><title>Metis — Central de trabalho</title><style>body{font:13px system-ui;color:#30473f;background:#f7f9f8;margin:0;padding:28px}h1{font-size:24px}h2{font-size:16px}p{color:#81948a;line-height:1.8}button,input,select{font:inherit;padding:9px 12px;border:1px solid #dce7e1;border-radius:7px;background:white;color:#527565}button{cursor:pointer}label{display:grid;gap:7px;margin:15px 0}section{background:white;padding:20px;border:1px solid #e4ebe7;border-radius:10px;margin:20px 0}.row{display:flex;gap:9px;align-items:center;flex-wrap:wrap}.row>input{flex:1}.notice{background:#edf5ef;padding:14px;border-radius:7px;line-height:1.7;font-size:12px}#status{white-space:pre-wrap;color:#9b6273}.checkbox{display:flex;align-items:center;gap:8px;margin:12px 0}.workspace{border-top:1px solid #e3ebe5;padding-top:15px;margin-top:15px}.pref{border-left:2px solid #c9e5d5;margin:18px 0;padding-left:14px}small{color:#91a397}code{font-size:11px}</style></head><body><h1>Metis — Central de trabalho</h1><p>Conecte cada empresa uma vez. Depois abra suas notas ou a aplicação completa sem repetir a seleção.</p><div id="status" role="status"></div><section><h2>Servidor Metis</h2><label>URL da ferramenta web<input id="endpoint" placeholder="https://work.home.fbsis.com"></label><div class="row"><button id="saveEndpoint">Salvar URL</button><button id="loadWorkspaces">Buscar workspaces</button></div><div class="row" style="margin-top:16px"><select id="workspace" aria-label="Workspace para conectar"></select><button id="connect">Conectar empresa</button></div><p>Use http://127.0.0.1:8765 no teste local, ou o domínio interno HTTPS com certificado confiável. Credenciais de máquina ficam no processo principal, não na página web.</p></section><section><h2>Empresas conectadas</h2><div id="connections"></div><button id="hideAll">Ocultar todas as centrais</button></section><section><h2>Resumos de reuniões</h2><p>Somente resumo e, se escolhido, transcrição. Nunca envia o áudio.</p><button id="syncMeetings">Tentar sincronizações pendentes</button><div id="meetingSync"></div></section><div class="notice">“Sempre por cima” e “Todas as Mesas” são opções independentes. A empresa da janela é fixada no servidor. A referência da Mesa é lembrada como preferência, mas o Electron não restaura automaticamente uma Mesa específica: posicione a janela pelo Mission Control. Isso não é o mesmo que exibir em todas as Mesas.</div><script src="work-panel.js"></script></body></html>
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'"
+    />
+    <title>Metis — Central de trabalho</title>
+    <style>
+      body {
+        font: 13px system-ui;
+        color: #30473f;
+        background: #f7f9f8;
+        margin: 0;
+        padding: 28px;
+      }
+      h1 {
+        font-size: 24px;
+      }
+      h2 {
+        font-size: 16px;
+      }
+      p {
+        color: #718278;
+        line-height: 1.8;
+      }
+      button,
+      input {
+        font: inherit;
+        padding: 9px 12px;
+        border: 1px solid #dce7e1;
+        border-radius: 7px;
+        background: white;
+        color: #527565;
+      }
+      button {
+        cursor: pointer;
+      }
+      button:disabled {
+        opacity: 0.45;
+        cursor: default;
+      }
+      label {
+        display: grid;
+        gap: 7px;
+        margin: 15px 0;
+      }
+      section {
+        background: white;
+        padding: 20px;
+        border: 1px solid #e4ebe7;
+        border-radius: 10px;
+        margin: 20px 0;
+      }
+      .row {
+        display: flex;
+        gap: 9px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+      .notice {
+        background: #edf5ef;
+        padding: 14px;
+        border-radius: 7px;
+        line-height: 1.7;
+        font-size: 12px;
+      }
+      #status {
+        white-space: pre-wrap;
+        line-height: 1.8;
+        margin-top: 12px;
+      }
+      .error {
+        color: #9b435a;
+      }
+      .checkbox {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin: 12px 0;
+      }
+      .workspace {
+        border-top: 1px solid #e3ebe5;
+        padding: 18px 0;
+      }
+      .workspace h2 {
+        display: inline-block;
+        margin-right: 12px;
+      }
+      .pref {
+        border-left: 2px solid #c9e5d5;
+        margin: 18px 0;
+        padding-left: 14px;
+      }
+      small {
+        color: #718278;
+      }
+      summary {
+        cursor: pointer;
+        color: #718278;
+        margin-top: 16px;
+      }
+      .badge {
+        display: inline-block;
+        padding: 5px 10px;
+        border-radius: 20px;
+        background: #eef1ef;
+        font-size: 12px;
+      }
+      .badge.connected {
+        background: #e1f4eb;
+        color: #247453;
+      }
+      .badge.error {
+        background: #fbe9ed;
+      }
+      .pending {
+        color: #68786e;
+      }
+      code {
+        font-size: 11px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Metis — Central de trabalho</h1>
+    <p>
+      Integre com o servidor uma vez. Todas as empresas cadastradas nele
+      aparecem automaticamente, prontas para abrir.
+    </p>
+    <section>
+      <h2>Integração com o Metis</h2>
+      <span id="serverStatus" class="badge pending">Verificando servidor…</span>
+      <label
+        >URL da ferramenta web<input
+          id="endpoint"
+          placeholder="https://work.home.fbsis.com"
+      /></label>
+      <div class="row">
+        <button id="saveEndpoint">Salvar servidor e carregar empresas</button
+        ><button id="loadWorkspaces">Atualizar empresas</button>
+      </div>
+      <div id="status" role="status"></div>
+      <p id="source"></p>
+      <p>
+        Não é necessário selecionar ou conectar empresa por empresa. Os acessos
+        são preparados automaticamente e validados separadamente para manter os
+        dados isolados. Credenciais permanecem no processo principal.
+      </p>
+    </section>
+    <section>
+      <h2>Suas empresas</h2>
+      <div id="connections"></div>
+      <button id="hideAll">Ocultar todas as centrais</button>
+    </section>
+    <section>
+      <h2>Resumos de reuniões</h2>
+      <p>Resumo e, se escolhido, transcrição. Nunca envia o áudio.</p>
+      <button id="syncMeetings">Tentar sincronizações pendentes</button>
+      <div id="meetingSync"></div>
+    </section>
+    <div class="notice">
+      A empresa de cada janela é fixa; o desktop não adivinha o contexto pela
+      Mesa. “Sempre por cima” e “Todas as Mesas” são independentes. A referência
+      da Mesa é uma preferência: posicione a janela pelo Mission Control.
+    </div>
+    <script src="work-panel.js"></script>
+  </body>
+</html>

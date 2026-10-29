@@ -142,6 +142,16 @@ Open **Settings > Agent**, enable Hermes, keep **Use Hermes as primary agent** o
 
 See [docs/hermes-agent.md](docs/hermes-agent.md) for memory behavior, low-token routing, modes, resume/interview workflow and the recommended Hermes setup.
 
+### Central de trabalho — integração com o Metis web
+
+A Central usa `https://work.home.fbsis.com` como endereço padrão; você pode informar outro servidor. Após integrar, o desktop busca **todas as empresas cadastradas na API** e prepara os acessos automaticamente, sem seleção/conexão empresa por empresa. Abra a Central pelo ícone da bandeja e escolha apenas a janela que deseja usar: notas flutuantes ou aplicação completa.
+
+Cada empresa mantém credencial, sessão, janelas e preferências próprias. O indicador **Conectado** só aparece após o servidor confirmar o workspace da credencial. Autorizações existentes são reutilizadas; uma credencial revogada requer reautorização explícita. Quando o servidor está indisponível, a configuração local é preservada e a interface informa que a conexão não foi confirmada.
+
+O desktop não tem empresas hardcoded. Globo/QAD/Personal podem aparecer porque são registros iniciais do backend legado; a lista exibida vem do servidor configurado. A integração não cria ou apaga empresas. Trocar de servidor pede confirmação e fecha as centrais anteriores para não misturar origens. Janelas por empresa continuam fixas e o contexto de gravação não é inferido pela ordem da lista ou pela Mesa do macOS.
+
+URL, credenciais e preferências são persistidas no bloco `workSync` do arquivo de configurações criptografado, inclusive após salvar outras configurações ou reiniciar o app.
+
 ### MCP tools
 
 Metis includes a native Model Context Protocol client based on the official

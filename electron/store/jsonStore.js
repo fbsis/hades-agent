@@ -93,6 +93,11 @@ class JsonStore {
         retainAudio: true,
         contextDocumentIds: []
       },
+      workSync: {
+        baseURL: 'https://work.home.fbsis.com',
+        workspaces: [],
+        windows: {}
+      },
       layout: {
         commandBounds: null,
         floatingHeadBounds: null
@@ -228,6 +233,7 @@ class JsonStore {
       general: { ...this._defaultSettings.general, ...(saved.general || {}) },
       hermes: { ...this._defaultSettings.hermes, ...(saved.hermes || {}) },
       mcp: { ...this._defaultSettings.mcp, ...(saved.mcp || {}) },
+      workSync: { ...this._defaultSettings.workSync, ...(saved.workSync || {}) },
       assistant: { ...this._defaultSettings.assistant, ...(saved.assistant || {}) },
       interview: { ...this._defaultSettings.interview, ...(saved.interview || {}) },
       layout: { ...this._defaultSettings.layout, ...(saved.layout || {}) },
@@ -356,6 +362,11 @@ class JsonStore {
       general: { ...this._defaultSettings.general, ...(settings.general || {}) },
       hermes: { ...this._defaultSettings.hermes, ...(settings.hermes || {}) },
       mcp: { ...this._defaultSettings.mcp, ...(settings.mcp || {}) },
+      workSync: {
+        ...this._defaultSettings.workSync,
+        ...(this.cache.settings.workSync || {}),
+        ...(settings.workSync || {})
+      },
       assistant: { ...this._defaultSettings.assistant, ...(settings.assistant || {}) },
       interview: {
         ...this._defaultSettings.interview,
