@@ -146,7 +146,7 @@ See [docs/hermes-agent.md](docs/hermes-agent.md) for memory behavior, low-token 
 
 A tela principal do desktop é independente da integração: abra pelo atalho configurado (padrão `Alt+D`) ou pela bolha flutuante. O perfil isolado de aprovação usa os mesmos atalhos do instalado (preferências de teclado importadas, sem compartilhar dados); nesta máquina, `Alt+D` abre a tela principal. Não execute ambos simultaneamente com os mesmos atalhos globais. As configurações ficam na engrenagem; Reuniões, no ícone de pessoas.
 
-Em **Configurações → Configurar integração web**, ou no menu da bandeja, abra apenas os ajustes da integração. A página também tem botões **Abrir Metis desktop**, **Abrir chat** e **Configurações do desktop**, disponíveis mesmo enquanto o servidor não responde.
+Na engrenagem → **Metis web** (menu lateral), em **Configurações → Configurar integração web**, ou no menu da bandeja, abra apenas os ajustes da integração. O renderer de desenvolvimento mostra **DEV** na barra principal e no cabeçalho das configurações, sem depender do título nativo da janela. A página também tem botões **Abrir Metis desktop**, **Abrir chat** e **Configurações do desktop**, disponíveis mesmo enquanto o servidor não responde.
 
 A integração usa `https://work.home.fbsis.com` como endereço padrão; você pode informar outro servidor. Após integrar, o desktop busca **todas as empresas cadastradas na API** e prepara os acessos automaticamente, sem seleção/conexão empresa por empresa. Escolha apenas a janela web desejada: notas flutuantes ou aplicação web.
 

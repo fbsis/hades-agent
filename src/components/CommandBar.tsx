@@ -210,6 +210,7 @@ const CommandBar: React.FC = () => {
         <div className="footer-spacer" />
 
         <span className="command-shortcut-hint" title="Use este atalho global para abrir ou esconder o Metis">
+          {import.meta.env.DEV && <strong title="Ambiente de desenvolvimento — perfil separado do instalado" style={{ color: '#91d5bb' }}>DEV ·</strong>}
           Abrir <kbd>Alt+D</kbd>
         </span>
 

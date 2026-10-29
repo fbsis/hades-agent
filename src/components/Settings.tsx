@@ -52,7 +52,7 @@ const Settings: React.FC<SettingsProps> = ({ embedded = false, onClosePanel }) =
     <div className={`settings-window ${embedded ? 'embedded-settings' : ''}`}>
       <div className="settings-drag-area">
         <div style={{ fontSize: '12px', fontWeight: 600, color: 'rgba(255,255,255,0.5)' }}>
-          METIS
+          METIS{import.meta.env.DEV ? ' · DEV' : ''}
         </div>
         <button className="settings-close-btn" onClick={handleClose}>
           <X size={16} />
@@ -63,6 +63,7 @@ const Settings: React.FC<SettingsProps> = ({ embedded = false, onClosePanel }) =
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         onQuit={() => electronService.quitApp()}
+        onOpenWorkSettings={() => electronService.showWorkSettings()}
       />
 
       <div className="settings-content-wrapper">
