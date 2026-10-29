@@ -144,7 +144,7 @@ See [docs/hermes-agent.md](docs/hermes-agent.md) for memory behavior, low-token 
 
 ### Integração web opcional — não é login do desktop
 
-A tela principal do desktop é independente da integração: abra pelo atalho configurado (padrão `Alt+D`) ou pela bolha flutuante. No perfil isolado de aprovação, o atalho é `Alt+Shift+D`. As configurações ficam na engrenagem; Reuniões, no ícone de pessoas.
+A tela principal do desktop é independente da integração: abra pelo atalho configurado (padrão `Alt+D`) ou pela bolha flutuante. O perfil isolado de aprovação usa os mesmos atalhos do instalado (preferências de teclado importadas, sem compartilhar dados); nesta máquina, `Alt+D` abre a tela principal. Não execute ambos simultaneamente com os mesmos atalhos globais. As configurações ficam na engrenagem; Reuniões, no ícone de pessoas.
 
 Em **Configurações → Configurar integração web**, ou no menu da bandeja, abra apenas os ajustes da integração. A página também tem botões **Abrir Metis desktop**, **Abrir chat** e **Configurações do desktop**, disponíveis mesmo enquanto o servidor não responde.
 
