@@ -15,6 +15,7 @@ const { fileURLToPath } = require("node:url");
 const state = require("./workspaceWindowState");
 const store = require("../store/jsonStore");
 const { createProvisioner } = require("./workspaceProvisioning");
+const { protectWindow, bindContentProtection } = require("../windows/contentProtection");
 const windows = new Map();
 let tray;
 let panel;
@@ -113,6 +114,7 @@ function applyPreferences(k, win) {
     win.setVisibleOnAllWorkspaces(!!p.allSpaces, {
       visibleOnFullScreen: !!p.allSpaces,
     });
+  protectWindow(win);
 }
 function contextMenu(k, win) {
   const p = config().windows[k] || {};
@@ -154,6 +156,7 @@ function open(workspace, mode = "notes", toggle = false) {
   persist({ lastWorkspace: workspace });
   const existing = windows.get(k);
   if (existing && !existing.isDestroyed()) {
+    protectWindow(existing);
     if (toggle && existing.isVisible()) existing.hide();
     else {
       existing.show();
@@ -196,6 +199,7 @@ function open(workspace, mode = "notes", toggle = false) {
       webSecurity: true,
     },
   });
+  bindContentProtection(win);
   windows.set(k, win);
   applyPreferences(k, win);
   win.webContents.setWindowOpenHandler(({ url }) => {
@@ -323,6 +327,7 @@ function rebuildTray() {
 }
 function openPanel() {
   if (panel && !panel.isDestroyed()) {
+    protectWindow(panel);
     panel.show();
     panel.focus();
     return;
@@ -331,12 +336,18 @@ function openPanel() {
     width: 780,
     height: 800,
     title: "Metis — Configurações da integração web",
+    show: false,
     webPreferences: {
       preload: path.join(__dirname, "../work/work-preload.js"),
       nodeIntegration: false,
       contextIsolation: true,
       sandbox: true,
     },
+  });
+  bindContentProtection(panel);
+  panel.once("ready-to-show", () => {
+    panel.show();
+    panel.focus();
   });
   panel.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
   panel.webContents.on("will-navigate", (event) => event.preventDefault());
