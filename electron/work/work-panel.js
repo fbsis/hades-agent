@@ -9,7 +9,7 @@ function status(text, error = false) {
 function setBusy(value) {
   busy = value;
   for (const b of document.querySelectorAll("button"))
-    b.disabled = value || b.dataset.blocked === "1";
+    b.disabled = b.dataset.alwaysAvailable === "1" ? false : value || b.dataset.blocked === "1";
 }
 function friendly(error) {
   return String(error?.message || error).replace(
@@ -97,7 +97,7 @@ async function render() {
         !ready,
       ),
       button(
-        "Metis completo",
+        "Aplicação web",
         () => cmd("open", { workspace: w.id, mode: "full" }),
         !ready,
       ),
@@ -180,6 +180,10 @@ async function refresh() {
     await render();
   }
   status(current?.connection?.server?.message || "Empresas atualizadas.");
+}
+// Native desktop entry points never wait for provisioning or server responses.
+for (const [id, panel] of [["openDesktop", "command"], ["openChat", "chat"], ["openDesktopSettings", "settings"]]) {
+  $(id).onclick = () => cmd("desktop", { panel }).catch(error => status(friendly(error), true));
 }
 $("saveEndpoint").onclick = () =>
   act(async () => {

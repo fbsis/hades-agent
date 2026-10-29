@@ -58,6 +58,7 @@ contextBridge.exposeInMainWorld('electron', {
   resizeWindow: (w, h) => ipcRenderer.invoke('resize-window', { width: w, height: h }),
   showChat: () => ipcRenderer.send('show-chat'),
   showSettings: () => ipcRenderer.send('show-settings'),
+  showWorkSettings: () => ipcRenderer.send('show-work-settings'),
   showSusurro: () => ipcRenderer.send('show-susurro'),
   togglePin: () => ipcRenderer.send('toggle-pin'),
   isPinned: () => ipcRenderer.invoke('is-pinned'),

@@ -36,6 +36,7 @@ export interface ElectronAPI {
   isMaximized: () => Promise<boolean>;
   startResizing: () => void;
   showSettings: () => void;
+  showWorkSettings: () => void;
   showSusurro: () => void;
   floatingHeadClick: () => void;
   moveFloatingHead: (delta: { x: number; y: number }) => void;

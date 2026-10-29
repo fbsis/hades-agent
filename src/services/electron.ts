@@ -71,6 +71,7 @@ class ElectronService {
   async isMaximized() { return await this.electron?.isMaximized() ?? false; }
   startResizing() { this.electron?.startResizing(); }
   showSettings() { this.electron?.showSettings(); }
+  showWorkSettings() { this.electron?.showWorkSettings(); }
   showSusurro() { this.electron?.showSusurro(); }
   floatingHeadClick() { this.electron?.floatingHeadClick(); }
   moveFloatingHead(delta: { x: number; y: number }) { this.electron?.moveFloatingHead(delta); }

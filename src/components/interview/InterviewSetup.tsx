@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ArrowLeft, ChevronDown, FlaskConical, Radio, Save } from 'lucide-react';
 import { InterviewConfig, InterviewContextDocument } from '../../types/interview';
 import { electronService } from '../../services/electron';
@@ -18,8 +18,12 @@ interface InterviewSetupProps {
 export const InterviewSetup: React.FC<InterviewSetupProps> = ({ config, error, isEditing = false, onConfigChange, onStart, onTest, onSavePending, onCancel, documents }) => {
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [workspaces,setWorkspaces] = useState<{id:string;name:string}[]>([]);
-  const latestConfig=useRef(config);latestConfig.current=config;
-  useEffect(()=>{void electronService.getSettings().then(settings=>{const work=(settings as unknown as {workSync?:{workspaces?:{id:string;name:string}[];lastWorkspace?:string}})?.workSync;const list=work?.workspaces||[];setWorkspaces(list);const current=latestConfig.current;const chosen=work?.lastWorkspace||(list.length===1?list[0].id:'');if(!current.workspaceId&&chosen)onConfigChange({...current,workspaceId:chosen,retainAudio:false,saveTranscript:true});});},[]);
+  useEffect(() => {
+    void electronService.getSettings().then(settings => {
+      const work = (settings as unknown as { workSync?: { workspaces?: { id: string; name: string }[] } })?.workSync;
+      setWorkspaces(work?.workspaces || []);
+    });
+  }, []);
   const [microphonePermissionError, setMicrophonePermissionError] = useState('');
   const update = <K extends keyof InterviewConfig>(key: K, value: InterviewConfig[K]) => onConfigChange({ ...config, [key]: value });
   const toggleMicrophoneTranscription = async (enabled: boolean) => {
@@ -56,7 +60,7 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({ config, error, i
             <button type="button" className={config.mode === 'interview' ? 'active' : ''} onClick={() => selectMode('interview')}>Entrevista</button>
           </div>
           <div className="interview-form-grid">
-            {workspaces.length>0&&<label className="interview-title-field"><span>Workspace da gravação *</span><select value={config.workspaceId||''} onChange={event=>onConfigChange({...config,workspaceId:event.target.value,retainAudio:false,saveTranscript:true})}><option value="">Selecione a empresa</option>{workspaces.map(w=><option key={w.id} value={w.id}>{w.name}</option>)}</select><small>O workspace fica fixado depois de iniciar. A central recebe o resumo, não o áudio.</small></label>}
+            <label className="interview-title-field"><span>Destino da sessão (opcional)</span><select value={config.workspaceId || ''} onChange={event => onConfigChange({ ...config, workspaceId: event.target.value, retainAudio: false, saveTranscript: true })}><option value="">Somente neste computador</option>{workspaces.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}</select><small>Sem vínculo, a sessão fica local. Escolha uma empresa antes de iniciar para sincronizar o resumo, nunca o áudio. Se o servidor cair, a captura continua e o envio aguarda a conexão.</small></label>
             <label className="interview-title-field"><span>Título *</span><input autoFocus value={config.title} onChange={event => update('title', event.target.value)} placeholder={config.mode === 'interview' ? 'Entrevista técnica' : 'Planejamento semanal'} /></label>
             {config.mode === 'interview' ? <><label><span>Cargo</span><input value={config.role} onChange={event => update('role', event.target.value)} placeholder="Senior Software Engineer" /></label><label><span>Empresa</span><input value={config.company} onChange={event => update('company', event.target.value)} placeholder="Empresa" /></label></> : <label className="interview-title-field"><span>Empresa ou pessoa</span><input value={config.company} onChange={event => update('company', event.target.value)} placeholder="Acme ou Maria Silva" /></label>}
             <label><span>Idioma</span><select value={config.language} onChange={event => update('language', event.target.value as InterviewConfig['language'])}><option value="auto">Automático</option><option value="pt-BR">Português</option><option value="en-US">English</option></select></label>

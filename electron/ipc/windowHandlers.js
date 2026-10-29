@@ -240,6 +240,10 @@ function registerWindowHandlers() {
     windowManager.showCommandPanel('settings');
   });
 
+  ipcMain.on('show-work-settings', () => {
+    require('../services/workSyncService').openPanel();
+  });
+
   /**
    * Shows the live transcription window and starts Susurro.
    */

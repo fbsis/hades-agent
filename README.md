@@ -142,15 +142,28 @@ Open **Settings > Agent**, enable Hermes, keep **Use Hermes as primary agent** o
 
 See [docs/hermes-agent.md](docs/hermes-agent.md) for memory behavior, low-token routing, modes, resume/interview workflow and the recommended Hermes setup.
 
-### Central de trabalho — integração com o Metis web
+### Integração web opcional — não é login do desktop
 
-A Central usa `https://work.home.fbsis.com` como endereço padrão; você pode informar outro servidor. Após integrar, o desktop busca **todas as empresas cadastradas na API** e prepara os acessos automaticamente, sem seleção/conexão empresa por empresa. Abra a Central pelo ícone da bandeja e escolha apenas a janela que deseja usar: notas flutuantes ou aplicação completa.
+A tela principal do desktop é independente da integração: abra pelo atalho configurado (padrão `Alt+D`) ou pela bolha flutuante. No perfil isolado de aprovação, o atalho é `Alt+Shift+D`. As configurações ficam na engrenagem; Reuniões, no ícone de pessoas.
+
+Em **Configurações → Configurar integração web**, ou no menu da bandeja, abra apenas os ajustes da integração. A página também tem botões **Abrir Metis desktop**, **Abrir chat** e **Configurações do desktop**, disponíveis mesmo enquanto o servidor não responde.
+
+A integração usa `https://work.home.fbsis.com` como endereço padrão; você pode informar outro servidor. Após integrar, o desktop busca **todas as empresas cadastradas na API** e prepara os acessos automaticamente, sem seleção/conexão empresa por empresa. Escolha apenas a janela web desejada: notas flutuantes ou aplicação web.
 
 Cada empresa mantém credencial, sessão, janelas e preferências próprias. O indicador **Conectado** só aparece após o servidor confirmar o workspace da credencial. Autorizações existentes são reutilizadas; uma credencial revogada requer reautorização explícita. Quando o servidor está indisponível, a configuração local é preservada e a interface informa que a conexão não foi confirmada.
 
 O desktop não tem empresas hardcoded. Globo/QAD/Personal podem aparecer porque são registros iniciais do backend legado; a lista exibida vem do servidor configurado. A integração não cria ou apaga empresas. Trocar de servidor pede confirmação e fecha as centrais anteriores para não misturar origens. Janelas por empresa continuam fixas e o contexto de gravação não é inferido pela ordem da lista ou pela Mesa do macOS.
 
 URL, credenciais e preferências são persistidas no bloco `workSync` do arquivo de configurações criptografado, inclusive após salvar outras configurações ou reiniciar o app.
+
+**Se `work.home` cair:**
+
+- Chat continua independente: OpenAI diretamente, ou fallback quando Hermes retorna falha, lança erro de conexão ou interrompe um stream. Uma resposta parcial falha não é tratada como concluída. A chave OpenAI deve estar configurada neste perfil; requer internet e saldo/acesso ao modelo.
+- Captura e transcrição Whisper local continuam sem o servidor, com o modelo local preparado. Resumos e respostas por IA precisam da OpenAI, não do backend web.
+- Reuniões podem usar **Somente neste computador**, sem empresa e sem envio. Para sincronização, escolha explicitamente uma empresa já conhecida antes de iniciar; o destino fica fixo, nunca é inferido da última janela aberta. A sessão vinculada é salva localmente e o envio do resumo é retentado com backoff quando o servidor voltar; transcrição só é enviada por opção, áudio nunca.
+- Notas, agenda, boards e demais páginas da aplicação **web** continuam dependendo do backend; não são CRUD offline.
+
+Testes automatizados cobrem essas falhas com provedores/servidor simulados. Validação de microfone, transcrição real, credenciais OpenAI e disponibilidade da infraestrutura continua sendo uma etapa de aprovação no ambiente real.
 
 ### MCP tools
 

@@ -297,12 +297,13 @@ function rebuildTray() {
   const cfg = config();
   tray.setContextMenu(
     Menu.buildFromTemplate([
-      { label: "Central Metis — conexões", click: openPanel },
+      { label: "Abrir Metis desktop", click: () => require("../windows/windowManager").showCommandPanel("command") },
+      { label: "Configurações da integração web", click: openPanel },
       ...cfg.workspaces.map((w) => ({
         label: w.name,
         submenu: [
           { label: "Notas flutuantes", click: () => open(w.id, "notes", true) },
-          { label: "Metis completo", click: () => open(w.id, "full", true) },
+          { label: "Aplicação web", click: () => open(w.id, "full", true) },
         ],
       })),
       { type: "separator" },
@@ -329,7 +330,7 @@ function openPanel() {
   panel = new BrowserWindow({
     width: 780,
     height: 800,
-    title: "Metis — Central de trabalho",
+    title: "Metis — Configurações da integração web",
     webPreferences: {
       preload: path.join(__dirname, "../work/work-preload.js"),
       nodeIntegration: false,
@@ -362,6 +363,13 @@ function init() {
   ipcMain.handle("metis-work:command", async (event, command, args = {}) => {
     trusted(event);
     if (command === "config") return publicConfig();
+    if (command === "desktop") {
+      const target = args.panel || "command";
+      if (!["command", "chat", "settings"].includes(target)) throw new Error("Tela não permitida");
+      require("../windows/windowManager").showCommandPanel(target);
+      panel?.hide();
+      return { opened: target };
+    }
     if (command === "endpoint") {
       const baseURL = state.endpoint(args.url),
         cfg = config();

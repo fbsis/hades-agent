@@ -28,8 +28,18 @@ const GeneralTab: React.FC<GeneralTabProps> = ({ settings, updateSettings }) => 
 
       <div className="setting-row">
         <div className="setting-info">
+          <div className="setting-title">Integração web (opcional)</div>
+          <div className="setting-desc">Notas e aplicação web por empresa. Chat e captura de reuniões continuam independentes quando o servidor está indisponível.</div>
+        </div>
+        <div className="setting-control">
+          <button type="button" className="settings-input" onClick={() => electronService.showWorkSettings()}>Configurar integração web</button>
+        </div>
+      </div>
+
+      <div className="setting-row">
+        <div className="setting-info">
           <div className="setting-title">OpenAI</div>
-          <div className="setting-desc">Usada nas respostas e capturas da entrevista e para consolidar os aprendizados do Dreaming.</div>
+          <div className="setting-desc">Chat direto ou fallback quando o Hermes está indisponível; também respostas, análise de capturas, resumos de reuniões e Dreaming. Precisa de internet, não do servidor Metis web.</div>
         </div>
         <div className="setting-control" style={{ position: 'relative' }}>
           <input

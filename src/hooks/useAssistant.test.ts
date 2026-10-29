@@ -19,7 +19,7 @@ import { useAssistant } from './useAssistant';
 
 describe('useAssistant provider routing', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    vi.resetAllMocks();
     electronMocks.logSession.mockResolvedValue(null);
     electronMocks.updateTokens.mockResolvedValue(1);
   });
@@ -47,6 +47,32 @@ describe('useAssistant provider routing', () => {
     expect(electronMocks.askOpenAIChatStream).not.toHaveBeenCalled();
     expect(addMessage).toHaveBeenCalledOnce();
     expect(appendMessageText).toHaveBeenCalledOnce();
+  });
+
+  it.each(['unavailable', 'rejected', 'interrupted'])('falls back to OpenAI when Hermes is %s, without the work server', async failure => {
+    electronMocks.getSettings.mockResolvedValue({
+      hermes: { enabled: true, useAsPrimaryAgent: true },
+      workSync: { baseURL: 'https://offline.invalid', workspaces: [] }
+    });
+    electronMocks.askHermesStream.mockImplementation(async (_args, onEvent) => {
+      if (failure === 'rejected') throw new Error('Host unavailable');
+      if (failure === 'interrupted') onEvent({ type: 'delta', text: 'Resposta incompleta' });
+      return { success: false, text: failure === 'interrupted' ? 'Resposta incompleta' : '', error: 'offline' };
+    });
+    electronMocks.askOpenAIChatStream.mockImplementation(async (_args, onEvent) => {
+      onEvent({ type: 'delta', text: 'Resposta via OpenAI.' });
+      return { text: 'Resposta via OpenAI.', usage: { total_tokens: 20 } };
+    });
+    const addMessage = vi.fn(() => []);
+    const removeMessage = vi.fn(() => []);
+    const hook = useAssistant(addMessage, vi.fn(() => []), vi.fn(() => []), removeMessage);
+    expect(await hook.handleAIResponse('Olá', [])).toBe(20);
+    expect(electronMocks.askOpenAIChatStream).toHaveBeenCalledOnce();
+    expect(removeMessage).toHaveBeenCalledOnce();
+    expect(addMessage.mock.calls.flat()).not.toContain(expect.stringContaining('Erro:'));
+    expect(electronMocks.logSession).toHaveBeenCalledWith(expect.objectContaining({
+      toolCalls: [expect.objectContaining({ name: 'openai_chat' })]
+    }));
   });
 
   it('uses OpenAI directly for images and never sends them to Google', async () => {

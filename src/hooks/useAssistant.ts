@@ -61,24 +61,27 @@ export const useAssistant = (
   const streamHermes = useCallback(async (args: any) => {
     const messageId = createStreamMessage();
     let streamedText = '';
-    const result = await electronService.askHermesStream(args, event => {
-      if (event.type === 'delta' && event.text) {
-        streamedText += event.text;
-        appendMessageText(messageId, event.text);
+    try {
+      const result = await electronService.askHermesStream(args, event => {
+        if (event.type === 'delta' && event.text) {
+          streamedText += event.text;
+          appendMessageText(messageId, event.text);
+        }
+        if (event.type === 'tool') {
+          setActiveTool(event.text ? `hermes: ${event.text}` : 'hermes usando ferramenta');
+        }
+      });
+      const finalText = String(result?.text || streamedText);
+      if (result?.success !== false && finishStreamMessage(messageId, finalText)) {
+        return { ...result, text: finalText.trim() };
       }
-      if (event.type === 'tool') {
-        setActiveTool(event.text ? `hermes: ${event.text}` : 'hermes usando ferramenta');
-      }
-    });
-    const finalText = String(result?.text || streamedText);
-    if (result?.success !== false && finishStreamMessage(messageId, finalText)) {
-      return { ...result, text: finalText.trim() };
+      removeMessage(messageId);
+      return { success: false, error: result?.error || 'Hermes indisponível.' };
+    } catch (error) {
+      removeMessage(messageId);
+      console.warn('[useAssistant] Hermes indisponível; tentando OpenAI.', error);
+      return { success: false };
     }
-    if (streamedText.trim() && finishStreamMessage(messageId, streamedText)) {
-      return { ...result, success: true, text: streamedText.trim() };
-    }
-    removeMessage(messageId);
-    return result;
   }, [appendMessageText, createStreamMessage, finishStreamMessage, removeMessage]);
 
   const streamOpenAI = useCallback(async (args: any) => {
@@ -119,6 +122,7 @@ export const useAssistant = (
       const preferredAnswerStyle = settings?.assistant?.preferredAnswerStyle || 'auto';
 
       let result: any = null;
+      let provider = 'openai';
       let context = '';
       const useHermes = !image
         && settings?.mcp?.enabled !== true
@@ -149,6 +153,7 @@ export const useAssistant = (
         });
       }
 
+      if (result?.text) provider = 'hermes';
       if (!result?.text) {
         setActiveTool(image ? 'openai lendo imagem' : 'openai');
         result = await streamOpenAI({
@@ -171,7 +176,7 @@ export const useAssistant = (
         timestamp: new Date().toISOString(),
         messages: [...currentHistory, { text: result.text, role: 'ia' }],
         toolCalls: [{
-          name: useHermes && !image ? 'hermes_primary' : 'openai_chat',
+          name: provider === 'hermes' ? 'hermes_primary' : 'openai_chat',
           args: { mode, style: preferredAnswerStyle, image: Boolean(image) },
           result: String(result.text).slice(0, 500),
           success: true

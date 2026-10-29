@@ -7,7 +7,7 @@
       http-equiv="Content-Security-Policy"
       content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'"
     />
-    <title>Metis — Central de trabalho</title>
+    <title>Metis — Configurações da integração web</title>
     <style>
       body {
         font: 13px system-ui;
@@ -125,11 +125,16 @@
     </style>
   </head>
   <body>
-    <h1>Metis — Central de trabalho</h1>
-    <p>
-      Integre com o servidor uma vez. Todas as empresas cadastradas nele
-      aparecem automaticamente, prontas para abrir.
-    </p>
+    <h1>Configurações da integração web</h1>
+    <p>Esta integração é opcional, não é login nem porta de entrada do desktop.
+      Chat e reuniões locais não dependem deste servidor. A OpenAI exige internet e chave configurada no desktop.</p>
+    <div class="row">
+      <button id="openDesktop" data-always-available="1">Abrir Metis desktop</button>
+      <button id="openChat" data-always-available="1">Abrir chat</button>
+      <button id="openDesktopSettings" data-always-available="1">Configurações do desktop</button>
+    </div>
+    <p>Integre uma vez para abrir notas e a aplicação web por empresa.
+      Todas as empresas cadastradas aparecem automaticamente.</p>
     <section>
       <h2>Integração com o Metis</h2>
       <span id="serverStatus" class="badge pending">Verificando servidor…</span>

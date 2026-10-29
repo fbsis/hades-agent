@@ -126,9 +126,10 @@ class InterviewService {
     const now = new Date().toISOString();
     const normalizedConfig = normalizeConfig(config);
     const work = store.getSettings()?.workSync;
-    if (normalizedConfig.mode === 'meeting' && work?.workspaces?.length) {
-      normalizedConfig.workspaceId = normalizedConfig.workspaceId || work.lastWorkspace || (work.workspaces.length === 1 ? work.workspaces[0].id : '');
-      if (!work.workspaces.some(item => item.id === normalizedConfig.workspaceId)) throw new Error('Selecione o workspace da reunião.');
+    // An explicit workspace uses the locally cached connection, even offline.
+    // No selection means local-only; never infer a destination from another window.
+    if (normalizedConfig.workspaceId && !work?.workspaces?.some(item => item.id === normalizedConfig.workspaceId)) {
+      throw new Error('A empresa selecionada não está configurada neste computador. Escolha uma empresa conhecida ou salve apenas neste computador.');
     }
     if (normalizedConfig.workspaceId) { normalizedConfig.retainAudio = false; normalizedConfig.saveTranscript = true; }
     const isPending = options.status === 'pending';
@@ -199,7 +200,7 @@ class InterviewService {
     if (index < 0) throw new Error('Sessao de entrevista nao encontrada.');
 
     const current = sessions[index];
-    if (current.status !== 'pending' && current.config?.workspaceId && patch.config && 'workspaceId' in patch.config && patch.config.workspaceId !== current.config.workspaceId) throw new Error('O workspace da reunião já iniciada não pode ser alterado.');
+    if (current.status !== 'pending' && patch.config && 'workspaceId' in patch.config && (patch.config.workspaceId || '') !== (current.config?.workspaceId || '')) throw new Error('O workspace da reunião já iniciada não pode ser alterado.');
     const nextSession = {
       ...current,
       ...patch,
