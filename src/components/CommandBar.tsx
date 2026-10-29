@@ -1,5 +1,5 @@
 import React, { lazy, Suspense, useState, useEffect, useRef } from 'react';
-import { Camera, Cog, History, MessageCircle, Minus, Paperclip, Pin, PinOff, Plus, Users, X } from 'lucide-react';
+import { Camera, Cog, FileText, History, MessageCircle, Minus, Paperclip, Pin, PinOff, Plus, Users, X } from 'lucide-react';
 import { CommandPanel, useCommandBar } from '../hooks/useCommandBar';
 import { electronService } from '../services/electron';
 
@@ -207,6 +207,7 @@ const CommandBar: React.FC = () => {
           <History size={14} />
         </button>
 
+        <button type="button" className="footer-btn icon-btn" title="Nova janela de notas" aria-label="Nova janela de notas" data-tooltip="Notas por empresa" onClick={() => electronService.showWorkNotes()}><FileText size={14} /></button>
         <div className="footer-spacer" />
 
         <span className="command-shortcut-hint" title="Use este atalho global para abrir ou esconder o Metis">

@@ -59,6 +59,14 @@ export const InterviewDetails: React.FC<InterviewDetailsProps> = ({ session, isS
         {tab === 'overview' && <div className="interview-overview-grid">
           <article className="interview-detail-card interview-summary-card"><h2>Resumo</h2>{session.summary ? <div className="interview-markdown"><ReactMarkdown remarkPlugins={[remarkGfm]}>{session.summary}</ReactMarkdown></div> : <div className="interview-detail-empty">Ainda não há resumo para esta sessão.<button type="button" onClick={onSummarize} disabled={isSummarizing || !session.transcript.length}>{isSummarizing ? 'Gerando…' : 'Gerar resumo'}</button></div>}</article>
           <article className="interview-detail-card"><h2>Informações</h2><dl className="interview-info-list"><div><dt>Idioma</dt><dd>{session.config.language}</dd></div><div><dt>Estilo de resposta</dt><dd>{session.config.answerStyle}</dd></div>{session.config.role && <div><dt>Cargo</dt><dd>{session.config.role}</dd></div>}<div><dt>Gravação</dt><dd>{session.config.retainAudio ? 'Mantida' : 'Não mantida'}</dd></div></dl></article>
+          {session.config.workspaceId && <article className="interview-detail-card interview-memory-card">
+            <h2><Brain size={16} /> {session.config.learnAfterFinish ? 'Aprendizado da empresa' : 'Metis web'}</h2>
+            <p>{session.workSync?.status === 'synced'
+              ? session.config.learnAfterFinish && session.workSync.learningId ? 'Aprendizado salvo em Conhecimento, na empresa desta reunião. Não publicado automaticamente no OpenViking.' : 'Reunião sincronizada.'
+              : session.summary ? 'Resumo salvo neste computador. Aguardando sincronização após o encerramento.' : 'Aguardando geração do resumo para sincronizar após o encerramento.'}</p>
+            {session.workSync?.error && <small className="error">{session.workSync.error}</small>}
+            <small>Nenhum áudio é enviado ao Metis web.</small>
+          </article>}
           {session.mcpMemory && <article className="interview-detail-card interview-memory-card">
             <h2><Brain size={16} /> Conhecimento MCP</h2>
             <span className={`interview-memory-badge status-${session.mcpMemory.status || 'pending'}`}>

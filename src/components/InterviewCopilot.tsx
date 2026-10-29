@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Check,
   Headphones,
@@ -19,7 +19,7 @@ import { InterviewTranscript } from './interview/InterviewTranscript';
 import { InterviewAnswerPane } from './interview/InterviewAnswerPane';
 import { InterviewList } from './interview/InterviewList';
 import { InterviewDetails } from './interview/InterviewDetails';
-import { DEFAULT_INTERVIEW_CONFIG, InterviewContextDocument, InterviewSession } from '../types/interview';
+import { DEFAULT_INTERVIEW_CONFIG, InterviewContextDocument, InterviewSession, QuickMeetingRequest } from '../types/interview';
 import { InterviewDocuments } from './interview/InterviewDocuments';
 import { ConversationSuggestionsPane } from './interview/ConversationSuggestionsPane';
 import { InterviewTestSimulator } from './interview/InterviewTestSimulator';
@@ -39,6 +39,28 @@ const InterviewCopilot: React.FC<InterviewCopilotProps> = ({ embedded = false, o
   const [inactivityWarningAt, setInactivityWarningAt] = useState<number | null>(null);
   const [isAutoFinishing, setIsAutoFinishing] = useState(false);
   const [responseView, setResponseView] = useState<'answer' | 'suggestions'>('answer');
+  const [quickError, setQuickError] = useState('');
+  const quickIds = useRef(new Set<string>());
+  const quickHandler = useRef<(request: QuickMeetingRequest) => Promise<void>>(async () => {});
+  quickHandler.current = async request => {
+    if (quickIds.current.has(request.id)) return;
+    quickIds.current.add(request.id);
+    try {
+      if (copilot.session?.status === 'active') throw new Error('Encerre a reunião atual antes de iniciar outra.');
+      setQuickError('');
+      const session = await electronService.createInterviewSession(request.config);
+      if (!session) throw new Error('Não foi possível preparar a reunião rápida.');
+      copilot.loadSession(session);
+      setStartSessionId(session.id);
+      setView('live');
+    } catch (error) { setQuickError((error as Error).message); }
+    finally { await electronService.acknowledgeQuickMeeting(request.id); }
+  };
+  useEffect(() => {
+    const remove = electronService.onQuickMeetingRequest(request => { void quickHandler.current(request); });
+    void electronService.getPendingQuickMeeting().then(request => { if (request) void quickHandler.current(request); }).catch(() => {});
+    return remove;
+  }, []);
 
   const refreshDocuments = async () => setDocuments(await electronService.listInterviewDocuments());
 
@@ -215,6 +237,7 @@ const InterviewCopilot: React.FC<InterviewCopilotProps> = ({ embedded = false, o
         </div>
       </header>
 
+      {quickError && <p className="interview-error" role="alert">{quickError}</p>}
       {view === 'list' && (
         <InterviewList
           sessions={copilot.recentSessions}

@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, globalShortcut, screen, session, systemPreferences } = require('electron');
+const { app, BrowserWindow, ipcMain, globalShortcut, screen, session, systemPreferences, Menu } = require('electron');
 const path = require('node:path');
 const fs = require('node:fs');
 
@@ -71,9 +71,7 @@ app.commandLine.appendSwitch('disable-gpu'); // Mica/Transparency stability on W
 
 // 3. Application Lifecycle
 app.whenReady().then(() => {
-  if (process.platform === 'darwin') {
-    app.setActivationPolicy('accessory');
-  }
+  require('./electron/windows/macPresentation').configureMacPresentation(app, Menu);
 
   // Setup Media Permissions
   session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {

@@ -8,17 +8,12 @@ let trayInstance = null;
 
 /**
  * Creates the system tray icon and its associated context menu.
- * @returns {Tray}
+ * @returns {Tray|null}
  */
 function createTray() {
-  const iconPath = process.platform === 'darwin'
-    ? path.join(__dirname, '../public/icon/metis-icon-128.png')
-    : path.join(__dirname, '../public/icon/metis-icon.ico');
+  if (process.platform === 'darwin') return null;
+  const iconPath = path.join(__dirname, '../public/icon/metis-icon.ico');
   trayInstance = new Tray(iconPath);
-
-  if (process.platform === 'darwin') {
-    app.dock.hide();
-  }
 
   const contextMenu = Menu.buildFromTemplate([
     {

@@ -9,6 +9,7 @@ const {
   shell,
   globalShortcut,
   ipcMain,
+  dialog,
 } = require("electron");
 const path = require("node:path");
 const { fileURLToPath } = require("node:url");
@@ -16,6 +17,8 @@ const state = require("./workspaceWindowState");
 const store = require("../store/jsonStore");
 const { createProvisioner } = require("./workspaceProvisioning");
 const { protectWindow, bindContentProtection } = require("../windows/contentProtection");
+const { createQuickMeeting, workspaceForEvent } = require("./quickMeeting");
+const { randomUUID } = require("node:crypto");
 const windows = new Map();
 let tray;
 let panel;
@@ -78,6 +81,11 @@ async function request(apiPath, options = {}, workspace) {
   return body.data;
 }
 const provisioner = createProvisioner({ getConfig: config, persist, request });
+const quickMeeting = createQuickMeeting({
+  getSettings: () => store.getSettings(), getSessions: () => store.getInterviewSessions(),
+  show: () => require("../windows/windowManager").showCommandPanel("transcription"),
+  notify: pending => require("../windows/windowManager").get("command")?.webContents.send("quick-meeting-request", pending),
+});
 async function refreshWorkspaces() {
   try {
     await provisioner.refresh();
@@ -144,14 +152,14 @@ function contextMenu(k, win) {
     { label: "Preferências / conexões", click: openPanel },
   ]);
 }
-function open(workspace, mode = "notes", toggle = false) {
+function open(workspace, mode = "notes", toggle = false, instance = "") {
   const cfg = config(),
     connection = cfg.workspaces.find((w) => w.id === workspace);
   if (!connection?.token)
     throw new Error(
       "O acesso desta empresa ainda não está pronto. Atualize a integração na central.",
     );
-  const k = state.key(workspace, mode);
+  const k = state.key(workspace, mode) + (instance ? ":" + instance : "");
   lastKey = k;
   persist({ lastWorkspace: workspace });
   const existing = windows.get(k);
@@ -172,8 +180,9 @@ function open(workspace, mode = "notes", toggle = false) {
   isolated.setPermissionRequestHandler((_webContents, _permission, callback) =>
     callback(false),
   );
-  // The remote app has no preload/Node/desktop IPC bridge. Only requests to this
-  // exact origin receive the machine capability; it never appears in the URL.
+  // Remote content has no Node/core IPC. Its dedicated preload exposes only two
+  // owner-scoped actions; recording requires native confirmation. Capabilities
+  // are injected only for this exact origin and never appear in the URL.
   isolated.webRequest.onBeforeSendHeaders((details, callback) => {
     const headers = { ...details.requestHeaders };
     if (new URL(details.url).origin === cfg.baseURL)
@@ -191,7 +200,9 @@ function open(workspace, mode = "notes", toggle = false) {
     title: `Metis — ${connection.name} — ${mode === "notes" ? "Notas" : "Completo"}`,
     show: false,
     autoHideMenuBar: true,
+    skipTaskbar: process.platform === "darwin",
     webPreferences: {
+      preload: path.join(__dirname, "../work/notes-preload.js"),
       partition: state.partition(workspace),
       nodeIntegration: false,
       contextIsolation: true,
@@ -290,8 +301,8 @@ function registerShortcuts() {
   };
   for (const [k, p] of Object.entries(config().windows)) {
     if (p.hotkey) {
-      const [workspace, mode] = k.split(":");
-      register(p.hotkey, () => open(workspace, mode, true));
+      const [workspace, mode, instance] = k.split(":");
+      register(p.hotkey, () => open(workspace, mode, true, instance));
     }
   }
   // Preserve existing Metis shortcuts; defaults are opt-in to avoid conflicts.
@@ -316,8 +327,8 @@ function rebuildTray() {
         enabled: !!lastKey,
         click: () => {
           if (lastKey) {
-            const [w, m] = lastKey.split(":");
-            open(w, m);
+            const [w, m, instance] = lastKey.split(":");
+            open(w, m, false, instance);
           }
         },
       },
@@ -353,6 +364,15 @@ function openPanel() {
   panel.webContents.on("will-navigate", (event) => event.preventDefault());
   void panel.loadFile(panelPath);
 }
+function openNotesMenu(parent) {
+  const companies = config().workspaces.filter(w => !w.archived && w.token);
+  if (companies.length === 1) { open(companies[0].id, "notes", false, randomUUID()); return; }
+  Menu.buildFromTemplate(companies.length ? companies.map(w => ({ label: w.name, click: () => open(w.id, "notes", false, randomUUID()) })) : [{ label: "Configurar integração web", click: openPanel }]).popup({ window: parent });
+}
+function trustedCore(event) {
+  const command = require("../windows/windowManager").get("command");
+  if (!command || event.sender !== command.webContents || event.senderFrame !== event.sender.mainFrame) throw new Error("Janela principal necessária.");
+}
 function trusted(event) {
   if (event.senderFrame !== event.sender.mainFrame)
     throw new Error("Frame não permitido");
@@ -371,6 +391,23 @@ function trusted(event) {
 function init() {
   if (initialized) return;
   initialized = true;
+  ipcMain.handle("metis-quick:pending", event => { trustedCore(event); return quickMeeting.peek(); });
+  ipcMain.handle("metis-quick:ack", (event, identifier) => { trustedCore(event); quickMeeting.acknowledge(identifier); });
+  ipcMain.handle("metis-notes:action", async (event, action) => {
+    const workspace = workspaceForEvent(event, windows, config().baseURL);
+    if (action === "new-window") { open(workspace, "notes", false, randomUUID()); return { opened: true }; }
+    if (action !== "quick-meeting") throw new Error("Ação não permitida.");
+    const company = config().workspaces.find(w => w.id === workspace);
+    const owner = [...windows.values()].find(win => win.webContents === event.sender);
+    const answer = await dialog.showMessageBox(owner, {
+      type: "question", buttons: ["Iniciar gravação", "Cancelar"], defaultId: 1, cancelId: 1,
+      message: `Reunião rápida — ${company.name}`,
+      detail: "Capturar áudio do sistema e microfone? Avise os participantes. Gravação e transcrição ficam neste computador. Só após encerrar, o resumo vira aprendizado desta empresa e é sincronizado com o Metis web; o áudio nunca é enviado. A publicação no OpenViking não é automática.",
+    });
+    if (answer.response !== 0) return { cancelled: true };
+    workspaceForEvent(event, windows, config().baseURL);
+    return quickMeeting.request(workspace);
+  });
   ipcMain.handle("metis-work:command", async (event, command, args = {}) => {
     trusted(event);
     if (command === "config") return publicConfig();
@@ -450,12 +487,15 @@ function init() {
     }
     throw new Error("Comando não permitido");
   });
-  const image = nativeImage
-    .createFromPath(path.join(__dirname, "../../public/icon/metis-symbol.png"))
-    .resize({ width: 20, height: 20 });
-  tray = new Tray(image);
-  tray.setToolTip("Metis — Central de trabalho");
-  rebuildTray();
+  // macOS stays discreet: no status/menu-bar icon. Entry points live in the app.
+  if (process.platform !== "darwin") {
+    const image = nativeImage
+      .createFromPath(path.join(__dirname, "../../public/icon/metis-symbol.png"))
+      .resize({ width: 20, height: 20 });
+    tray = new Tray(image);
+    tray.setToolTip("Metis — Central de trabalho");
+    rebuildTray();
+  }
   try {
     registerShortcuts();
   } catch (error) {
@@ -489,6 +529,7 @@ module.exports = {
   init,
   open,
   openPanel,
+  openNotesMenu,
   hideAll,
   preferences,
   config,

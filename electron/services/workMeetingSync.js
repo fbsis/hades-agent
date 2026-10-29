@@ -18,7 +18,7 @@ function createSyncer({store,request,summarize}){
   try{
    const result=await request('/api/v1/integrations/metis/meetings/'+encodeURIComponent(session.id),{method:'PUT',body:JSON.stringify({...data,source_revision:revision})},session.config.workspaceId);
    const ready=result.status==='ready';
-   update(session.id,{status:ready?'synced':'pending_summary',syncedAt:ready?new Date().toISOString():null,error:ready?null:'Resumo ainda não disponível. Configure o provedor ou gere o resumo e tente novamente.',nextAttemptAt:ready?0:Date.now()+Math.min(3600000,30000*2**Math.min(attempts,7))});
+   update(session.id,{status:ready?'synced':'pending_summary',learningId:result.learning_id||null,syncedAt:ready?new Date().toISOString():null,error:ready?null:'Resumo ainda não disponível. Configure o provedor ou gere o resumo e tente novamente.',nextAttemptAt:ready?0:Date.now()+Math.min(3600000,30000*2**Math.min(attempts,7))});
   }catch{update(session.id,{status:'failed',error:'Falha ao sincronizar. Confira conexão/credencial do workspace e tente novamente.',nextAttemptAt:Date.now()+Math.min(3600000,30000*2**Math.min(attempts,7))});}
  }
  function syncPending(force=false){if(running)return running;running=(async()=>{for(const s of [...store.getInterviewSessions()])await syncOne(s,force);return store.getInterviewSessions().filter(s=>s.config?.workspaceId).map(s=>({id:s.id,status:s.workSync?.status||'pending',error:s.workSync?.error}));})().finally(()=>{running=null;});return running;}

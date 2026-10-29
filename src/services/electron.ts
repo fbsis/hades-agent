@@ -19,6 +19,7 @@ import type {
   InterviewAnswerEvent,
   InterviewAnswerVariant,
   InterviewConfig,
+  QuickMeetingRequest,
   InterviewSession,
   InterviewTranscriptDelta,
   InterviewTranscriptionStatus,
@@ -72,6 +73,10 @@ class ElectronService {
   startResizing() { this.electron?.startResizing(); }
   showSettings() { this.electron?.showSettings(); }
   showWorkSettings() { this.electron?.showWorkSettings(); }
+  showWorkNotes() { this.electron?.showWorkNotes?.(); }
+  async getPendingQuickMeeting() { return await this.electron?.getPendingQuickMeeting?.() || null; }
+  async acknowledgeQuickMeeting(id: string) { await this.electron?.acknowledgeQuickMeeting?.(id); }
+  onQuickMeetingRequest(callback: (request: QuickMeetingRequest) => void) { return this.electron?.onQuickMeetingRequest?.(callback) || (() => {}); }
   showSusurro() { this.electron?.showSusurro(); }
   floatingHeadClick() { this.electron?.floatingHeadClick(); }
   moveFloatingHead(delta: { x: number; y: number }) { this.electron?.moveFloatingHead(delta); }

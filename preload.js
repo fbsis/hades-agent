@@ -59,6 +59,14 @@ contextBridge.exposeInMainWorld('electron', {
   showChat: () => ipcRenderer.send('show-chat'),
   showSettings: () => ipcRenderer.send('show-settings'),
   showWorkSettings: () => ipcRenderer.send('show-work-settings'),
+  showWorkNotes: () => ipcRenderer.send('show-work-notes'),
+  getPendingQuickMeeting: () => ipcRenderer.invoke('metis-quick:pending'),
+  acknowledgeQuickMeeting: id => ipcRenderer.invoke('metis-quick:ack', id),
+  onQuickMeetingRequest: callback => {
+    const handler = (_event, request) => callback(request);
+    ipcRenderer.on('quick-meeting-request', handler);
+    return () => ipcRenderer.removeListener('quick-meeting-request', handler);
+  },
   showSusurro: () => ipcRenderer.send('show-susurro'),
   togglePin: () => ipcRenderer.send('toggle-pin'),
   isPinned: () => ipcRenderer.invoke('is-pinned'),

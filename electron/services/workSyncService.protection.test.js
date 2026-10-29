@@ -89,6 +89,18 @@ describe('web integration window capture protection', () => {
     expect(win.setContentProtection.mock.calls.every(([value]) => value === true)).toBe(true);
   });
 
+  it('opens multiple isolated note windows without replacing an unsaved editor', () => {
+    const { service, created } = setup();
+    service.open('w1', 'notes');
+    service.open('w1', 'notes', false, 'second-window');
+    expect(created).toHaveLength(2);
+    expect(created.every(win => win.protected)).toBe(true);
+    expect(created[0].options.webPreferences.partition).toBe(created[1].options.webPreferences.partition);
+    expect(created[1].options.webPreferences.preload).toContain('notes-preload.js');
+    expect(created[1].options.webPreferences.nodeIntegration).toBe(false);
+    expect(created[1].options.skipTaskbar).toBe(true);
+  });
+
   it('protects integration settings before loading/showing and when reopened', () => {
     const { service, created } = setup();
     service.openPanel();

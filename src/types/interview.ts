@@ -16,7 +16,11 @@ export interface InterviewContextDocument {
   updatedAt: string;
 }
 
+export interface QuickMeetingRequest { id: string; config: InterviewConfig; }
+
 export interface InterviewConfig {
+  quickMeeting?: boolean;
+  learnAfterFinish?: boolean;
   workspaceId?: string;
   syncTranscript?: boolean;
   mode: MeetingMode;
@@ -114,6 +118,7 @@ export interface InterviewSession {
   summary?: string;
   summaryAt?: string;
   summaryProvider?: 'openai' | 'hermes';
+  workSync?: { status: string; error?: string; learningId?: string | null; syncedAt?: string | null };
   audioArtifacts?: InterviewAudioArtifact[];
   hasRecording?: boolean;
   hermesMemory?: {

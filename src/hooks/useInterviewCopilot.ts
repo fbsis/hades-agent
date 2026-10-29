@@ -137,7 +137,7 @@ export const useInterviewCopilot = (options: { embedded?: boolean; onClosePanel?
 
   useEffect(() => {
     electronService.getSettings().then(settings => {
-      if (settings?.interview) setConfig(normalizeInterviewConfig(settings.interview));
+      if (!sessionRef.current && settings?.interview) setConfig(normalizeInterviewConfig(settings.interview));
     });
     refreshSessions();
   }, [refreshSessions]);
@@ -345,24 +345,26 @@ export const useInterviewCopilot = (options: { embedded?: boolean; onClosePanel?
         }
       }
 
-      const systemStarted = await electronService.startInterviewSource({
-        sessionId: activeSession.id,
-        source: 'interviewer',
-        language: activeSession.config.language,
-        provider: activeSession.config.transcriptionProvider || 'whisper-local',
-        customVocabulary: buildTranscriptionVocabulary(activeSession.config)
-      });
-      if (!systemStarted) throw new Error('A transcricao em tempo real nao iniciou para o audio do sistema.');
-
-      const recorderStarted = await startRecorder(activeSession, 'interviewer');
-      if (!recorderStarted) throw new Error('Nao foi possivel capturar o audio do sistema.');
-      const recordingSession = await electronService.updateInterviewSession(activeSession.id, {
-        hasRecording: true
-      });
-      if (recordingSession) {
-        activeSession = recordingSession;
-        setSession(recordingSession);
-        sessionRef.current = recordingSession;
+      let systemCaptured = false;
+      let microphoneCaptured = false;
+      try {
+        const systemStarted = await electronService.startInterviewSource({
+          sessionId: activeSession.id,
+          source: 'interviewer',
+          language: activeSession.config.language,
+          provider: activeSession.config.transcriptionProvider || 'whisper-local',
+          customVocabulary: buildTranscriptionVocabulary(activeSession.config)
+        });
+        if (!systemStarted) throw new Error('A transcricao em tempo real nao iniciou para o audio do sistema.');
+        const recorderStarted = await startRecorder(activeSession, 'interviewer');
+        if (!recorderStarted) throw new Error('Nao foi possivel capturar o audio do sistema.');
+        systemCaptured = true;
+      } catch (captureError) {
+        stopSystemRecording();
+        await electronService.stopInterviewSource(activeSession.id, 'interviewer');
+        if (activeSession.config.retainAudio) await electronService.stopInterviewRecording(activeSession.id, 'interviewer');
+        if (!activeSession.config.quickMeeting || !activeSession.config.transcribeMicrophone || !microphoneAccessGranted) throw captureError;
+        setError('Áudio do sistema indisponível. A reunião rápida usará somente o microfone.');
       }
 
       if (activeSession.config.transcribeMicrophone && microphoneAccessGranted) {
@@ -375,6 +377,7 @@ export const useInterviewCopilot = (options: { embedded?: boolean; onClosePanel?
         });
         if (microphoneSourceStarted) {
           const microphoneStarted = await startRecorder(activeSession, 'candidate');
+          microphoneCaptured = microphoneStarted;
           if (!microphoneStarted) {
             await electronService.stopInterviewSource(activeSession.id, 'candidate');
             setError(audioCaptureErrorRef.current || 'Microfone indisponível. A entrevista continua com o áudio do sistema.');
@@ -384,12 +387,21 @@ export const useInterviewCopilot = (options: { embedded?: boolean; onClosePanel?
         }
       }
 
+      if (!systemCaptured && !microphoneCaptured) throw new Error(audioCaptureErrorRef.current || 'Nenhuma fonte de áudio disponível. Verifique as permissões do microfone.');
+      const recordingSession = await electronService.updateInterviewSession(activeSession.id, { hasRecording: true });
+      if (recordingSession) { setSession(recordingSession); sessionRef.current = recordingSession; }
       setFlowStatus('listening');
       refreshSessions();
     } catch (startError: any) {
       stopSystemRecording();
       stopMicrophoneRecording();
-      if (sessionRef.current) await electronService.stopInterviewTranscription(sessionRef.current.id);
+      if (sessionRef.current) {
+        await electronService.stopInterviewTranscription(sessionRef.current.id);
+        await Promise.all([
+          electronService.stopInterviewRecording(sessionRef.current.id, 'interviewer'),
+          electronService.stopInterviewRecording(sessionRef.current.id, 'candidate')
+        ]);
+      }
       setError(startError?.message || 'Falha ao iniciar a entrevista.');
       setFlowStatus('error');
     }

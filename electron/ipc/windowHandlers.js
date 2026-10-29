@@ -243,6 +243,9 @@ function registerWindowHandlers() {
   ipcMain.on('show-work-settings', () => {
     require('../services/workSyncService').openPanel();
   });
+  ipcMain.on('show-work-notes', event => {
+    require('../services/workSyncService').openNotesMenu(BrowserWindow.fromWebContents(event.sender));
+  });
 
   /**
    * Shows the live transcription window and starts Susurro.

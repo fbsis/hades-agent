@@ -131,7 +131,7 @@ class InterviewService {
     if (normalizedConfig.workspaceId && !work?.workspaces?.some(item => item.id === normalizedConfig.workspaceId)) {
       throw new Error('A empresa selecionada não está configurada neste computador. Escolha uma empresa conhecida ou salve apenas neste computador.');
     }
-    if (normalizedConfig.workspaceId) { normalizedConfig.retainAudio = false; normalizedConfig.saveTranscript = true; }
+    if (normalizedConfig.workspaceId) { normalizedConfig.retainAudio = !!(normalizedConfig.quickMeeting && normalizedConfig.retainAudio); normalizedConfig.saveTranscript = true; }
     const isPending = options.status === 'pending';
     const titleParts = normalizedConfig.mode === 'interview'
       ? [normalizedConfig.company, normalizedConfig.role].filter(Boolean)

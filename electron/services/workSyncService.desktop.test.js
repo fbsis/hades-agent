@@ -11,12 +11,13 @@ function setup() {
   const showCommandPanel = vi.fn();
   const fetch = vi.fn();
   const refresh = vi.fn(() => new Promise(() => {}));
+  const trayCreated = vi.fn();
   const dependencies = {
     electron: {
       app: { on: vi.fn() },
-      ipcMain: { handle: (_name, fn) => { handler = fn; } },
+      ipcMain: { handle: (name, fn) => { if (name === 'metis-work:command') handler = fn; } },
       nativeImage: { createFromPath: () => ({ resize: () => ({}) }) },
-      Tray: class { setToolTip() {} setContextMenu() {} },
+      Tray: class { constructor() { trayCreated(); } setToolTip() {} setContextMenu() {} },
       Menu: { buildFromTemplate: value => value }
     },
     '../store/jsonStore': { getSettings: () => ({ workSync: { baseURL: 'https://offline.invalid', workspaces: [], windows: {} } }) },
@@ -28,6 +29,7 @@ function setup() {
     __dirname: fileURLToPath(new URL('.', import.meta.url)),
     require: name => dependencies[name] || require(name),
     fetch,
+    process: { platform: 'darwin' },
     URL,
     setInterval: () => ({ unref() {} }),
     setTimeout: () => ({ unref() {} })
@@ -36,7 +38,7 @@ function setup() {
   context.module.exports.init();
   const frame = { url: new URL('../work/work-panel.html', import.meta.url).href };
   const event = { senderFrame: frame, sender: { mainFrame: frame } };
-  return { handler, event, showCommandPanel, fetch, refresh };
+  return { handler, event, showCommandPanel, fetch, refresh, trayCreated };
 }
 
 describe('native entry independent of server availability', () => {
@@ -46,6 +48,10 @@ describe('native entry independent of server availability', () => {
     expect(await handler(event, 'desktop', { panel })).toEqual({ opened: panel });
     expect(showCommandPanel).toHaveBeenCalledWith(panel);
     expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('does not create a menu-bar tray on macOS', () => {
+    expect(setup().trayCreated).not.toHaveBeenCalled();
   });
 
   it('rejects arbitrary panels and remote callers', async () => {

@@ -71,6 +71,14 @@ describe('meetings independent of the work server', () => {
     expect(() => service.createSession({ workspaceId: 'unknown' })).toThrow('não está configurada');
   });
 
+  it('retains quick-meeting audio locally while keeping company and transcript locked', () => {
+    const { service } = setup(cached);
+    const session = service.createSession({ workspaceId: 'globo', quickMeeting: true, retainAudio: true, saveTranscript: false });
+    expect(session.config.retainAudio).toBe(true);
+    expect(session.config.saveTranscript).toBe(true);
+    expect(() => service.updateSession(session.id, { config: { workspaceId: 'qad' } })).toThrow('não pode ser alterado');
+  });
+
   it('does not upload local-only sessions', async () => {
     const { service, store } = setup(cached);
     const session = service.createSession({ workspaceId: '' });

@@ -3,6 +3,7 @@ import type {
   InterviewAnswerEvent,
   InterviewAnswerVariant,
   InterviewConfig,
+  QuickMeetingRequest,
   ConversationSuggestion,
   ConversationSuggestionExpansion,
   ConversationSuggestionSet,
@@ -37,6 +38,10 @@ export interface ElectronAPI {
   startResizing: () => void;
   showSettings: () => void;
   showWorkSettings: () => void;
+  showWorkNotes: () => void;
+  getPendingQuickMeeting: () => Promise<QuickMeetingRequest | null>;
+  acknowledgeQuickMeeting: (id: string) => Promise<void>;
+  onQuickMeetingRequest: (callback: (request: QuickMeetingRequest) => void) => () => void;
   showSusurro: () => void;
   floatingHeadClick: () => void;
   moveFloatingHead: (delta: { x: number; y: number }) => void;
