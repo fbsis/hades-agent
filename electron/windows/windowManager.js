@@ -765,9 +765,11 @@ class WindowManager {
     const cursor = screen.getCursorScreenPoint();
     const area = screen.getDisplayNearestPoint(cursor).workArea;
     const bounds = win.getBounds();
-    const x = Math.min(Math.max(cursor.x + 12, area.x + 8), area.x + area.width - bounds.width - 8);
-    const y = Math.min(Math.max(cursor.y + 14, area.y + 8), area.y + area.height - bounds.height - 8);
-    win.setPosition(Math.round(x), Math.round(y));
+    const width = Math.min(bounds.width, area.width - 16);
+    const height = Math.min(bounds.height, area.height - 16);
+    const x = Math.min(Math.max(cursor.x + 12, area.x + 8), area.x + area.width - width - 8);
+    const y = Math.min(Math.max(cursor.y + 14, area.y + 8), area.y + area.height - height - 8);
+    win.setBounds({ x: Math.round(x), y: Math.round(y), width, height });
     win.show();
     win.focus();
 

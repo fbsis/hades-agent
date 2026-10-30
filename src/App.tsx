@@ -10,6 +10,15 @@ const Settings = lazy(() => import('./components/Settings'))
 const FloatingHead = lazy(() => import('./components/FloatingHead'))
 const TextActions = lazy(() => import('./components/TextActions'))
 
+class TextActionsBoundary extends React.Component<{ children: React.ReactNode }, { failed: boolean }> {
+  state = { failed: false };
+  static getDerivedStateFromError() { return { failed: true }; }
+  render() {
+    if (this.state.failed) return <main className="text-actions-shell"><p className="text-actions-hint" role="alert">Não foi possível abrir as ações de texto.</p><button type="button" onClick={() => location.reload()}>Recarregar painel</button></main>;
+    return this.props.children;
+  }
+}
+
 const App: React.FC = () => {
   const urlParams = new URLSearchParams(globalThis.location.search)
   const windowType = urlParams.get('window')
@@ -34,7 +43,7 @@ const App: React.FC = () => {
   if (windowType === 'floating-head') content = <FloatingHead />
   if (windowType === 'text-actions') content = <TextActions />
 
-  return <Suspense fallback={null}>{content}</Suspense>
+  return <Suspense fallback={windowType === 'text-actions' ? <main className="text-actions-shell"><p className="text-actions-hint" role="status">Carregando ações de texto…</p></main> : null}>{windowType === 'text-actions' ? <TextActionsBoundary>{content}</TextActionsBoundary> : content}</Suspense>
 }
 
 export default App

@@ -63,7 +63,8 @@ export interface ElectronAPI {
   getSelectedText: () => Promise<IPCResponse<SelectedTextPayload | null>>;
   runSelectedTextAction: (args: TextActionRequest) => Promise<IPCResponse<string>>;
   copySelectedTextResult: (text: string) => Promise<IPCResponse<void>>;
-  replaceSelectedText: (text: string) => Promise<IPCResponse<void>>;
+  replaceSelectedText: (text: string, selectionId?: string) => Promise<IPCResponse<void>>;
+  openTextAccessibility: (section?: 'accessibility' | 'automation') => Promise<void>;
   closeTextActions: () => Promise<IPCResponse<void>>;
   onSelectedTextCaptured: (callback: (payload: SelectedTextPayload) => void) => () => void;
   
@@ -405,11 +406,15 @@ export interface ShortcutsSettings {
 export type TextActionKind = 'translate' | 'simplify' | 'explain' | 'summarize' | 'proofread' | 'rewrite' | 'professional' | 'friendly' | 'shorten' | 'expand' | 'custom';
 
 export interface SelectedTextPayload {
+  selectionId?: string;
+  canReplace?: boolean;
+  shortcut?: string;
   text?: string;
   error?: string;
 }
 
 export interface TextActionRequest {
+  selectionId?: string;
   action: TextActionKind;
   text: string;
   customInstruction?: string;

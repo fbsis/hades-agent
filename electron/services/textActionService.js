@@ -3,8 +3,8 @@ const openaiResponsesService = require('./openaiResponsesService');
 const { buildTextActionPrompt } = require('./textActionPrompts');
 
 async function runTextAction({ action, text, customInstruction }) {
-  const selectedText = String(text || '').trim();
-  if (!selectedText) throw new Error('Nenhum texto selecionado.');
+  const selectedText = String(text || '');
+  if (!selectedText.trim()) throw new Error('Nenhum texto selecionado.');
   const apiKey = jsonStore.getSettings()?.general?.openaiApiKey || process.env.OPENAI_API_KEY;
   if (!apiKey) throw new Error('Configure sua chave da OpenAI antes de usar as ações de texto.');
 

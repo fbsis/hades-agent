@@ -107,7 +107,7 @@ class JsonStore {
         toggleSettings: 'Alt+S',
         toggleSusurro: 'Alt+B',
         toggleVoice: 'Alt+V',
-        selectedTextActions: 'Alt+E',
+        selectedTextActions: process.platform === 'darwin' ? 'Alt+Space' : 'Alt+E',
         interviewQuickAnswer: 'F4',
         interviewCaptureScreen: 'F5'
       }

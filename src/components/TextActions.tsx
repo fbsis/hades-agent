@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Check, Clipboard, Expand, Languages, Lightbulb, LoaderCircle, Minimize2, PenLine, Scissors, Smile, Sparkles, WandSparkles, X } from 'lucide-react';
 import { electronService } from '../services/electron';
 import type { SelectedTextPayload, TextActionKind } from '../types/electron';
@@ -15,109 +15,90 @@ const ACTIONS: Array<{ action: TextActionKind; label: string; icon: React.ReactN
   { action: 'summarize', label: 'Resumir', icon: <Minimize2 size={13} /> },
   { action: 'explain', label: 'Explicar', icon: <Lightbulb size={13} /> },
 ];
-
 const PREVIEW_ACTIONS = new Set<TextActionKind>(['explain', 'summarize']);
 
 const TextActions: React.FC = () => {
+  const [capture, setCapture] = useState<SelectedTextPayload>({});
   const [selection, setSelection] = useState('');
   const [result, setResult] = useState('');
   const [customInstruction, setCustomInstruction] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [shortcut, setShortcut] = useState('Alt+Space');
   const [busyAction, setBusyAction] = useState<TextActionKind | null>(null);
   const [resultAction, setResultAction] = useState<TextActionKind | null>(null);
+  const [replacing, setReplacing] = useState(false);
   const [copied, setCopied] = useState(false);
-
-  const receiveSelection = (payload: SelectedTextPayload | null) => {
-    setSelection(payload?.text || '');
-    setError(payload?.error || '');
-    setResult('');
-    setResultAction(null);
-    setCopied(false);
-  };
+  const sequence = useRef(0);
 
   useEffect(() => {
-    const unsubscribe = electronService.onSelectedTextCaptured(receiveSelection);
-    electronService.getSelectedText().then(receiveSelection);
+    let alive = true, eventSeen = false;
+    const receive = (payload: SelectedTextPayload | null) => {
+      if (!alive) return;
+      sequence.current++;
+      setCapture(payload || {});
+      setSelection(payload?.text || '');
+      setError(payload?.error || '');
+      setResult(''); setResultAction(null); setBusyAction(null); setCopied(false); setLoading(false);
+      if (payload?.shortcut) setShortcut(payload.shortcut);
+    };
+    const unsubscribe = electronService.onSelectedTextCaptured(payload => { eventSeen = true; receive(payload); });
+    // The main process retains success AND failure, so a lazy renderer cannot miss it.
+    void electronService.getSelectedText().then(payload => { if (!eventSeen) receive(payload); }).catch(() => receive({ error: 'Não foi possível ler a seleção. Cole o texto abaixo.' }));
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') electronService.closeTextActions();
+      if (event.key === 'Escape') { sequence.current++; electronService.closeTextActions(); }
     };
     globalThis.addEventListener('keydown', handleKeyDown);
-    return () => {
-      unsubscribe();
-      globalThis.removeEventListener('keydown', handleKeyDown);
-    };
+    return () => { alive = false; sequence.current++; unsubscribe(); globalThis.removeEventListener('keydown', handleKeyDown); };
   }, []);
 
   const runAction = async (action: TextActionKind) => {
-    if (!selection || busyAction) return;
-    setBusyAction(action);
-    setError('');
-    setResult('');
-    setResultAction(null);
+    if (!selection.trim() || busyAction) return;
+    const request = ++sequence.current;
+    setBusyAction(action); setError(''); setResult(''); setResultAction(null);
     try {
-      const actionResult = await electronService.runSelectedTextAction({ action, text: selection, customInstruction });
-      if (PREVIEW_ACTIONS.has(action)) {
-        setResult(actionResult);
-        setResultAction(action);
-      } else {
-        await electronService.replaceSelectedText(actionResult);
-      }
-    } catch (actionError) {
-      setError(actionError instanceof Error ? actionError.message : 'Não foi possível processar o texto.');
-    } finally {
-      setBusyAction(null);
-    }
+      const text = await electronService.runSelectedTextAction({ action, text: selection, customInstruction, selectionId: capture.selectionId });
+      if (request !== sequence.current) return;
+      if (!text?.trim()) throw new Error('A IA não retornou texto. Tente novamente.');
+      setResult(text); setResultAction(action);
+    } catch (e) { if (request === sequence.current) setError((e as Error).message); }
+    finally { if (request === sequence.current) setBusyAction(null); }
+  };
+  const replace = async () => {
+    setReplacing(true); setError('');
+    try { await electronService.replaceSelectedText(result, capture.selectionId); }
+    catch (e) { setError((e as Error).message); }
+    finally { setReplacing(false); }
   };
 
-  const copyResult = async () => {
-    if (!result) return;
-    await electronService.copySelectedTextResult(result);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1600);
-  };
-
-  return (
-    <main className="text-actions-shell">
-      <header className="text-actions-header">
-        <div><WandSparkles size={15} /><strong>Ações de texto</strong><kbd>Alt+E</kbd></div>
-        <button type="button" onClick={() => electronService.closeTextActions()} aria-label="Fechar"><X size={15} /></button>
-      </header>
-
-      {error && <div className="text-actions-error">{error}</div>}
-
-      {selection && (
-        <>
-          <p className="text-actions-selection" title={selection}>{selection}</p>
-          <div className="text-actions-grid">
-            {ACTIONS.map(({ action, label, icon }) => (
-              <button type="button" key={action} onClick={() => runAction(action)} disabled={Boolean(busyAction)}>
-                {busyAction === action ? <LoaderCircle className="spin" size={13} /> : icon}{label}
-              </button>
-            ))}
-          </div>
-          <form className="text-actions-custom" onSubmit={(event) => { event.preventDefault(); runAction('custom'); }}>
-            <input value={customInstruction} onChange={event => setCustomInstruction(event.target.value)} placeholder="Ou descreva outra transformação..." />
-            <button type="submit" disabled={!customInstruction.trim() || Boolean(busyAction)}>Aplicar</button>
-          </form>
-        </>
-      )}
-
-      {(result || busyAction) && (
-        <section className="text-actions-result">
-          <span>Resultado</span>
-          {busyAction ? <div className="text-actions-loading"><LoaderCircle className="spin" size={16} /> Processando...</div> : <textarea value={result} onChange={event => setResult(event.target.value)} />}
-        </section>
-      )}
-
-      {result && (
-        <footer className="text-actions-footer">
-          <small>Somente o texto selecionado foi enviado à IA.</small>
-          <button type="button" onClick={copyResult}><Clipboard size={13} />{copied ? 'Copiado' : 'Copiar'}</button>
-          {resultAction && PREVIEW_ACTIONS.has(resultAction) && <span className="text-actions-preview-label">O texto original não será alterado</span>}
-        </footer>
-      )}
-    </main>
-  );
+  return <main className="text-actions-shell">
+    <header className="text-actions-header">
+      <div><WandSparkles size={15} /><strong>Ações de texto</strong><kbd>{shortcut.replace('Alt', '⌥').replace('Space', 'Espaço')}</kbd></div>
+      <button type="button" onClick={() => { sequence.current++; electronService.closeTextActions(); }} aria-label="Fechar"><X size={15} /></button>
+    </header>
+    {loading && <p className="text-actions-hint" role="status"><LoaderCircle className="spin" size={13} />Lendo seleção…</p>}
+    {error && <div className="text-actions-error" role="alert">{error}
+      {/Acessibilidade|Automação/.test(error) && <button type="button" onClick={() => electronService.openTextAccessibility(/Automação/.test(error) ? 'automation' : 'accessibility')}>{/Automação/.test(error) ? 'Abrir Automação' : 'Abrir Acessibilidade'}</button>}
+    </div>}
+    <label className="text-actions-source"><span>Texto selecionado</span><textarea aria-label="Texto selecionado" value={selection} maxLength={30000} disabled={!!busyAction} placeholder="Selecione um trecho em outro app e use o atalho, ou cole seu texto aqui." onChange={event => { sequence.current++; setSelection(event.target.value); setResult(''); setResultAction(null); setError(''); }} /></label>
+    <div className="text-actions-grid">
+      {ACTIONS.map(({ action, label, icon }) => <button type="button" key={action} onClick={() => void runAction(action)} disabled={!selection.trim() || !!busyAction || replacing}>
+        {busyAction === action ? <LoaderCircle className="spin" size={13} /> : icon}{label}
+      </button>)}
+    </div>
+    <form className="text-actions-custom" onSubmit={event => { event.preventDefault(); void runAction('custom'); }}>
+      <input aria-label="Instrução personalizada" value={customInstruction} onChange={event => setCustomInstruction(event.target.value)} placeholder="Ou descreva outra transformação…" />
+      <button type="submit" disabled={!selection.trim() || !customInstruction.trim() || !!busyAction}>Gerar</button>
+    </form>
+    {(result || busyAction) && <section className="text-actions-result">
+      <span>Prévia — o texto original ainda não foi alterado</span>
+      {busyAction ? <div className="text-actions-loading" role="status"><LoaderCircle className="spin" size={16} />Processando…</div> : <textarea aria-label="Resultado da transformação" value={result} onChange={event => setResult(event.target.value)} />}
+    </section>}
+    <footer className="text-actions-footer">
+      <small>{selection ? 'Só envia à OpenAI ao escolher uma ação. Substituição em texto simples, apenas em campos editáveis.' : 'Cole texto aqui se a captura não estiver disponível.'}</small>
+      {result && <button type="button" onClick={async () => { await electronService.copySelectedTextResult(result); setCopied(true); }}><Clipboard size={13} />{copied ? 'Copiado' : 'Copiar'}</button>}
+      {result && resultAction && !PREVIEW_ACTIONS.has(resultAction) && capture.canReplace && <button type="button" className="primary" disabled={replacing || !result.trim()} onClick={() => void replace()}>{replacing ? 'Substituindo…' : 'Substituir seleção'}</button>}
+    </footer>
+  </main>;
 };
-
 export default TextActions;

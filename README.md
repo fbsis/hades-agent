@@ -175,6 +175,10 @@ URL, credenciais e preferências são persistidas no bloco `workSync` do arquivo
 
 Testes automatizados cobrem essas falhas com provedores/servidor simulados. Validação de microfone, transcrição real, credenciais OpenAI e disponibilidade da infraestrutura continua sendo uma etapa de aprovação no ambiente real.
 
+### Ações de texto — Option+Espaço
+
+Selecione texto em outro app e pressione **Option+Espaço**. Há prévia antes de substituir, botão Copiar, instrução personalizada e campo para colar manualmente se a captura falhar. O dev requer permissões próprias de Acessibilidade/Automação. Se WritingTools estiver usando o mesmo atalho, pause-o; o Metis tenta assumir a combinação quando ela for liberada, sem interferir nos outros atalhos. Sem dependência do servidor web, sem memória automática, substituição em texto simples apenas em campos editáveis. [Detalhes e limites](docs/text-actions.md).
+
 ### MCP tools
 
 Metis includes a native Model Context Protocol client based on the official
@@ -267,7 +271,7 @@ Metis opens as a compact command window by default and can be hidden while it re
 | Shortcut | Action |
 | :--- | :--- |
 | **`Alt+D`** | Summon / dismiss the unified command window |
-| **`Alt+E`** | Open AI actions for the selected text |
+| **`Alt+Space`** | Open AI actions for selected text (WritingTools macOS default; configurable) |
 | **`Alt+B`** | Open the Interview Copilot |
 | **`Space`** | Answer the selected interview question when no input is focused |
 | **`Alt+S`** | Open Settings & Shortcut Customization |

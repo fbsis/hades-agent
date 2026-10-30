@@ -3,8 +3,11 @@ const windowManager = require('./windows/windowManager');
 const jsonStore = require('./store/jsonStore');
 const appState = require('./appState');
 const selectedTextService = require('./services/selectedTextService');
+const { registerWithHandoff } = require('./services/shortcutHandoff');
 
 let isCapturingSelectedText = false;
+let cancelTextShortcutRetry = () => {};
+app.on('will-quit', () => cancelTextShortcutRetry());
 
 /**
  * Toggles the command window and associated chat window.
@@ -110,7 +113,7 @@ async function openSelectedTextActions() {
     const selection = await selectedTextService.capture();
     windowManager.showTextActions(selection);
   } catch (error) {
-    windowManager.showTextActions({ error: error.message });
+    windowManager.showTextActions({ ...selectedTextService.getSelection(), error: error.message });
   } finally {
     isCapturingSelectedText = false;
   }
@@ -133,6 +136,7 @@ function registerShortcut(name, key, handler) {
  */
 function registerGlobalShortcuts(retryCount = 0) {
   // Wipe all active global shortcut registrations to prevent clashing and leaks when updating
+  cancelTextShortcutRetry();
   globalShortcut.unregisterAll();
 
   const settings = jsonStore.getSettings();
@@ -141,7 +145,7 @@ function registerGlobalShortcuts(retryCount = 0) {
     toggleSettings: 'Alt+S',
     toggleSusurro: 'Alt+B',
     toggleVoice: 'Alt+V',
-    selectedTextActions: 'Alt+E',
+    selectedTextActions: process.platform === 'darwin' ? 'Alt+Space' : 'Alt+E',
     interviewQuickAnswer: 'F4',
     interviewCaptureScreen: 'F5'
   };
@@ -163,7 +167,11 @@ function registerGlobalShortcuts(retryCount = 0) {
   // Toggle Command Bar & Chat
   if (!registerShortcut('Command', shortcuts.toggleCommand || 'Alt+D', toggleCommandWindow)) allRegistered = false;
 
-  if (!registerShortcut('Selected Text Actions', shortcuts.selectedTextActions || 'Alt+E', openSelectedTextActions)) allRegistered = false;
+  const textKey = shortcuts.selectedTextActions || (process.platform === 'darwin' ? 'Alt+Space' : 'Alt+E');
+  const textShortcut = registerWithHandoff({ globalShortcut, key: textKey, handler: openSelectedTextActions,
+    onStatus: ready => console.log(`[SHORTCUTS] Selected Text Actions (${textKey}): ${ready ? '✓ OK' : 'ocupado; aguardando WritingTools/outro app liberar o atalho'}`)
+  });
+  cancelTextShortcutRetry = textShortcut.cancel;
 
   // Toggle Settings
   if (!registerShortcut('Settings', shortcuts.toggleSettings || 'Alt+S', toggleSettingsWindow)) allRegistered = false;
@@ -185,7 +193,7 @@ function registerGlobalShortcuts(retryCount = 0) {
 
   // Retry if any shortcut failed (zombie process may still be releasing)
   if (allRegistered) {
-    console.log('[SHORTCUTS] ✓ All shortcuts registered successfully.');
+    console.log(textShortcut.registered ? '[SHORTCUTS] ✓ All shortcuts registered successfully.' : '[SHORTCUTS] Atalhos principais ativos; aguardando liberação do atalho de texto.');
   } else if (retryCount < 3) {
     const delay = (retryCount + 1) * 1500;
     console.warn(`[SHORTCUTS] ⚠ Some shortcuts failed to register. Retrying in ${delay}ms (attempt ${retryCount + 1}/3)...`);

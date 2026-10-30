@@ -142,8 +142,9 @@ class ElectronService {
   async copySelectedTextResult(text: string) {
     await this.handleResponse(this.electron?.copySelectedTextResult(text), undefined, 'copySelectedTextResult');
   }
-  async replaceSelectedText(text: string) {
-    const response = await this.electron?.replaceSelectedText(text);
+  openTextAccessibility(section: 'accessibility' | 'automation' = 'accessibility') { return this.electron?.openTextAccessibility?.(section); }
+  async replaceSelectedText(text: string, selectionId?: string) {
+    const response = await this.electron?.replaceSelectedText(text, selectionId);
     if (!response?.success) throw new Error(response?.error || 'Não foi possível substituir o texto.');
   }
   async closeTextActions() {

@@ -42,7 +42,8 @@ contextBridge.exposeInMainWorld('electron', {
   getSelectedText: () => ipcRenderer.invoke('text-actions-get-selection'),
   runSelectedTextAction: (args) => ipcRenderer.invoke('text-actions-run', args),
   copySelectedTextResult: (text) => ipcRenderer.invoke('text-actions-copy', text),
-  replaceSelectedText: (text) => ipcRenderer.invoke('text-actions-replace', text),
+  replaceSelectedText: (text, selectionId) => ipcRenderer.invoke('text-actions-replace', text, selectionId),
+  openTextAccessibility: section => ipcRenderer.invoke('text-actions-accessibility', section),
   closeTextActions: () => ipcRenderer.invoke('text-actions-close'),
   onSelectedTextCaptured: (callback) => {
     const sub = (_event, payload) => callback(payload);
