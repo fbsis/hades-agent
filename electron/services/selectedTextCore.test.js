@@ -38,6 +38,12 @@ describe('selected text capture and safe replacement', () => {
     await expect(service.capture(100)).rejects.toThrow('mudou');
     expect(clipboard.writeText).not.toHaveBeenCalled();
   });
+  it('retains an already generated fallback result without inventing a replacement target or auto action', () => {
+    const { service } = setup();
+    service.presentResult('Original', 'Gerado', 'A seleção mudou');
+    expect(service.getSelection()).toMatchObject({ text: 'Original', result: 'Gerado', canReplace: false, error: 'A seleção mudou' });
+    expect(service.getSelection().autoAction).toBeUndefined();
+  });
   it('retains a native context action for a late renderer without inventing a replacement target', () => {
     const { service } = setup();
     service.adopt('Texto do menu'); service.setAction('translate');

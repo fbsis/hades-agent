@@ -41,7 +41,7 @@ const TextActions: React.FC = () => {
       setCapture(payload || {});
       setSelection(payload?.text || '');
       setError(payload?.error || '');
-      setResult(''); setResultAction(null); setBusyAction(null); setReplacing(false); setCopied(false); setLoading(false);
+      setResult(payload?.result || ''); setResultAction(null); setBusyAction(null); setReplacing(false); setCopied(false); setLoading(false);
       if (payload?.shortcut) setShortcut(payload.shortcut);
     };
     const unsubscribe = electronService.onSelectedTextCaptured(payload => { eventSeen = true; receive(payload); });

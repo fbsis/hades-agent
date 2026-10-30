@@ -126,7 +126,7 @@ function applyPreferences(k, win) {
 }
 function contextMenu(k, win, params = {}) {
   const p = config().windows[k] || {};
-  const text = require('./textContextMenu').textItems(params);
+  const text = require('./textContextMenu').textItems(params, win);
   return Menu.buildFromTemplate([
     ...text,
     ...(text.length ? [{ type: 'separator' }] : []),

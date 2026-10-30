@@ -75,6 +75,7 @@ function createSelectedTextService({ clipboard, execute, trusted = () => true, p
   return {
     getSelection: publicState,
     adopt(text, error) { target = null; state = { selectionId: id(), text: String(text || '').slice(0, 30000), canReplace: false, error: error || '' }; },
+    presentResult(text, result, error) { target = null; state = { selectionId: id(), text: String(text || '').slice(0, 30000), result, canReplace: false, error: error || '' }; },
     setAction(action) { if (!['translate', 'proofread', 'rewrite', 'summarize', 'explain'].includes(action)) throw new Error('Ação inválida'); state = { ...state, autoAction: action }; },
     clear() { target = null; state = { selectionId: id(), text: '', canReplace: false }; },
     isCurrent: selectionId => selectionId === state.selectionId,

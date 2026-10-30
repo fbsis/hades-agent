@@ -414,6 +414,7 @@ export interface TextActionsSetupState {
 }
 
 export interface SelectedTextPayload {
+  result?: string;
   autoAction?: TextActionKind;
   selectionId?: string;
   canReplace?: boolean;
