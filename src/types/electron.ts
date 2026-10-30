@@ -64,7 +64,10 @@ export interface ElectronAPI {
   runSelectedTextAction: (args: TextActionRequest) => Promise<IPCResponse<string>>;
   copySelectedTextResult: (text: string) => Promise<IPCResponse<void>>;
   replaceSelectedText: (text: string, selectionId?: string) => Promise<IPCResponse<void>>;
-  openTextAccessibility: (section?: 'accessibility' | 'automation') => Promise<void>;
+  openTextAccessibility: (section?: 'accessibility' | 'automation' | 'services') => Promise<void>;
+  getTextActionsSetup: () => Promise<IPCResponse<TextActionsSetupState>>;
+  configureTextActionsSetup: () => Promise<IPCResponse<TextActionsSetupState>>;
+  removeTextActionsSetup: () => Promise<IPCResponse<TextActionsSetupState>>;
   closeTextActions: () => Promise<IPCResponse<void>>;
   onSelectedTextCaptured: (callback: (payload: SelectedTextPayload) => void) => () => void;
   
@@ -405,7 +408,13 @@ export interface ShortcutsSettings {
 
 export type TextActionKind = 'translate' | 'simplify' | 'explain' | 'summarize' | 'proofread' | 'rewrite' | 'professional' | 'friendly' | 'shorten' | 'expand' | 'custom';
 
+export interface TextActionsSetupState {
+  supported: boolean; shortcut: string; shortcutRegistered: boolean; openaiConfigured: boolean; accessibility: boolean;
+  servicesInstalled: number; helperReady: boolean; error?: string; message?: string; cancelled?: boolean;
+}
+
 export interface SelectedTextPayload {
+  autoAction?: TextActionKind;
   selectionId?: string;
   canReplace?: boolean;
   shortcut?: string;

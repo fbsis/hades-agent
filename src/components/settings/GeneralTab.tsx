@@ -2,13 +2,15 @@ import React, { useState } from 'react';
 import { SettingsData } from '../../types/electron';
 import { Eye, EyeOff, Key, Shield, Moon, Blend } from 'lucide-react';
 import { electronService } from '../../services/electron';
+import TextActionsSetup from './TextActionsSetup';
 
 interface GeneralTabProps {
   settings: SettingsData['general'];
   updateSettings: (updates: Partial<SettingsData['general']>) => void;
+  onShortcutConfigured?: (shortcut: string) => void;
 }
 
-const GeneralTab: React.FC<GeneralTabProps> = ({ settings, updateSettings }) => {
+const GeneralTab: React.FC<GeneralTabProps> = ({ settings, updateSettings, onShortcutConfigured }) => {
   const [showOpenAIKey, setShowOpenAIKey] = useState(false);
   const [showTavilyKey, setShowTavilyKey] = useState(false);
   const opacityPercent = Math.round((settings.windowOpacity ?? 0.9) * 100);
@@ -35,6 +37,8 @@ const GeneralTab: React.FC<GeneralTabProps> = ({ settings, updateSettings }) => 
           <button type="button" className="settings-input" onClick={() => electronService.showWorkSettings()}>Configurar integração web</button>
         </div>
       </div>
+
+      <TextActionsSetup onShortcutConfigured={onShortcutConfigured} />
 
       <div className="setting-row">
         <div className="setting-info">

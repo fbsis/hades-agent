@@ -2,7 +2,7 @@ const jsonStore = require('../store/jsonStore');
 const openaiResponsesService = require('./openaiResponsesService');
 const { buildTextActionPrompt } = require('./textActionPrompts');
 
-async function runTextAction({ action, text, customInstruction }) {
+async function runTextAction({ action, text, customInstruction, signal }) {
   const selectedText = String(text || '');
   if (!selectedText.trim()) throw new Error('Nenhum texto selecionado.');
   const apiKey = jsonStore.getSettings()?.general?.openaiApiKey || process.env.OPENAI_API_KEY;
@@ -17,7 +17,9 @@ async function runTextAction({ action, text, customInstruction }) {
       buildTextActionPrompt(action, customInstruction)
     ].join(' '),
     input: selectedText.slice(0, 30000),
-    maxOutputTokens: 1800,
+    maxOutputTokens: Math.min(12000, Math.max(1800, Math.ceil(selectedText.length * 1.2))),
+    requireComplete: true,
+    signal: signal || AbortSignal.timeout(60000),
     verbosity: 'low'
   });
   return result.text;

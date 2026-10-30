@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Check, Clipboard, Expand, Languages, Lightbulb, LoaderCircle, Minimize2, PenLine, Scissors, Smile, Sparkles, WandSparkles, X } from 'lucide-react';
 import { electronService } from '../services/electron';
 import type { SelectedTextPayload, TextActionKind } from '../types/electron';
+import { shouldAutoReplace } from '../utils/textActions';
 
 const ACTIONS: Array<{ action: TextActionKind; label: string; icon: React.ReactNode }> = [
   { action: 'translate', label: 'Traduzir', icon: <Languages size={13} /> },
@@ -30,6 +31,7 @@ const TextActions: React.FC = () => {
   const [replacing, setReplacing] = useState(false);
   const [copied, setCopied] = useState(false);
   const sequence = useRef(0);
+  const contextActions = useRef(new Set<string>());
 
   useEffect(() => {
     let alive = true, eventSeen = false;
@@ -39,7 +41,7 @@ const TextActions: React.FC = () => {
       setCapture(payload || {});
       setSelection(payload?.text || '');
       setError(payload?.error || '');
-      setResult(''); setResultAction(null); setBusyAction(null); setCopied(false); setLoading(false);
+      setResult(''); setResultAction(null); setBusyAction(null); setReplacing(false); setCopied(false); setLoading(false);
       if (payload?.shortcut) setShortcut(payload.shortcut);
     };
     const unsubscribe = electronService.onSelectedTextCaptured(payload => { eventSeen = true; receive(payload); });
@@ -55,15 +57,25 @@ const TextActions: React.FC = () => {
   const runAction = async (action: TextActionKind) => {
     if (!selection.trim() || busyAction) return;
     const request = ++sequence.current;
-    setBusyAction(action); setError(''); setResult(''); setResultAction(null);
+    setBusyAction(action); setError(capture.autoAction && !capture.canReplace && !PREVIEW_ACTIONS.has(action) ? capture.error || 'Não foi possível substituir nesta origem. Copie o resultado.' : ''); setResult(''); setResultAction(null);
     try {
       const text = await electronService.runSelectedTextAction({ action, text: selection, customInstruction, selectionId: capture.selectionId });
       if (request !== sequence.current) return;
       if (!text?.trim()) throw new Error('A IA não retornou texto. Tente novamente.');
       setResult(text); setResultAction(action);
+      if (shouldAutoReplace(action, capture)) {
+        setReplacing(true);
+        await electronService.replaceSelectedText(text, capture.selectionId);
+      }
     } catch (e) { if (request === sequence.current) setError((e as Error).message); }
-    finally { if (request === sequence.current) setBusyAction(null); }
+    finally { if (request === sequence.current) { setBusyAction(null); setReplacing(false); } }
   };
+  useEffect(() => {
+    if (capture.autoAction && capture.selectionId && selection.trim() && !contextActions.current.has(capture.selectionId)) {
+      contextActions.current.add(capture.selectionId);
+      void runAction(capture.autoAction);
+    }
+  }, [capture.selectionId, capture.autoAction, selection]);
   const replace = async () => {
     setReplacing(true); setError('');
     try { await electronService.replaceSelectedText(result, capture.selectionId); }
@@ -91,11 +103,11 @@ const TextActions: React.FC = () => {
       <button type="submit" disabled={!selection.trim() || !customInstruction.trim() || !!busyAction}>Gerar</button>
     </form>
     {(result || busyAction) && <section className="text-actions-result">
-      <span>Prévia — o texto original ainda não foi alterado</span>
+      <span>{replacing ? 'Aplicando na seleção original…' : 'Resultado'}</span>
       {busyAction ? <div className="text-actions-loading" role="status"><LoaderCircle className="spin" size={16} />Processando…</div> : <textarea aria-label="Resultado da transformação" value={result} onChange={event => setResult(event.target.value)} />}
     </section>}
     <footer className="text-actions-footer">
-      <small>{selection ? 'Só envia à OpenAI ao escolher uma ação. Substituição em texto simples, apenas em campos editáveis.' : 'Cole texto aqui se a captura não estiver disponível.'}</small>
+      <small>{selection ? 'Ao escolher uma transformação, aplica direto na seleção editável. Resumir e Explicar não substituem.' : 'Cole texto aqui se a captura não estiver disponível.'}</small>
       {result && <button type="button" onClick={async () => { await electronService.copySelectedTextResult(result); setCopied(true); }}><Clipboard size={13} />{copied ? 'Copiado' : 'Copiar'}</button>}
       {result && resultAction && !PREVIEW_ACTIONS.has(resultAction) && capture.canReplace && <button type="button" className="primary" disabled={replacing || !result.trim()} onClick={() => void replace()}>{replacing ? 'Substituindo…' : 'Substituir seleção'}</button>}
     </footer>

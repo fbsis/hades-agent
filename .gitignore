@@ -38,3 +38,6 @@ release/
 
 # Downloaded/built local Whisper runtime and model
 resources/whisper/
+
+# Built macOS Services helper (source in native/text-services)
+resources/text-actions/metis-text-service*

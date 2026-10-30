@@ -78,7 +78,8 @@ const Settings: React.FC<SettingsProps> = ({ embedded = false, onClosePanel }) =
           {activeTab === 'general' && (
             <GeneralTab 
               settings={settings.general} 
-              updateSettings={updateGeneralSettings} 
+              updateSettings={updateGeneralSettings}
+              onShortcutConfigured={shortcut => updateShortcutsSettings({ selectedTextActions: shortcut })}
             />
           )}
 

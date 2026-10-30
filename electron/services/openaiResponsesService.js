@@ -33,6 +33,7 @@ async function generateText({
   reasoningEffort = 'none',
   verbosity = 'low',
   textFormat,
+  requireComplete = false,
   signal,
   fetchImpl = globalThis.fetch
 }) {
@@ -74,6 +75,7 @@ async function generateText({
     throw new Error(`OpenAI HTTP ${response.status}: ${message}`);
   }
 
+  if (requireComplete && ((data.status && data.status !== 'completed') || data.incomplete_details)) throw new Error('A transformação ficou incompleta. O original foi mantido; selecione um trecho menor e tente novamente.');
   const text = extractResponseText(data);
   if (!text) throw new Error('OpenAI nao retornou texto.');
 

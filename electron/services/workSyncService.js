@@ -124,9 +124,13 @@ function applyPreferences(k, win) {
     });
   protectWindow(win);
 }
-function contextMenu(k, win) {
+function contextMenu(k, win, params = {}) {
   const p = config().windows[k] || {};
+  const text = require('./textContextMenu').textItems(params);
   return Menu.buildFromTemplate([
+    ...text,
+    ...(text.length ? [{ type: 'separator' }] : []),
+    { role: 'copy' }, { role: 'paste', enabled: !!params.isEditable },
     {
       label: "Sempre por cima",
       type: "checkbox",
@@ -223,8 +227,8 @@ function open(workspace, mode = "notes", toggle = false, instance = "") {
       if (/^https?:\/\//.test(url)) void shell.openExternal(url);
     }
   });
-  win.webContents.on("context-menu", () =>
-    contextMenu(k, win).popup({ window: win }),
+  win.webContents.on("context-menu", (_event, params) =>
+    contextMenu(k, win, params).popup({ window: win }),
   );
   let timer;
   const remember = () => {

@@ -121,6 +121,12 @@ class WindowManager {
 
     // Setup default handlers
     this.setupExternalLinks(win);
+    if (name !== 'textActions') win.webContents.on('context-menu', (_event, params) => {
+      const items = require('../services/textContextMenu').textItems(params);
+      const edit = [{ role: 'copy' }, { role: 'cut', enabled: params.isEditable }, { role: 'paste', enabled: params.isEditable }];
+      if (process.platform === 'darwin' && params.selectionText) edit.push({ role: 'services' });
+      Menu.buildFromTemplate([...items, ...(items.length ? [{ type: 'separator' }] : []), ...edit]).popup({ window: win });
+    });
 
     // Setup DevTools and Shortcuts
     win.webContents.on('before-input-event', (event, input) => {

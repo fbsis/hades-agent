@@ -8,6 +8,7 @@
     "dev:electron": "wait-on http://localhost:3000 && electron .",
     "dev:clean": "node scripts/kill-stale-electron.js",
     "whisper:prepare": "node scripts/prepare-whisper.js",
+    "text-services:build": "node scripts/build-text-services.js",
     "dev": "npm run dev:clean && npm run whisper:prepare && npx kill-port 3000 && concurrently \"npm run dev:react\" \"npm run dev:electron\"",
     "build": "vite build",
     "preview": "vite preview",
@@ -39,10 +40,15 @@
       "THIRD_PARTY_NOTICES.md",
       "package.json"
     ],
+    "beforePack": "scripts/build-text-services.js",
     "extraResources": [
       {
         "from": "resources/whisper",
         "to": "whisper"
+      },
+      {
+        "from": "resources/text-actions",
+        "to": "text-actions"
       }
     ],
     "win": {
@@ -69,6 +75,7 @@
       "icon": "public/icon/icon.png",
       "entitlements": "build/entitlements.mac.plist",
       "entitlementsInherit": "build/entitlements.mac.plist",
+      "binaries": ["Contents/Resources/text-actions/metis-text-service"],
       "extendInfo": {
         "NSMicrophoneUsageDescription": "O Metis usa o microfone para transcrever sua fala em reuniões, entrevistas e comandos de voz."
       }

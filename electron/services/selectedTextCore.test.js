@@ -33,6 +33,16 @@ describe('selected text capture and safe replacement', () => {
     expect(service.getSelection().selectionId).toBeTruthy();
     expect(execute).not.toHaveBeenCalled();
   });
+  it('rejects a context-menu capture if another process became focused', async () => {
+    const { service, clipboard } = setup();
+    await expect(service.capture(100)).rejects.toThrow('mudou');
+    expect(clipboard.writeText).not.toHaveBeenCalled();
+  });
+  it('retains a native context action for a late renderer without inventing a replacement target', () => {
+    const { service } = setup();
+    service.adopt('Texto do menu'); service.setAction('translate');
+    expect(service.getSelection()).toMatchObject({ text: 'Texto do menu', autoAction: 'translate', canReplace: false });
+  });
   it('uses copy fallback and restores known clipboard formats', async () => {
     const { service, clipboard, clipboardValue } = setup({ text: '' });
     expect((await service.capture()).text).toBe('Copiado da seleção');

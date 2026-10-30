@@ -177,7 +177,9 @@ Testes automatizados cobrem essas falhas com provedores/servidor simulados. Vali
 
 ### Ações de texto — Option+Espaço
 
-Selecione texto em outro app e pressione **Option+Espaço**. Há prévia antes de substituir, botão Copiar, instrução personalizada e campo para colar manualmente se a captura falhar. O dev requer permissões próprias de Acessibilidade/Automação. Se WritingTools estiver usando o mesmo atalho, pause-o; o Metis tenta assumir a combinação quando ela for liberada, sem interferir nos outros atalhos. Sem dependência do servidor web, sem memória automática, substituição em texto simples apenas em campos editáveis. [Detalhes e limites](docs/text-actions.md).
+Selecione texto em outro app e pressione **Option+Espaço**. Transformações substituem diretamente a seleção editável; Resumir/Explicar abrem resultado. Há botão Copiar, instrução personalizada e campo para colar manualmente se a captura falhar. O dev requer permissões próprias de Acessibilidade/Automação. Se WritingTools estiver usando o mesmo atalho, pause-o; o Metis tenta assumir a combinação quando ela for liberada, sem interferir nos outros atalhos. Sem dependência do servidor web, sem memória automática, substituição em texto simples apenas em campos editáveis.
+
+Em **Configurações → Configurações → Configurar ações de texto neste computador**, o assistente prepara Option+Espaço, mostra chave/permissões e instala **Traduzir/Corrigir/Reescrever com o Metis** no menu Serviços do macOS (14+), após confirmação. Serve para configurar outro Mac; o pacote inclui auxiliar nativo Apple Silicon/Intel, sem exigir ferramentas de desenvolvimento na máquina nova. Permissões e ativação de Serviços continuam manuais no sistema. Também há ações no botão direito dentro do Metis/notas. [Detalhes e limites](docs/text-actions.md).
 
 ### MCP tools
 

@@ -1,6 +1,7 @@
 const { app, BrowserWindow, ipcMain, globalShortcut, screen, session, systemPreferences, Menu } = require('electron');
 const path = require('node:path');
 const fs = require('node:fs');
+const serviceLaunch = process.argv.includes('--metis-service-launch');
 
 // Preserve existing local settings and history after the product rename.
 const migrateLegacyUserData = () => {
@@ -81,7 +82,7 @@ app.whenReady().then(() => {
 
   // Ask macOS up front while the app has a visible startup window. This also
   // covers resumed meetings whose original configuration predates mic capture.
-  if (process.platform === 'darwin' && jsonStore.getSettings()?.audio?.micEnabled !== false) {
+  if (!serviceLaunch && process.platform === 'darwin' && jsonStore.getSettings()?.audio?.micEnabled !== false) {
     const microphoneStatus = systemPreferences.getMediaAccessStatus('microphone');
     log.info(`[MEDIA] Startup microphone permission check: ${microphoneStatus}`);
     if (['not-determined', 'unknown'].includes(microphoneStatus)) {
@@ -107,36 +108,40 @@ app.whenReady().then(() => {
 
   // Initialize Core Modules
   initIPC();
+  void require('./electron/services/textServices').start();
   require('./electron/services/workSyncService').init();
   registerGlobalShortcuts();
   taskService.start();
 
   // Phase 5 - Dreaming: Process backlogs and schedule cycle
-  setTimeout(() => dreamService.runDreamCycle(), 10000); // 10s after start
-  setInterval(() => dreamService.runDreamCycle(), 1000 * 60 * 60 * 24); // Every 24h
+  if (!serviceLaunch) {
+    setTimeout(() => dreamService.runDreamCycle(), 10000); // 10s after start
+    setInterval(() => dreamService.runDreamCycle(), 1000 * 60 * 60 * 24); // Every 24h
+  }
 
   // Windows are no longer pre-created hidden at startup.
   // Pre-creating hidden transparent windows breaks Windows DWM's ability to apply setContentProtection correctly when they are later shown.
   // They will be created lazily when the user first triggers their shortcuts.
 
   // Splash Window — shown at startup, auto-closes after 2.8s
-  const splashWin = windowManager.createWindow('splash');
-  splashWin.once('ready-to-show', () => {
-    setTimeout(() => {
-      if (splashWin && !splashWin.isDestroyed()) {
-        splashWin.destroy();
-      }
-      const hasVisibleAppWindow = ['command', 'chat', 'settings', 'susurro', 'voice']
-        .some(name => {
-          const win = windowManager.get(name);
-          return win && !win.isDestroyed() && win.isVisible();
-        });
-      if (!hasVisibleAppWindow) {
-        windowManager.showCommandPanel('command');
-      }
-    }, 3000);
-  });
-
+  if (!serviceLaunch) {
+    const splashWin = windowManager.createWindow('splash');
+    splashWin.once('ready-to-show', () => {
+      setTimeout(() => {
+        if (splashWin && !splashWin.isDestroyed()) {
+          splashWin.destroy();
+        }
+        const hasVisibleAppWindow = ['command', 'chat', 'settings', 'susurro', 'voice']
+          .some(name => {
+            const win = windowManager.get(name);
+            return win && !win.isDestroyed() && win.isVisible();
+          });
+        if (!hasVisibleAppWindow) {
+          windowManager.showCommandPanel('command');
+        }
+      }, 3000);
+    });
+  }
   log.info('[MAIN] Metis initialized successfully.');
 });
 
@@ -179,6 +184,7 @@ app.on('window-all-closed', () => {
 });
 
 app.on('will-quit', () => {
+  void require('./electron/services/textServices').stop();
   globalShortcut.unregisterAll();
 });
 

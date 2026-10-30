@@ -1,8 +1,9 @@
 // Selection contents stay in memory. Never log or persist text/clipboard snapshots.
 const SNAPSHOT_SCRIPT = `
-function run() {
+function run(argv) {
   var se = Application('System Events');
   var app = se.applicationProcesses.whose({frontmost:true})[0];
+  if (argv && argv[0] && Number(app.unixId()) !== Number(argv[0])) throw new Error('TARGET_CHANGED');
   var text = '', field = '', role = '', windowTitle = '', editable = false;
   try { windowTitle = app.windows[0].name(); } catch (_) {}
   try {
@@ -39,15 +40,15 @@ function createSelectedTextService({ clipboard, execute, trusted = () => true, p
   let target = null;
   let state = { selectionId: id(), text: '', canReplace: false };
   const publicState = () => ({ ...state });
-  const friendly = error => /1743|not authorized to send Apple events/i.test(String(error?.message || error))
-    ? 'Permita o Metis Dev/Electron em Privacidade e Segurança → Automação → System Events. A permissão de Acessibilidade também é necessária.'
-    : /not authorized|assistive|1002|AX_NOT_TRUSTED/i.test(String(error?.message || error))
-      ? 'Permita o Metis Dev/Electron em Ajustes do Sistema → Privacidade e Segurança → Acessibilidade. O app instalado e o dev têm permissões separadas.'
-    : /RELEASE_SHORTCUT/.test(String(error?.message || error)) ? 'Solte as teclas do atalho e tente novamente.'
-      : /TARGET_CHANGED/.test(String(error?.message || error)) ? 'A seleção ou janela original mudou. Selecione o texto e abra as ações novamente; ou copie o resultado.'
-        : error?.stderr || error?.killed ? 'Não foi possível acessar o aplicativo original. Confira as permissões de Acessibilidade e tente novamente.'
-          : error?.message || 'Não foi possível ler o texto selecionado.';
-  async function snapshot() { return JSON.parse(await execute(SNAPSHOT_SCRIPT, [])); }
+  const friendly = error => {
+    const detail = String(error?.stderr || error?.message || error);
+    if (/1743|not authorized to send Apple events/i.test(detail)) return 'Permita o Metis Dev/Electron em Privacidade e Segurança → Automação → System Events. A permissão de Acessibilidade também é necessária.';
+    if (/not authorized|assistive|1002|AX_NOT_TRUSTED/i.test(detail)) return 'Permita o Metis Dev/Electron em Ajustes do Sistema → Privacidade e Segurança → Acessibilidade. O app instalado e o dev têm permissões separadas.';
+    if (/RELEASE_SHORTCUT/.test(detail)) return 'Solte as teclas do atalho e tente novamente.';
+    if (/TARGET_CHANGED/.test(detail)) return 'A seleção ou janela original mudou. Selecione o texto e abra as ações novamente; ou copie o resultado.';
+    return error?.stderr || error?.killed ? 'Não foi possível acessar o aplicativo original. Confira as permissões de Acessibilidade e tente novamente.' : error?.message || 'Não foi possível ler o texto selecionado.';
+  };
+  async function snapshot(expectedPid) { return JSON.parse(await execute(SNAPSHOT_SCRIPT, expectedPid ? [String(expectedPid)] : [])); }
   function clipboardSnapshot() {
     const image = clipboard.readImage();
     return { text: clipboard.readText(), html: clipboard.readHTML(), rtf: clipboard.readRTF(), ...(!image.isEmpty() ? { image } : {}) };
@@ -73,15 +74,18 @@ function createSelectedTextService({ clipboard, execute, trusted = () => true, p
   }
   return {
     getSelection: publicState,
+    adopt(text, error) { target = null; state = { selectionId: id(), text: String(text || '').slice(0, 30000), canReplace: false, error: error || '' }; },
+    setAction(action) { if (!['translate', 'proofread', 'rewrite', 'summarize', 'explain'].includes(action)) throw new Error('Ação inválida'); state = { ...state, autoAction: action }; },
     clear() { target = null; state = { selectionId: id(), text: '', canReplace: false }; },
     isCurrent: selectionId => selectionId === state.selectionId,
-    async capture() {
+    async capture(expectedPid) {
       target = null;
       state = { selectionId: id(), text: '', canReplace: false };
       try {
         if (platform !== 'darwin') throw new Error('Captura de seleção disponível inicialmente no macOS. Cole o texto no painel.');
         if (!trusted()) throw new Error('AX_NOT_TRUSTED');
-        const meta = await snapshot();
+        const meta = await snapshot(expectedPid);
+        if (expectedPid && meta.pid !== expectedPid) throw new Error('TARGET_CHANGED');
         if (!meta.pid || !meta.bundleId) throw new Error('Não foi possível identificar o aplicativo de origem.');
         // Prefer Accessibility: it does not touch the clipboard or depend on released modifier keys.
         const text = meta.text?.trim() ? meta.text : await copySelection(meta);
@@ -102,7 +106,7 @@ function createSelectedTextService({ clipboard, execute, trusted = () => true, p
       if (!String(text || '').trim()) throw new Error('Não existe resultado para substituir.');
       try {
         await execute(KEY_SCRIPT, [String(target.pid), 'activate']);
-        const current = await snapshot();
+        const current = await snapshot(target.pid);
         if (!current.editable || current.pid !== target.pid || current.bundleId !== target.bundleId || current.windowTitle !== target.windowTitle || (target.field && current.field !== target.field)) throw new Error('TARGET_CHANGED');
         const currentText = current.text?.trim() ? current.text : await copySelection(current);
         if (currentText !== target.text) throw new Error('TARGET_CHANGED');

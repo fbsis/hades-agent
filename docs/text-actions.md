@@ -16,12 +16,27 @@ Se WritingTools/outro app ocupar esse atalho, o Metis aguarda sua liberação e 
 
 Escolha Corrigir, Reescrever, Traduzir, etc., ou uma instrução personalizada. Só essa ação envia texto à OpenAI já configurada; não depende de `work.home`, nem cria histórico/aprendizado automaticamente. A chave deve existir no perfil usado e o provedor exige internet/acesso ao modelo.
 
-Todo resultado aparece primeiro em **prévia editável**, sem alterar o app original. Use **Copiar** ou **Substituir seleção**. Substituição só é oferecida para origem reconhecida como editável, não para terminais ou seleção truncada acima de 30 mil caracteres. Ela confere ID da seleção, processo, janela, campo identificado e texto ainda selecionado antes de colar; se mudou, recusa e mantém o resultado para copiar. Não há garantia universal para editores com APIs de acessibilidade incompletas.
+Ao escolher Traduzir, Corrigir, Reescrever, mudar tom ou outra transformação, o resultado **substitui diretamente** a seleção editável, sem uma segunda confirmação. Se não puder aplicar com segurança, mantém o resultado no painel para copiar. Substituição só é oferecida para origem reconhecida como editável, não para terminais ou seleção truncada acima de 30 mil caracteres. Ela confere ID da seleção, processo, janela, campo identificado e texto ainda selecionado antes de colar; se mudou, recusa e mantém o resultado para copiar. Não há garantia universal para editores com APIs de acessibilidade incompletas.
+
+Dentro do Metis e das notas, o botão direito sobre texto oferece essas ações; senhas não recebem o menu. O clique no item já autoriza a transformação. Resumir/Explicar abrem o resultado e não substituem.
 
 A substituição é de **texto simples**, não preserva automaticamente estilos RTF/negrito/links do documento. Resumir/Explicar são somente prévia/cópia. Clipboard só é alterado definitivamente quando você escolhe Copiar. A seleção é descartada da memória ao fechar ou após aplicar; respostas atrasadas de ações antigas são ignoradas.
+
+## Configurar outro computador — botão no Metis
+
+Em **Configurações → Configurações → Configurar ações de texto neste computador**, abra o assistente e clique em **Configurar neste Mac**. Ele mostra chave OpenAI presente/ausente (nunca o valor), Acessibilidade, atalho e quantidade de Serviços instalados. Apenas o campo do atalho é atualizado; outras preferências e chaves não são importadas/alteradas. Salve a chave no campo OpenAI se estiver ausente.
+
+Após confirmação nativa, instala/atualiza somente três workflows gerenciados em `~/Library/Services`: **Traduzir com o Metis**, **Corrigir com o Metis** e **Reescrever com o Metis**. Em apps compatíveis, aparecem no botão direito → Serviços e devolvem o resultado diretamente ao editor. A visibilidade depende do app e da ativação em Teclado → Atalhos → Serviços. O botão para remover apaga somente workflows identificados como criados pelo Metis; arquivos de outros apps não são sobrescritos.
+
+Essa integração exige **macOS 14+**. O pacote inclui auxiliar Swift universal (Apple Silicon + Intel), compilado pelo hook `beforePack`; em um Mac novo com app empacotado não exige instalar ferramentas de desenvolvimento. No dev, o botão pode compilar o auxiliar com Command Line Tools já instalado; não baixa ferramentas. Também existe `npm run text-services:build`.
+
+O workflow envia texto por stdin ao auxiliar, que usa socket Unix privado (diretório 0700/socket 0600), com token local em configuração 0600. Não há texto selecionado/chave OpenAI em URLs, argumentos de processo ou arquivos de requisição. Somente Traduzir/Corrigir/Reescrever são aceitos, há limites de tamanho/concorrência, e erros não devolvem resultados parciais para sobrescrever o original. O auxiliar abre o Metis em segundo plano se necessário; esse início por Serviço não abre splash/janela, não solicita microfone e não inicia Dreaming. Não cria ícone no Dock/menu bar. O texto só sai do computador quando a ação chama a OpenAI configurada.
+
+Acessibilidade/Automação continuam exigindo autorização do usuário para o atalho e ações de contexto internas. Os Serviços recebem/devolvem texto pelo macOS, sem simular teclado ou usar o clipboard global. Serviços, permissões e chave são locais a cada computador; a instalação não altera WritingTools.
 
 ## Validação
 
 - Testes unitários cobrem erro de permissão retido, AX primeiro, fallback/clipboard, whitespace, limite, IDs expirados, janela/campo/texto alterados, descarte e handoff do atalho.
-- Smoke com Electron/React reais e perfil temporário validou janela preenchida, erro legível, colagem manual, transformação em prévia, confirmação para substituir e resposta inicial atrasada. Usou somente texto de fixture, sem clipboard de usuário, IA real ou leitura de seleção de outro app.
+- Smoke com Electron/React reais e perfil temporário validou janela preenchida, erro legível, colagem manual, substituição direta (inclusive ação de contexto), cópia manual e resposta inicial atrasada. Usou somente texto de fixture, sem clipboard de usuário, IA real ou leitura de seleção de outro app.
+- Auxiliar Swift universal e workflow Automator foram executados com transformação/servidor de fixture e diretório temporário; devolveram texto sem instalar itens na Library do usuário ou chamar IA real. O botão do assistente foi testado no renderer Electron, incluindo salvar outras preferências sem desfazer o novo atalho.
 - Aprovação da captura no app real continua necessária após liberar as permissões no macOS. A integração foi reimplementada no Metis, sem incorporar o código GPLv3 de WritingTools.

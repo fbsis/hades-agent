@@ -8,7 +8,8 @@ import {
   MicrophoneAccessResult,
   McpServerTestResult,
   McpStatus,
-  SettingsData
+  SettingsData,
+  TextActionsSetupState
 } from '../types/electron';
 import type { OpenAIChatInput, OpenAIChatResult, OpenAIChatStreamEvent } from '../types/electron';
 import type { SelectedTextPayload, TextActionRequest } from '../types/electron';
@@ -142,7 +143,18 @@ class ElectronService {
   async copySelectedTextResult(text: string) {
     await this.handleResponse(this.electron?.copySelectedTextResult(text), undefined, 'copySelectedTextResult');
   }
-  openTextAccessibility(section: 'accessibility' | 'automation' = 'accessibility') { return this.electron?.openTextAccessibility?.(section); }
+  async getTextActionsSetup() { return this.handleResponse<TextActionsSetupState | null>(this.electron?.getTextActionsSetup?.(), null, 'getTextActionsSetup'); }
+  async configureTextActionsSetup() {
+    const response = await this.electron?.configureTextActionsSetup?.();
+    if (!response?.success) throw new Error(response?.error || 'Reinicie o Metis para carregar o assistente.');
+    return response.data!;
+  }
+  async removeTextActionsSetup() {
+    const response = await this.electron?.removeTextActionsSetup?.();
+    if (!response?.success) throw new Error(response?.error || 'Reinicie o Metis para carregar o assistente.');
+    return response.data!;
+  }
+  openTextAccessibility(section: 'accessibility' | 'automation' | 'services' = 'accessibility') { return this.electron?.openTextAccessibility?.(section); }
   async replaceSelectedText(text: string, selectionId?: string) {
     const response = await this.electron?.replaceSelectedText(text, selectionId);
     if (!response?.success) throw new Error(response?.error || 'Não foi possível substituir o texto.');
