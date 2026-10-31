@@ -20,6 +20,63 @@ function setup({ trusted = true, text = metadata.text, copiedText = 'Copiado da 
   return { service, clipboard, execute, current: update => { current = { ...current, ...update }; }, clipboardValue: () => value };
 }
 describe('selected text capture and safe replacement', () => {
+  it('captures a Metis editor without Accessibility, Apple events or clipboard', async () => {
+    const { service, execute, clipboard } = setup({ trusted: false });
+    const replace = vi.fn(async () => true);
+    const captured = await service.captureEditor(async () => ({ text: 'Original', replace }));
+    expect(captured.canReplace).toBe(true);
+    await service.replace('Transformado', captured.selectionId);
+    expect(replace).toHaveBeenCalledWith('Transformado'); expect(execute).not.toHaveBeenCalled(); expect(clipboard.writeText).not.toHaveBeenCalled();
+  });
+  it('restores only the captured owner on close and forgets it after clearing', async () => {
+    const { service } = setup(); const restore = vi.fn();
+    await service.captureEditor(async () => ({ text: 'Original', replace: async () => true, restore }));
+    service.restoreSource(); expect(restore).toHaveBeenCalledOnce();
+    service.clear(); service.restoreSource(); expect(restore).toHaveBeenCalledOnce();
+  });
+  it('keeps preview source restoration without granting write access', async () => {
+    const { service } = setup(); const restore = vi.fn();
+    service.presentResult('Original', 'Resumo', '', restore); service.restoreSource();
+    expect(restore).toHaveBeenCalledOnce(); expect(service.getSelection().canReplace).toBe(false);
+    await expect(service.replace('x', service.getSelection().selectionId)).rejects.toThrow('indisponível');
+  });
+  it('does not activate an unknown window without a usable identity', async () => {
+    const { service, current, execute } = setup(); current({ window: { title: '', identifier: '', frame: '' } });
+    const captured = await service.capture(); expect(captured.canReplace).toBe(false);
+    await expect(service.replace('x', captured.selectionId)).rejects.toThrow('indisponível');
+    expect(execute.mock.calls.some(([, args]) => args[1] === 'activate')).toBe(false);
+  });
+  it('an empty Metis selection never falls back to copying/reactivating the app', async () => {
+    const { service, execute, clipboard } = setup();
+    await expect(service.captureEditor(async () => ({ text: '' }))).rejects.toThrow('Nenhum texto selecionado');
+    expect(execute).not.toHaveBeenCalled(); expect(clipboard.writeText).not.toHaveBeenCalled();
+  });
+  it('never overwrites a newer capture with a slow earlier editor snapshot', async () => {
+    const { service } = setup(); let ready;
+    const pending = service.captureEditor(() => new Promise(resolve => { ready = resolve; }));
+    service.presentResult('Mais recente', 'Resultado', ''); ready({ text: 'Antiga', replace: async () => true });
+    await expect(pending).rejects.toThrow('mudou'); expect(service.getSelection().text).toBe('Mais recente');
+  });
+  it('waits for transient AX focus loss instead of rejecting after a fixed 150ms', async () => {
+    const { service, execute } = setup(); const captured = await service.capture(); let calls = 0;
+    execute.mockImplementation(async (script) => script === SNAPSHOT_SCRIPT ? JSON.stringify(++calls < 3 ? { ...metadata, editable: false, field: '' } : metadata) : 'ok');
+    await service.replace('Transformado', captured.selectionId);
+    expect(calls).toBe(3);
+  });
+  it('does not invalidate a stable window because its title changed', async () => {
+    const { service, current } = setup();
+    const window = { title: 'Documento', identifier: 'window-1', frame: '[[0,0],[600,400]]' };
+    current({ window }); const captured = await service.capture();
+    current({ windowTitle: 'Documento — salvo', window: { ...window, title: 'Documento — salvo' } });
+    await expect(service.replace('Transformado', captured.selectionId)).resolves.toBeUndefined();
+  });
+  it('diagnostics contain only stage/reason codes, never private text or titles', async () => {
+    const diagnostic = vi.fn();
+    const service = createSelectedTextService({ clipboard: {}, execute: async () => { throw new Error('TARGET_CHANGED:field sensitive-fixture-content'); }, platform: 'darwin', diagnose: diagnostic });
+    await expect(service.capture()).rejects.toThrow('mudou');
+    expect(diagnostic).toHaveBeenCalledWith({ stage: 'capture', reason: 'field' });
+    expect(JSON.stringify(diagnostic.mock.calls)).not.toContain('sensitive');
+  });
   it('reads Accessibility first, preserving whitespace without touching the clipboard', async () => {
     const { service, clipboard } = setup();
     expect(await service.capture()).toMatchObject({ text: metadata.text, canReplace: true });

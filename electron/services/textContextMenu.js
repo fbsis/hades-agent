@@ -7,15 +7,16 @@ function textItems(params, win) {
   return actions.map(([action, label]) => ({ label, click: async () => {
     const selection = require('./selectedTextService');
     const manager = require('../windows/windowManager');
+    const restore = win ? () => { if (!win.isDestroyed()) { win.show(); win.focus(); } } : undefined;
     let result = '';
     try {
       const source = await bookmark;
       result = await require('./textActionService').runTextAction({ action, text: params.selectionText });
       if (!['summarize', 'explain'].includes(action) && source && await source.replace(result)) return;
       const error = !['summarize', 'explain'].includes(action) ? 'A seleção não é editável ou mudou. O original foi mantido; o resultado está disponível para copiar.' : '';
-      selection.presentResult(params.selectionText, result, error);
+      selection.presentResult(params.selectionText, result, error, restore);
     } catch {
-      selection.presentResult(params.selectionText, result, 'Não foi possível aplicar a transformação. O original foi mantido. Confira a seleção e a configuração OpenAI.');
+      selection.presentResult(params.selectionText, result, 'Não foi possível aplicar a transformação. O original foi mantido. Confira a seleção e a configuração OpenAI.', restore);
     }
     manager.showTextActions(selection.getSelection());
   } }));

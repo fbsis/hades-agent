@@ -44,7 +44,7 @@ function registerTextActionHandlers() {
     try {
       win.hide();
       await selectedTextService.replace(text, selectionId);
-      selectedTextService.clear();
+      if (selectedTextService.isCurrent(selectionId)) selectedTextService.clear();
       return { success: true };
     } catch (error) {
       if (!win.isDestroyed()) { win.show(); win.focus(); }
@@ -56,7 +56,7 @@ function registerTextActionHandlers() {
     return shell.openExternal(section === 'services' ? 'x-apple.systempreferences:com.apple.preference.keyboard?Services' : section === 'automation' ? 'x-apple.systempreferences:com.apple.preference.security?Privacy_Automation' : 'x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility');
   });
   ipcMain.handle('text-actions-close', event => {
-    trusted(event).hide(); selectedTextService.clear(); return { success: true };
+    trusted(event).hide(); selectedTextService.restoreSource?.(); selectedTextService.clear(); return { success: true };
   });
 }
 module.exports = registerTextActionHandlers;

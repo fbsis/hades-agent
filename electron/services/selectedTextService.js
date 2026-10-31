@@ -1,13 +1,21 @@
 const { clipboard, systemPreferences } = require('electron');
-const { execFile } = require('node:child_process');
-const { promisify } = require('node:util');
 const { createSelectedTextService } = require('./selectedTextCore');
-const exec = promisify(execFile);
-module.exports = createSelectedTextService({
+const { execute } = require('./selectedTextScriptTransport');
+const { readSelection, captureBookmark } = require('./textSelectionBookmark');
+const service = createSelectedTextService({
   clipboard,
   trusted: () => systemPreferences.isTrustedAccessibilityClient(false),
-  execute: async (script, args) => {
-    const { stdout } = await exec('osascript', ['-l', 'JavaScript', '-e', script, ...args], { timeout: 6000, maxBuffer: 2 * 1024 * 1024 });
-    return stdout.trim();
-  }
+  execute,
+  diagnose: event => require('electron-log').info('[TEXT ACTIONS] Safe diagnostic', event)
 });
+service.captureWindow = win => service.captureEditor(async () => {
+  const selected = await readSelection(win);
+  const bookmark = selected.text?.trim() && selected.text.length <= 30000 ? await captureBookmark(win, selected.text) : null;
+  const restore = () => { if (!win.isDestroyed()) { win.show(); win.focus(); } };
+  return { ...selected, restore, ...(bookmark ? { replace: async text => {
+    const applied = await bookmark.replace(text);
+    if (applied) restore();
+    return applied;
+  } } : {}) };
+});
+module.exports = service;

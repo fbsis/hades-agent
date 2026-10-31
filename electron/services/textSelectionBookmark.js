@@ -51,4 +51,14 @@ async function captureBookmark(win, expected) {
     }
   };
 }
-module.exports = { captureBookmark };
+async function readSelection(win) {
+  return win.webContents.executeJavaScriptInIsolatedWorld(WORLD, [{ code: `(() => {
+    const node = document.activeElement;
+    if (node && (node.tagName === 'INPUT' || node.tagName === 'TEXTAREA')) {
+      if (node.type === 'password') return {text:'',error:'Ações de texto não estão disponíveis em campos de senha.'};
+      if (typeof node.selectionStart === 'number') return {text:node.value.slice(node.selectionStart,node.selectionEnd)};
+    }
+    return {text:getSelection()?.toString() || ''};
+  })()` }]);
+}
+module.exports = { captureBookmark, readSelection };

@@ -1,4 +1,4 @@
-const { globalShortcut, app } = require('electron');
+const { globalShortcut, app, BrowserWindow } = require('electron');
 const windowManager = require('./windows/windowManager');
 const jsonStore = require('./store/jsonStore');
 const appState = require('./appState');
@@ -110,7 +110,11 @@ async function openSelectedTextActions() {
   if (isCapturingSelectedText) return;
   isCapturingSelectedText = true;
   try {
-    const selection = await selectedTextService.capture();
+    // macOS non-activating panels can own keyboard focus while app.isActive()
+    // is false and System Events still reports the previous web app as frontmost.
+    const owner = BrowserWindow.getFocusedWindow();
+    if (owner && owner === windowManager.get('textActions')) { owner.hide(); selectedTextService.restoreSource?.(); selectedTextService.clear(); return; }
+    const selection = owner ? await selectedTextService.captureWindow(owner) : await selectedTextService.capture();
     windowManager.showTextActions(selection);
   } catch (error) {
     windowManager.showTextActions({ ...selectedTextService.getSelection(), error: error.message });
