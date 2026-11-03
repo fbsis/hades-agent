@@ -399,6 +399,15 @@ function init() {
   ipcMain.handle("metis-quick:ack", (event, identifier) => { trustedCore(event); quickMeeting.acknowledge(identifier); });
   ipcMain.handle("metis-notes:action", async (event, action) => {
     const workspace = workspaceForEvent(event, windows, config().baseURL);
+    const ownerEntry = [...windows.entries()].find(([, win]) => win.webContents === event.sender);
+    if (!ownerEntry) throw new Error("Janela de notas não encontrada.");
+    const [ownerKey] = ownerEntry;
+    if (action === "pin-status") return { pinned: !!config().windows[ownerKey]?.pinned };
+    if (action === "toggle-pinned") {
+      const pinned = !config().windows[ownerKey]?.pinned;
+      preferences(ownerKey, { pinned });
+      return { pinned };
+    }
     if (action === "new-window") { open(workspace, "notes", false, randomUUID()); return { opened: true }; }
     if (action !== "quick-meeting") throw new Error("Ação não permitida.");
     const company = config().workspaces.find(w => w.id === workspace);

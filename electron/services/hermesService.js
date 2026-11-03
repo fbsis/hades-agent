@@ -81,6 +81,40 @@ function extractToolProgress(data) {
   return data.message || data.name || data.tool || data.title || '';
 }
 
+function sanitizeUrl(value) {
+  try {
+    const url = new URL(value);
+    url.username = '';
+    url.password = '';
+    url.search = '';
+    url.hash = '';
+    return url.toString();
+  } catch {
+    return String(value || 'URL desconhecida')
+      .replace(/\/\/[^/]*@/, '//')
+      .split(/[?#]/)[0];
+  }
+}
+
+function formatRequestError(error, url) {
+  if (/^Hermes (HTTP|SSE):/.test(String(error?.message || ''))) return error.message;
+  const cause = error?.cause;
+  const details = [error?.message, cause?.code, cause?.message]
+    .filter((value, index, values) => value && values.indexOf(value) === index)
+    .join(' | ');
+  return `Falha ao conectar ao Hermes em ${sanitizeUrl(url)}: ${details || 'erro de rede desconhecido'}`;
+}
+
+function extractSseError(eventType, data) {
+  const isErrorEvent = eventType === 'error' || eventType.endsWith('.error');
+  if (!isErrorEvent && !data?.error) return '';
+  const error = data?.error;
+  if (typeof error === 'string') return error;
+  if (typeof error?.message === 'string') return error.message;
+  if (typeof data?.message === 'string') return data.message;
+  return 'Hermes retornou um erro durante o streaming.';
+}
+
 class HermesService {
   constructor() {
     this.usagePath = null;
@@ -192,6 +226,8 @@ class HermesService {
       }
 
       return data;
+    } catch (error) {
+      throw new Error(formatRequestError(error, url));
     } finally {
       clearTimeout(timeout);
     }
@@ -412,6 +448,9 @@ class HermesService {
         return;
       }
 
+      const streamError = extractSseError(eventType, data);
+      if (streamError) throw new Error(`Hermes SSE: ${streamError}`);
+
       const delta = extractStreamDelta(data);
       if (delta) {
         text += delta;
@@ -425,7 +464,7 @@ class HermesService {
       emit({ type: 'start' });
       const response = await fetch(url, {
         method: 'POST',
-        headers: this.getHeaders(config),
+        headers: { ...this.getHeaders(config), Accept: 'text/event-stream' },
         body: JSON.stringify({ ...body, stream: true }),
         signal: controller.signal
       });
@@ -488,17 +527,19 @@ class HermesService {
       return result;
     } catch (error) {
       const durationMs = Date.now() - start;
+      const message = controller.signal.aborted && controller.signal.reason === 'cancelled'
+        ? 'cancelled'
+        : formatRequestError(error, url);
       this.appendUsage({
         type: args.logType || 'ask_stream',
         success: false,
         durationMs,
         promptChars: JSON.stringify(messages).length,
         responseChars: text.length,
-        error: error.message,
+        error: message,
         model: config.model
       });
-      const wasCancelled = controller.signal.aborted && controller.signal.reason === 'cancelled';
-      const message = wasCancelled ? 'cancelled' : error.message;
+      const wasCancelled = message === 'cancelled';
       if (!wasCancelled) logger.error('HERMES', 'ask stream failed', error);
       emit({ type: wasCancelled ? 'cancelled' : 'error', error: message });
       return { success: false, cancelled: wasCancelled, error: message, text, durationMs };
