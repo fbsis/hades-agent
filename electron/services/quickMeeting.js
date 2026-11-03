@@ -3,14 +3,14 @@ const { DEFAULT_CONFIG } = require('./interviewPrompt');
 function createQuickMeeting({ getSettings, getSessions, show, notify, now = () => new Date(), id = () => crypto.randomUUID() }) {
   let pending;
   return {
-    request(workspace) {
+    request(workspace, context = {}) {
       const company = getSettings().workSync?.workspaces?.find(w => w.id === workspace && !w.archived);
       if (!company) throw new Error('Empresa não disponível neste computador.');
       if (pending || getSessions().some(s => s.status === 'active' && !s.isTestMode)) throw new Error('Já existe uma reunião em andamento ou abrindo. Encerre-a antes de iniciar outra.');
       pending = { id: id(), config: {
         ...DEFAULT_CONFIG, mode: 'meeting', workspaceId: company.id, company: company.name,
-        title: '', description: '',
-        quickMeeting: true, meetingKind: 'ad_hoc', learnAfterFinish: true, syncTranscript: false,
+        title: String(context.title || '').slice(0, 300), description: String(context.description || '').slice(0, 20000),
+        quickMeeting: true, meetingKind: context.kind === 'daily' || context.kind === 'planning' ? context.kind : 'ad_hoc', learnAfterFinish: true, syncTranscript: false,
         saveTranscript: true, retainAudio: true, transcribeMicrophone: true,
         contextDocumentIds: []
       } };

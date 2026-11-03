@@ -397,7 +397,7 @@ function init() {
   initialized = true;
   ipcMain.handle("metis-quick:pending", event => { trustedCore(event); return quickMeeting.peek(); });
   ipcMain.handle("metis-quick:ack", (event, identifier) => { trustedCore(event); quickMeeting.acknowledge(identifier); });
-  ipcMain.handle("metis-notes:action", async (event, action) => {
+  ipcMain.handle("metis-notes:action", async (event, action, args = {}) => {
     const workspace = workspaceForEvent(event, windows, config().baseURL);
     const ownerEntry = [...windows.entries()].find(([, win]) => win.webContents === event.sender);
     if (!ownerEntry) throw new Error("Janela de notas não encontrada.");
@@ -419,7 +419,7 @@ function init() {
     });
     if (answer.response !== 0) return { cancelled: true };
     workspaceForEvent(event, windows, config().baseURL);
-    return quickMeeting.request(workspace);
+    return quickMeeting.request(workspace, args);
   });
   ipcMain.handle("metis-work:command", async (event, command, args = {}) => {
     trusted(event);
