@@ -41,6 +41,7 @@ const InterviewCopilot: React.FC<InterviewCopilotProps> = ({ embedded = false, o
   const [responseView, setResponseView] = useState<'answer' | 'suggestions'>('answer');
   const [quickError, setQuickError] = useState('');
   const quickIds = useRef(new Set<string>());
+  const pendingQuickRequest = useRef<QuickMeetingRequest | null>(null);
   const quickHandler = useRef<(request: QuickMeetingRequest) => Promise<void>>(async () => {});
   quickHandler.current = async request => {
     if (quickIds.current.has(request.id)) return;
@@ -48,13 +49,10 @@ const InterviewCopilot: React.FC<InterviewCopilotProps> = ({ embedded = false, o
     try {
       if (copilot.session?.status === 'active') throw new Error('Encerre a reunião atual antes de iniciar outra.');
       setQuickError('');
-      const session = await electronService.createInterviewSession(request.config);
-      if (!session) throw new Error('Não foi possível preparar a reunião rápida.');
-      copilot.loadSession(session);
-      setStartSessionId(session.id);
-      setView('live');
+      pendingQuickRequest.current = request;
+      copilot.setConfig({ ...request.config, title: '', description: '' });
+      setView('form');
     } catch (error) { setQuickError((error as Error).message); }
-    finally { await electronService.acknowledgeQuickMeeting(request.id); }
   };
   useEffect(() => {
     const remove = electronService.onQuickMeetingRequest(request => { void quickHandler.current(request); });
@@ -105,8 +103,19 @@ const InterviewCopilot: React.FC<InterviewCopilotProps> = ({ embedded = false, o
   };
 
   const returnToList = async () => {
+    if (pendingQuickRequest.current) {
+      await electronService.acknowledgeQuickMeeting(pendingQuickRequest.current.id);
+      pendingQuickRequest.current = null;
+    }
     if (copilot.session?.status !== 'active') await copilot.newSession();
     setView('list');
+  };
+  const startMeeting = async () => {
+    await copilot.startListening();
+    if (pendingQuickRequest.current) {
+      await electronService.acknowledgeQuickMeeting(pendingQuickRequest.current.id);
+      pendingQuickRequest.current = null;
+    }
   };
 
   const finishAndReturnToList = async (forceCompleted = false) => {
@@ -273,7 +282,7 @@ const InterviewCopilot: React.FC<InterviewCopilotProps> = ({ embedded = false, o
           error={copilot.error}
           isEditing={copilot.session?.status === 'pending'}
           onConfigChange={copilot.setConfig}
-          onStart={copilot.startListening}
+          onStart={startMeeting}
           onTest={() => { void copilot.startTestSession(); }}
           onSavePending={async () => { const saved = await copilot.savePendingSession(); if (saved) setView('list'); }}
           onCancel={returnToList}

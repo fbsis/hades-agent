@@ -4,6 +4,7 @@ export type InterviewSessionStatus = 'pending' | 'active' | 'completed' | 'archi
 export type InterviewLanguage = 'auto' | 'pt-BR' | 'en-US';
 export type InterviewAnswerStyle = 'natural' | 'concise' | 'star' | 'technical';
 export type MeetingMode = 'meeting' | 'interview';
+export type MeetingKind = 'ad_hoc' | 'daily' | 'planning';
 export type InterviewFormat = 'standard';
 export type InterviewTranscriptionProvider = 'whisper-local';
 export type InterviewAnswerVariant = 'answer' | 'quick' | 'shorter' | 'detail' | 'star' | 'code' | 'retry';
@@ -24,6 +25,7 @@ export interface InterviewConfig {
   workspaceId?: string;
   syncTranscript?: boolean;
   mode: MeetingMode;
+  meetingKind?: MeetingKind;
   interviewFormat: InterviewFormat;
   title: string;
   description: string;
@@ -203,6 +205,7 @@ export interface InterviewScreenAnalysis {
 
 export const DEFAULT_INTERVIEW_CONFIG: InterviewConfig = {
   mode: 'meeting',
+  meetingKind: 'ad_hoc',
   interviewFormat: 'standard',
   title: '',
   description: '',

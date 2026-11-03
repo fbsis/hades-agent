@@ -9,8 +9,8 @@ function createQuickMeeting({ getSettings, getSessions, show, notify, now = () =
       if (pending || getSessions().some(s => s.status === 'active' && !s.isTestMode)) throw new Error('Já existe uma reunião em andamento ou abrindo. Encerre-a antes de iniciar outra.');
       pending = { id: id(), config: {
         ...DEFAULT_CONFIG, mode: 'meeting', workspaceId: company.id, company: company.name,
-        title: `${company.name} · Reunião rápida · ${now().toLocaleString('pt-BR')}`,
-        quickMeeting: true, learnAfterFinish: true, syncTranscript: false,
+        title: '', description: '',
+        quickMeeting: true, meetingKind: 'ad_hoc', learnAfterFinish: true, syncTranscript: false,
         saveTranscript: true, retainAudio: true, transcribeMicrophone: true,
         contextDocumentIds: []
       } };
