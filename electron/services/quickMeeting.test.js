@@ -11,7 +11,7 @@ describe('quick meetings', () => {
     const { coordinator, show, notify } = setup();
     expect(coordinator.request('client')).toEqual({ queued: true });
     const request = coordinator.peek();
-    expect(request.config).toMatchObject({ workspaceId: 'client', company: 'Client', quickMeeting: true, learnAfterFinish: true, retainAudio: true, saveTranscript: true, transcribeMicrophone: true, syncTranscript: false, contextDocumentIds: [] });
+    expect(request.config).toMatchObject({ workspaceId: 'client', company: 'Client', quickMeeting: true, learnAfterFinish: true, retainAudio: true, saveTranscript: true, transcribeMicrophone: true, syncTranscript: true, contextDocumentIds: [] });
     expect(show).toHaveBeenCalledOnce();
     expect(notify).toHaveBeenCalledWith(request);
     coordinator.acknowledge('wrong-request');

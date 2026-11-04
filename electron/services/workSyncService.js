@@ -410,14 +410,8 @@ function init() {
     }
     if (action === "new-window") { open(workspace, "notes", false, randomUUID()); return { opened: true }; }
     if (action !== "quick-meeting") throw new Error("Ação não permitida.");
-    const company = config().workspaces.find(w => w.id === workspace);
-    const owner = [...windows.values()].find(win => win.webContents === event.sender);
-    const answer = await dialog.showMessageBox(owner, {
-      type: "question", buttons: ["Iniciar gravação", "Cancelar"], defaultId: 1, cancelId: 1,
-      message: `Reunião rápida — ${company.name}`,
-      detail: "Capturar áudio do sistema e microfone? Avise os participantes. Gravação e transcrição ficam neste computador. Só após encerrar, o resumo vira aprendizado desta empresa e é sincronizado com o Metis web; o áudio nunca é enviado. A publicação no OpenViking não é automática.",
-    });
-    if (answer.response !== 0) return { cancelled: true };
+    // The workspace is fixed by the authenticated notes window. Start the quick
+    // meeting immediately; the title is collected by the meeting setup panel.
     workspaceForEvent(event, windows, config().baseURL);
     return quickMeeting.request(workspace, args);
   });

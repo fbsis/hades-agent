@@ -10,7 +10,7 @@ function createQuickMeeting({ getSettings, getSessions, show, notify, now = () =
       pending = { id: id(), config: {
         ...DEFAULT_CONFIG, mode: 'meeting', workspaceId: company.id, company: company.name,
         title: String(context.title || '').slice(0, 300), description: String(context.description || '').slice(0, 20000),
-        quickMeeting: true, meetingKind: context.kind === 'daily' || context.kind === 'planning' ? context.kind : 'ad_hoc', learnAfterFinish: true, syncTranscript: false,
+        quickMeeting: true, meetingKind: context.kind === 'daily' || context.kind === 'planning' ? context.kind : 'ad_hoc', learnAfterFinish: true, syncTranscript: true,
         saveTranscript: true, retainAudio: true, transcribeMicrophone: true,
         contextDocumentIds: []
       } };
