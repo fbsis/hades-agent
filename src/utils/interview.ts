@@ -22,6 +22,7 @@ export const MEETING_INACTIVITY_FINISH_MS = 5 * 60 * 1000;
 export const normalizeInterviewConfig = (config: Partial<InterviewConfig> = {}): InterviewConfig => ({
   ...DEFAULT_INTERVIEW_CONFIG,
   ...config,
+  workspaceId: config.quickMeeting ? config.workspaceId : (config.workspaceId || 'personal'),
   interviewFormat: 'standard'
 });
 
