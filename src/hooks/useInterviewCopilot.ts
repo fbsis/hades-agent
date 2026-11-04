@@ -158,6 +158,14 @@ export const useInterviewCopilot = (options: { embedded?: boolean; onClosePanel?
     return () => clearInterval(timer);
   }, [session?.startedAt]);
 
+  const setAnswerStyle = useCallback(async (answerStyle: InterviewConfig['answerStyle']) => {
+    setConfig(current => ({ ...current, answerStyle }));
+    const active = sessionRef.current;
+    if (!active) return;
+    const updated = await electronService.updateInterviewSession(active.id, { config: { ...active.config, answerStyle } });
+    if (updated) updateSessionState(() => updated);
+  }, []);
+
   const updateSessionState = useCallback((updater: (current: InterviewSession) => InterviewSession) => {
     setSession(current => {
       if (!current) return current;
@@ -1244,6 +1252,7 @@ export const useInterviewCopilot = (options: { embedded?: boolean; onClosePanel?
   return {
     config,
     setConfig,
+    setAnswerStyle,
     session,
     recentSessions,
     flowStatus,

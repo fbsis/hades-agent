@@ -2,7 +2,7 @@ export type InterviewSource = 'interviewer' | 'candidate' | 'screen' | 'manual';
 export type InterviewFlowStatus = 'idle' | 'starting' | 'listening' | 'answering' | 'stopping' | 'error';
 export type InterviewSessionStatus = 'pending' | 'active' | 'completed' | 'archived';
 export type InterviewLanguage = 'auto' | 'pt-BR' | 'en-US';
-export type InterviewAnswerStyle = 'natural' | 'concise' | 'star' | 'technical';
+export type InterviewAnswerStyle = 'auto' | 'natural' | 'star' | 'technical';
 export type MeetingMode = 'meeting' | 'interview';
 export type MeetingKind = 'ad_hoc' | 'daily' | 'planning';
 export type InterviewFormat = 'standard';
@@ -215,7 +215,7 @@ export const DEFAULT_INTERVIEW_CONFIG: InterviewConfig = {
   resume: '',
   jobDescription: '',
   language: 'pt-BR',
-  answerStyle: 'natural',
+  answerStyle: 'auto',
   transcriptionProvider: 'whisper-local',
   extraInstructions: '',
   transcribeMicrophone: false,

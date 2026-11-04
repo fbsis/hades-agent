@@ -186,7 +186,12 @@ function buildInterviewContext(args = {}) {
 
 function buildInterviewInstruction(args = {}) {
   const config = { ...DEFAULT_CONFIG, ...(args.config || {}) };
-  const style = config.answerStyle;
+  const requestedStyle = config.answerStyle;
+  const questionText = String(args.question || '').toLowerCase();
+  const style = requestedStyle === 'auto'
+    ? (/\b(coding|code|program|programação|algoritmo|debug|bug|arquitetura|typescript|javascript|react|python|sql|infraestrutura)\b/.test(questionText) ? 'technical'
+      : /\b(maior desafio|desafio|conflito|liderou|liderança|lideranca|resultado|situação|situacao|exemplo|experiência|experiencia|fracasso|erro)\b/.test(questionText) ? 'star' : 'natural')
+    : requestedStyle;
   const variant = args.variant || 'answer';
   const language = getResponseLanguageContract(config.language, config.mode);
   const candidateContextInstruction =

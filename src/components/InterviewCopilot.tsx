@@ -320,7 +320,7 @@ const InterviewCopilot: React.FC<InterviewCopilotProps> = ({ embedded = false, o
                 <span><strong>Empresa / pessoa</strong>{copilot.session.config.company}</span>
               )}
               <span><strong>Idioma</strong>{copilot.session.config.language}</span>
-              <span><strong>Estilo</strong>{copilot.session.config.answerStyle}</span>
+              <label className="interview-inline-style"><strong>Estilo</strong><select aria-label="Estilo da resposta" value={copilot.session.config.answerStyle} onChange={event => { void copilot.setAnswerStyle(event.target.value as typeof copilot.session.config.answerStyle); }}><option value="auto">Automático</option><option value="natural">Natural</option><option value="star">STAR</option><option value="technical">Técnica</option></select></label>
             </div>
           )}
 
