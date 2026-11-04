@@ -216,10 +216,9 @@ describe('interview prompt contract', () => {
     expect(instruction).toContain('Use 5 to 7 independently readable Markdown bullets');
     expect(instruction).toContain('Technical question');
     expect(instruction).toContain('exactly 7 concise');
-    expect(instruction).toContain('demonstrates understanding instead of merely stating facts');
-    expect(instruction).toContain('Any other conversational statement');
-    expect(instruction).toContain('Make the response persuasive');
-    expect(instruction).toContain('explain the reasoning behind it');
+    expect(instruction).toContain('practical example');
+    expect(instruction).toContain('Natural style');
+    expect(instruction).toContain('clear and conversational');
     expect(instruction).toContain('speaker labels');
     expect(instruction).toContain('Candidate fragments');
     expect(instruction).toContain('complete supplied conversation_history');

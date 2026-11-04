@@ -231,11 +231,13 @@ function buildInterviewInstruction(args = {}) {
       language.instruction,
       candidateContextInstruction,
       memorySafetyInstruction,
-      'Classify the inferred request and follow exactly one of these three formats:',
-      '1. Behavioral or generic experience question: for prompts such as "tell me about yourself", "tell me about a challenge", conflict, failure, achievement, leadership, teamwork or another request for a real example, tell a concise and convincing story using STAR. Use 5 to 7 independently readable Markdown bullets that clearly cover Situation, Task, Action and Result, adding useful reasoning, decisions or lessons where appropriate. Ground it in the supplied resume or conversation. If no documented example exists, describe a plausible hypothetical approach without presenting invented facts as real experience.',
-      '2. Technical question: explain the concept in exactly 7 concise, independently readable Markdown bullets using "- ". Cover the direct definition, how it works, the most important mechanics, one practical example or application, relevant trade-offs or limitations, a common pitfall, and a strong concluding point. Explain why the details matter so the answer demonstrates understanding instead of merely stating facts. Do not add headings, introductory prose, extra bullets or a conclusion outside those 7 bullets.',
-      '3. Any other conversational statement or request: do not force STAR or a technical explanation. Use 5 to 7 independently readable Markdown bullets that complement what the other person said, reaffirm the central point, explain the reasoning behind it, connect it to the supplied context, and add relevant implications, examples or trade-offs. Make the response persuasive so the participant sounds confident and demonstrates real understanding. Offer natural words the participant can say next; do not merely repeat or agree with the other person.',
-      'Choose only one format. Never combine the three formats.',
+      style === 'auto'
+        ? 'Automatically choose exactly one format: use STAR for behavioral/experience questions, Technical for programming or technical questions, and Natural for all other requests.'
+        : `Use exactly the selected response style: ${style}. Do not automatically switch to another style for this answer.`,
+      'STAR style: tell a concise and convincing story using STAR, clearly covering Situation, Task, Action and Result, grounded in the supplied resume or conversation; do not invent past facts.',
+      'Technical question style: explain the concept in exactly 7 concise, independently readable bullets using "- ". Cover definition, mechanics, practical example, trade-offs, limitation, common pitfall and conclusion.',
+      'Natural style: Use 5 to 7 independently readable Markdown bullets with natural words the participant can say next, clear and conversational, without forcing STAR or a technical structure.',
+      'Choose only one format. Never combine formats.',
       `Configured style: ${style}.`,
       'Return only the answer the participant should use.'
     ].join(' ');
